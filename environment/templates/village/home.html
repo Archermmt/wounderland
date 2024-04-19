@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block content %}
+
+<div id="env">[[message]]</div>
+
+<div id='phaser-canvas'></div>
+
+{% endblock %}
+
+{% block js_content %}
+<script>
+    var env = new Vue({
+        delimiters: ['[[', ']]'],
+        el: '#env',
+        data: {
+            message: 'Welcome to the Village',
+            assets_root: "{% static 'assets/village' %}",
+            parent: "phaser-canvas",
+            width: 3200,
+            height: 2400,
+            version: 1212121
+        },
+    });
+</script>
+
+<script type="module" src="{% static 'src/village/game.js' %}"></script>
+
+{% endblock %}
