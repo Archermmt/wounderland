@@ -32,9 +32,7 @@
             {
                 "name": "Exterior Decoration L2",
                 "tileset_group": "group_1"
-            }
-        ],
-        "layers_bak": [
+            },
             {
                 "name": "Interior Ground",
                 "tileset_group": "group_1"

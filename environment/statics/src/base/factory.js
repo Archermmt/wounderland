@@ -1,5 +1,5 @@
 export default class MapFactory {
-    static create = (scene, config) => {
+    static create(scene, config) {
         const map = scene.make.tilemap({ key: config.asset });
         scene.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
         let tilesets = {};

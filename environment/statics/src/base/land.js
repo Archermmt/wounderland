@@ -23,7 +23,7 @@ export default class Land extends Phaser.Scene {
             }
         }
         // load config
-        this.load.json('config.scene', this.getAsset(this.config.scene));
+        this.load.json('config.land', this.getAsset(this.config.land));
         if (this.config.role_common) {
             this.load.json('config.role_common', this.getAsset(this.config.role_common));
         }
@@ -33,9 +33,10 @@ export default class Land extends Phaser.Scene {
     }
 
     create() {
-        const scene_config = this.cache.json.get('config.scene');
-        const map = MapFactory.create(this, scene_config.map);
-        this.camera = new SceneCamera(this, scene_config.camera, map);
+        const land_config = this.cache.json.get('config.land');
+        const map = MapFactory.create(this, land_config.map);
+        this.camera = new SceneCamera(this, land_config.camera, map);
+
         // create roles
         this.roles = {}
         const common_config = this.cache.json.get("config.role_common");
@@ -49,16 +50,11 @@ export default class Land extends Phaser.Scene {
                 this.roles[name].addCollider(role);
             }
         }
-        this.changePlayer(scene_config.player);
+        this.changePlayer(land_config.player);
 
         // set events
         this.cursors = this.input.keyboard.createCursorKeys()
-        this.input.on('gameobjectdown', (pointer, obj) => {
-            if (obj instanceof Agent) {
-                console.log("Change player to " + obj);
-                this.changePlayer(obj.name);
-            }
-        });
+        this.input.on('gameobjectdown', this.objClicked);
     }
 
     update() {
@@ -75,13 +71,20 @@ export default class Land extends Phaser.Scene {
         return this.assets_root + "/" + abs_path;
     }
 
-    changePlayer(name) {
+    changePlayer = (name) => {
         if (this.player) {
             this.player.disableControl();
         }
         this.player = this.roles[name];
         this.player.enableControl();
         this.camera.startFollow(this.player);
+    }
+
+    objClicked = (pointer, obj) => {
+        if (obj instanceof Agent) {
+            console.log("Change player to " + obj);
+            this.changePlayer(obj.name);
+        }
     }
 
 }

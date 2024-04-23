@@ -46,8 +46,11 @@
             }
         }
     },
+    "think_time": 1000,
+    "precept_mode": "circle",
+    "plan_mode": "random",
     "move": {
-        "speed": 400,
+        "speed": 100,
         "left": {
             "anim": "left-walk"
         },

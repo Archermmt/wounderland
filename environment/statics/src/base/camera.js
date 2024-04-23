@@ -18,7 +18,7 @@ export default class SceneCamera {
         }
     }
 
-    startFollow = (obj) => {
+    startFollow(obj) {
         this.camera.startFollow(obj);
     }
 
