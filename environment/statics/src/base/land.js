@@ -1,4 +1,4 @@
-import MapFactory from "./factory.js"
+import create_map from "./tilemap.js"
 import SceneCamera from "./camera.js"
 import Agent from "./agent.js"
 
@@ -25,30 +25,30 @@ export default class Land extends Phaser.Scene {
         }
         // load config
         this.load.json('config.land', this.getAsset(this.config.land));
-        if (this.config.role_common) {
-            this.load.json('config.role_common', this.getAsset(this.config.role_common));
+        if (this.config.agent_common) {
+            this.load.json('config.agent_common', this.getAsset(this.config.agent_common));
         }
-        for (const [name, profile] of Object.entries(this.config.roles)) {
-            this.load.json("config.role." + name, this.getAsset(profile));
+        for (const [name, profile] of Object.entries(this.config.agents)) {
+            this.load.json("config.agent." + name, this.getAsset(profile));
         }
     }
 
     create() {
         const land_config = this.cache.json.get('config.land');
-        const map = MapFactory.create(this, land_config.map);
+        const map = create_map(this, land_config.map);
         this.camera = new SceneCamera(this, land_config.camera, map);
 
-        // create roles
-        this.roles = {}
-        const common_config = this.cache.json.get("config.role_common");
-        for (const name of Object.keys(this.config.roles)) {
-            let role_config = this.cache.json.get("config.role." + name);
+        // create agent
+        this.agents = {}
+        const common_config = this.cache.json.get("config.agent_common");
+        for (const name of Object.keys(this.config.agents)) {
+            let agent_config = this.cache.json.get("config.agent." + name);
             if (common_config) {
-                role_config = { ...common_config, ...role_config }
+                agent_config = { ...common_config, ...agent_config }
             }
-            this.roles[name] = new Agent(this, role_config);
-            for (const role of Object.values(this.roles)) {
-                this.roles[name].addCollider(role);
+            this.agents[name] = new Agent(this, agent_config);
+            for (const agent of Object.values(this.agents)) {
+                this.agents[name].addCollider(agent);
             }
         }
         this.changePlayer(land_config.player);
@@ -59,8 +59,8 @@ export default class Land extends Phaser.Scene {
     }
 
     update() {
-        for (const role of Object.values(this.roles)) {
-            role.update();
+        for (const agent of Object.values(this.agents)) {
+            agent.update();
         }
         if (this.cursors.space.isDown) {
             this.on_debug = true;
@@ -80,8 +80,8 @@ export default class Land extends Phaser.Scene {
     }
 
     debug = () => {
-        for (const role of Object.values(this.roles)) {
-            console.log(role.toString());
+        for (const agent of Object.values(this.agents)) {
+            console.log(agent.toString());
         }
     }
 
@@ -90,7 +90,7 @@ export default class Land extends Phaser.Scene {
         if (this.player) {
             this.player.disableControl();
         }
-        this.player = this.roles[name];
+        this.player = this.agents[name];
         this.player.enableControl();
         this.camera.startFollow(this.player);
     }
