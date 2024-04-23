@@ -16,9 +16,10 @@ export default class SceneCamera {
         if (config.enable_drag || false) {
             scene.input.on("pointermove", this.drag);
         }
+    }
 
-        // follow player
-        this.camera.startFollow(player);
+    startFollow = (obj) => {
+        this.camera.startFollow(obj);
     }
 
     zoom = (pointer, gameObjects, deltaX, deltaY, deltaZ) => {

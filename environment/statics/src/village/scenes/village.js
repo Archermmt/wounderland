@@ -1,6 +1,6 @@
-import MapScene from "../../base/map_scene.js"
+import Land from "../../base/land.js"
 
-export default class Village extends MapScene {
+export default class Village extends Land {
     constructor() {
         super("village")
     }
@@ -25,13 +25,18 @@ export default class Village extends MapScene {
                 "CuteRPG_Mountains_B": { "type": "image", "path": "tilesets/CuteRPG_Mountains_B.png" },
                 "CuteRPG_Desert_B": { "type": "image", "path": "tilesets/CuteRPG_Desert_B.png" },
                 "CuteRPG_Forest_C": { "type": "image", "path": "tilesets/CuteRPG_Forest_C.png" },
-                "Arthur_Burton": { "type": "atlas", "texture": "roles/Arthur_Burton/texture.png", "sprite": "roles/Arthur_Burton/sprite.json" },
-                "Abigail_Chen": { "type": "atlas", "texture": "roles/Abigail_Chen/texture.png", "sprite": "roles/Abigail_Chen/sprite.json" },
+                "Abigail_Chen": { "type": "atlas", "texture": "roles/Abigail_Chen/texture.png", "sprite": "roles/sprite.json" },
+                "Adam_Smith": { "type": "atlas", "texture": "roles/Adam_Smith/texture.png", "sprite": "roles/sprite.json" },
+                "Arthur_Burton": { "type": "atlas", "texture": "roles/Arthur_Burton/texture.png", "sprite": "roles/sprite.json" },
+                "Ayesha_Khan": { "type": "atlas", "texture": "roles/Ayesha_Khan/texture.png", "sprite": "roles/sprite.json" },
             },
             "scene": "scene.json",
+            "role_common": "roles/profile.json",
             "roles": {
+                "Abigail_Chen": "roles/Abigail_Chen/profile.json",
+                "Adam_Smith": "roles/Adam_Smith/profile.json",
                 "Arthur_Burton": "roles/Arthur_Burton/profile.json",
-                "Abigail_Chen": "roles/Abigail_Chen/profile.json"
+                "Ayesha_Khan": "roles/Ayesha_Khan/profile.json",
             }
         }
 
