@@ -1,8 +1,14 @@
 {
     "direction": "down",
-    "position": [
-        800,
-        288
+    "zone": [
+        [
+            600,
+            900
+        ],
+        [
+            1200,
+            1600
+        ]
     ],
     "anims": {
         "left-walk": {
@@ -47,8 +53,12 @@
         }
     },
     "think_time": 1000,
-    "precept_mode": "circle",
-    "plan_mode": "random",
+    "percept": {
+        "mode": "circle"
+    },
+    "plan": {
+        "mode": "random"
+    },
     "move": {
         "speed": 100,
         "left": {

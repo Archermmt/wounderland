@@ -11,6 +11,7 @@ export default class Land extends Phaser.Scene {
     }
 
     preload() {
+        this.on_debug = false;
         this.config = this.config();
         // load assets
         for (const [name, asset] of Object.entries(this.config.assets)) {
@@ -61,6 +62,13 @@ export default class Land extends Phaser.Scene {
         for (const role of Object.values(this.roles)) {
             role.update();
         }
+        if (this.cursors.space.isDown) {
+            this.on_debug = true;
+        }
+        if (this.cursors.space.isUp && this.on_debug) {
+            this.debug();
+            this.on_debug = false;
+        }
     }
 
     getAsset(path) {
@@ -70,6 +78,13 @@ export default class Land extends Phaser.Scene {
         }
         return this.assets_root + "/" + abs_path;
     }
+
+    debug = () => {
+        for (const role of Object.values(this.roles)) {
+            console.log(role.toString());
+        }
+    }
+
 
     changePlayer = (name) => {
         if (this.player) {

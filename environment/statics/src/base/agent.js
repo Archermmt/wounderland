@@ -2,34 +2,36 @@ class AgentStatus {
     constructor(config) {
         const move_config = config.move;
         this.controlled = false;
-        this.position = config.position;
         this.direction = config.direction;
         this.speed = move_config.speed;
         this.think_time = config.think_time || 1000;
-        this.precept_mode = config.precept_mode || "circle";
-        this.plan_mode = config.plan_mode || "random";
+        this.percept = config.percept;
+        this.plan = config.plan;
     }
 
     toString = () => {
-        let tag;
+        let str = "  movement: " + this.direction + " X " + this.speed;
         if (this.controlled) {
-            tag = "[Palyer]";
+            str += "\n  action: controlled";
         } else {
-            tag = "[Free]";
+            str += "\n  action: percept+plan / " + this.think_time + " ms";
+            str += "\n  percept: " + JSON.stringify(this.percept);
+            str += "\n  plan: " + JSON.stringify(this.plan);
         }
-        let str = tag + "\n  position: " + this.position;
-        str += "\n  direction: " + this.direction;
-        str += "\n  speed: " + this.speed;
-        str += "\n  think_time: " + this.think_time;
-        str += "\n  precept_mode: " + this.precept_mode;
-        str += "\n  plan_mode: " + this.plan_mode;
         return str
     }
 }
 
 export default class Agent extends Phaser.GameObjects.Sprite {
     constructor(scene, config) {
-        super(scene, config.position[0], config.position[1], config.name)
+        let position = [0, 0];
+        if (config.position) {
+            position = config.position;
+        } else if (config.zone) {
+            position[0] = Math.floor(Math.random() * (config.zone[0][1] - config.zone[0][0])) + config.zone[0][0];
+            position[1] = Math.floor(Math.random() * (config.zone[1][1] - config.zone[1][0])) + config.zone[1][0];
+        }
+        super(scene, position[0], position[1], config.name)
         this.scene = scene;
         this.config = config;
         this.name = config.name;
@@ -90,16 +92,13 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         } else if (cursors.down.isDown) {
             this.moveTo("down");
         }
-        if (cursors.space.isDown) {
-            console.log("profile: " + this);
-        }
         if (cursors.left.isUp && cursors.right.isUp && cursors.up.isUp && cursors.down.isUp) {
             this.anims.stop();
         }
     }
 
     toString = () => {
-        return "<" + this.name + ">" + this.status;
+        return this.name + " @ " + Math.round(this.body.position.x) + "," + Math.round(this.body.position.y) + "\n" + this.status;
     }
 
     moveTo(direction) {
@@ -128,13 +127,13 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
-    precept = () => {
+    percept = () => {
         return "";
     }
 
     plan = (observation) => {
         let direct;
-        if (this.status.plan_mode === "random") {
+        if (this.status.plan.mode === "random") {
             const directs = ["left", "right", "up", "down", "stop"];
             direct = directs[Math.floor(Math.random() * directs.length)];
         }
@@ -145,7 +144,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         if (this.status.controlled) {
             return;
         }
-        const observation = this.precept();
+        const observation = this.percept();
         const direct = this.plan(observation);
         this.body.setVelocity(0);
         if (direct === "stop") {
@@ -178,5 +177,6 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
     disableControl = () => {
         this.status.controlled = false;
+        this.scene.time.delayedCall(this.status.think_time, this.action, [], this);
     }
 }
