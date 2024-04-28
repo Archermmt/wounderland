@@ -1,5 +1,4 @@
 import Village from './scenes/village.js'
-import Persona from '../base/agent.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -14,7 +13,7 @@ const config = {
     dom: {
         createContainer: true
     },
-    scene: [Village, Persona],
+    scene: Village,
     physics: {
         default: "arcade",
         arcade: {

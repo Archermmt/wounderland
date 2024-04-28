@@ -1,52 +1,3 @@
-export default class Persona extends Phaser.Scene {
-    constructor() {
-        super("persona")
-    }
-
-    init(data) {
-        console.log('init in profile' + data);
-        this.land = data.land;
-        this.agents = this.land.agents;
-        for (const agent of Object.values(this.agents)) {
-            console.log(agent.toString());
-        }
-        console.log("lan payer " + this.land.player);
-    }
-
-    preload() {
-        console.log("calling preload of AgentProfile");
-    }
-
-    create() {
-        console.log("calling create of AgentProfile");
-        console.log("see the document in agent board " + document);
-        const board = document.createElement("div");
-        board.className = "nes-container is-rounded is-dark with-title";
-        board.style = "font-size:xx-small; width:400px; height:700px";
-
-        const title = document.createElement("p");
-        title.className = "title";
-        title.innerText = "tag1";
-        board.appendChild(title);
-
-        const text = document.createElement("p");
-        text.innerText = "Good morning. Thou hast had a good night's sleep, I hope.";
-        board.appendChild(text);
-
-        console.log("map widthInPixels " + this.land.map.widthInPixels);
-        console.log("map heightInPixels " + this.land.map.heightInPixels);
-        console.log("canvas width " + this.sys.game.canvas.width);
-        console.log("canvas height " + this.sys.game.canvas.height);
-
-        this.add.dom(190, 350, board);
-        console.log("board width " + board.offsetWidth);
-        console.log("board height " + board.offsetHeight);
-    }
-
-    update() {
-    }
-}
-
 class AgentStatus {
     constructor(config) {
         const move_config = config.move;
@@ -246,6 +197,57 @@ export class Agent extends Phaser.GameObjects.Sprite {
 
 }
 
+export default class Persona extends Phaser.Scene {
+    constructor() {
+        super("persona")
+    }
+
+    init(data) {
+        console.log('init in profile' + data);
+        this.land = data.land;
+        this.agents = this.land.agents;
+        for (const agent of Object.values(this.agents)) {
+            console.log(agent.toString());
+        }
+        console.log("lan payer " + this.land.player);
+    }
+
+    preload() {
+        console.log("calling preload of AgentProfile");
+    }
+
+    create() {
+        console.log("calling create of AgentProfile");
+        console.log("see the document in agent board " + document);
+        const board = document.createElement("div");
+        board.className = "nes-container is-rounded is-dark with-title";
+        const board_height = this.sys.game.canvas.height * 0.98;
+        board.style = "font-size:xx-small; width:400px; height:" + board_height + "px";
+        console.log("board.style " + board.style)
+
+        const title = document.createElement("p");
+        title.className = "title";
+        title.innerText = "tag1";
+        board.appendChild(title);
+
+        const text = document.createElement("p");
+        text.innerText = "Good morning. Thou hast had a good night's sleep, I hope.";
+        board.appendChild(text);
+
+        console.log("map widthInPixels " + this.land.map.widthInPixels);
+        console.log("map heightInPixels " + this.land.map.heightInPixels);
+        console.log("canvas width " + this.sys.game.canvas.width);
+        console.log("canvas height " + this.sys.game.canvas.height);
+
+        this.add.dom(200, board_height / 2, board);
+        console.log("board width " + board.offsetWidth);
+        console.log("board height " + board.offsetHeight);
+    }
+
+    update() {
+    }
+}
+
 export class AgentBoard {
     constructor(scene_ctx) {
         this.ctx = scene_ctx
@@ -254,9 +256,6 @@ export class AgentBoard {
         this.display = false;
         this.scene_name = "persona";
         this.scene.launch(this.scene_name, { land: scene_ctx });
-        //this.scene.pause(this.scene_name);
-        //this.scene.setVisible(false, this.scene_name);
-        //scene_ctx.input.keyboard.on('keydown-P', this.switch);
     }
 
     switch = (event) => {

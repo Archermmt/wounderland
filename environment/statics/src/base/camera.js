@@ -22,6 +22,11 @@ export default class LandCamera {
         this.camera.startFollow(obj);
     }
 
+    locate(obj) {
+        this.camera.startFollow(obj);
+        this.camera.stopFollow();
+    }
+
     zoom = (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
         const z_range = this.status.zoom_range;
         this.status.zoom_factor = Math.min(Math.max(this.status.zoom_factor + deltaY * z_range[2], z_range[0]), z_range[1]);

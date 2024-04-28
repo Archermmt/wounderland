@@ -37,16 +37,17 @@ export default class Land extends Phaser.Scene {
         const land_config = this.cache.json.get('config.land');
         const map_creator = new tileMapCreator(this, land_config.map);
         this.map = map_creator.create();
-        this.camera = new LandCamera(this, land_config.camera);
 
         // create agent
-        this.agents = {}
+        this.agents = {};
+        var player_name;
         const common_config = this.cache.json.get("config.agent_common");
         for (const name of Object.keys(this.config.agents)) {
             let agent_config = this.cache.json.get("config.agent." + name);
             if (common_config) {
                 agent_config = { ...common_config, ...agent_config }
             }
+            player_name = name;
             this.agents[name] = new Agent(this, agent_config);
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
@@ -62,7 +63,11 @@ export default class Land extends Phaser.Scene {
         }
 
         // create agent board
-        this.agent_board = new AgentBoard(this, document);
+        //this.agent_board = new AgentBoard(this, document);
+
+        // create camera
+        this.camera = new LandCamera(this, land_config.camera);
+        this.changePlayer(player_name);
 
         // set events
         this.cursors = this.input.keyboard.createCursorKeys()
@@ -94,6 +99,7 @@ export default class Land extends Phaser.Scene {
         for (const agent of Object.values(this.agents)) {
             console.log(agent.toString());
         }
+        this.env.message = "on debugging";
     }
 
     changePlayer = (name) => {
@@ -102,6 +108,7 @@ export default class Land extends Phaser.Scene {
         }
         this.player = this.agents[name];
         this.player.setObserve(true);
+        this.camera.locate(this.player);
     }
 
     objClicked = (pointer, obj) => {

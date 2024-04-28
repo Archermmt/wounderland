@@ -3,14 +3,23 @@
 {% load static %}
 
 {% block content %}
-<!--
-<div id="env">[[message]]</div>
 
-<div class="nes-container is-rounded is-dark with-title" style="font-size:xx-small; width:50%">
-    <p class="title">Container.is-dark</p>
-    <p>Good morning. Thou hast had a good night's sleep, I hope.</p>
+<div id="env" style="font-size:xx-small; width:40%; position:fixed">
+    <div class="nes-container is-rounded is-dark with-title">
+        <p class="title">Persona</p>
+        <div style="background-color:#212529; padding: 0;width:calc(100% + 8px)">
+            <label for="dark_select" style="color:#fff">[[message]]</label>
+            <div class="nes-select is-dark">
+                <select required id="dark_select">
+                    <option value="" disabled selected hidden>Choose agent...</option>
+                    <option v-for="agent in agents" :value=[[agent]]>
+                        [[agent]]
+                    </option>
+                </select>
+            </div>
+        </div>
+    </div>
 </div>
--->
 
 <div id='phaser-canvas'></div>
 
@@ -25,6 +34,7 @@
             message: 'Welcome to the Village',
             assets_root: "{% static 'assets/village' %}",
             parent: "phaser-canvas",
+            agents: '{{agents}}'
         },
     });
 </script>
