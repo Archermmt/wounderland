@@ -1,4 +1,5 @@
 import Village from './scenes/village.js'
+import Persona from '../base/agent.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -7,10 +8,13 @@ const config = {
         parent: env.parent,
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: env.width,
-        height: env.height
+        width: window.innerWidth,
+        height: window.innerHeight,
     },
-    scene: Village,
+    dom: {
+        createContainer: true
+    },
+    scene: [Village, Persona],
     physics: {
         default: "arcade",
         arcade: {
@@ -20,4 +24,4 @@ const config = {
 }
 
 const game = new Phaser.Game(config);
-game.scene.start("village", env)
+game.scene.start("village", env);

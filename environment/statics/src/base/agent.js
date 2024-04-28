@@ -1,7 +1,57 @@
+export default class Persona extends Phaser.Scene {
+    constructor() {
+        super("persona")
+    }
+
+    init(data) {
+        console.log('init in profile' + data);
+        this.land = data.land;
+        this.agents = this.land.agents;
+        for (const agent of Object.values(this.agents)) {
+            console.log(agent.toString());
+        }
+        console.log("lan payer " + this.land.player);
+    }
+
+    preload() {
+        console.log("calling preload of AgentProfile");
+    }
+
+    create() {
+        console.log("calling create of AgentProfile");
+        console.log("see the document in agent board " + document);
+        const board = document.createElement("div");
+        board.className = "nes-container is-rounded is-dark with-title";
+        board.style = "font-size:xx-small; width:400px; height:700px";
+
+        const title = document.createElement("p");
+        title.className = "title";
+        title.innerText = "tag1";
+        board.appendChild(title);
+
+        const text = document.createElement("p");
+        text.innerText = "Good morning. Thou hast had a good night's sleep, I hope.";
+        board.appendChild(text);
+
+        console.log("map widthInPixels " + this.land.map.widthInPixels);
+        console.log("map heightInPixels " + this.land.map.heightInPixels);
+        console.log("canvas width " + this.sys.game.canvas.width);
+        console.log("canvas height " + this.sys.game.canvas.height);
+
+        this.add.dom(190, 350, board);
+        console.log("board width " + board.offsetWidth);
+        console.log("board height " + board.offsetHeight);
+    }
+
+    update() {
+    }
+}
+
 class AgentStatus {
     constructor(config) {
         const move_config = config.move;
-        this.controlled = false;
+        this.is_observe = false;
+        this.is_control = false;
         this.direction = config.direction;
         this.speed = move_config.speed;
         this.think_time = config.think_time || 1000;
@@ -10,9 +60,10 @@ class AgentStatus {
     }
 
     toString = () => {
-        let str = "  movement: " + this.direction + " X " + this.speed;
-        if (this.controlled) {
-            str += "\n  action: controlled";
+        let str = "  is_observe: " + this.is_observe;
+        str += "\n  movement: " + this.direction + " X " + this.speed;
+        if (this.is_control) {
+            str += "\n  action: control";
         } else {
             str += "\n  action: percept+plan / " + this.think_time + " ms";
             str += "\n  percept: " + JSON.stringify(this.percept);
@@ -22,7 +73,7 @@ class AgentStatus {
     }
 }
 
-export default class Agent extends Phaser.GameObjects.Sprite {
+export class Agent extends Phaser.GameObjects.Sprite {
     constructor(scene, config) {
         let position = [0, 0];
         if (config.position) {
@@ -78,10 +129,9 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     update() {
-        if (!this.status.controlled) {
+        if (!this.status.is_control) {
             return;
         }
-        this.body.setVelocity(0);
         const cursors = this.scene.cursors;
         if (cursors.left.isDown) {
             this.moveTo("left");
@@ -93,7 +143,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             this.moveTo("down");
         }
         if (cursors.left.isUp && cursors.right.isUp && cursors.up.isUp && cursors.down.isUp) {
-            this.anims.stop();
+            this.stopMove();
         }
     }
 
@@ -104,6 +154,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     moveTo(direction) {
         const move_config = this.config.move;
         this.status.direction = direction;
+        this.body.setVelocity(0);
         if (direction === "left") {
             if (move_config.left) {
                 this.anims.play(this.animations[move_config.left.anim], true);
@@ -127,6 +178,11 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
+    stopMove() {
+        this.anims.stop();
+        this.body.setVelocity(0);
+    }
+
     percept = () => {
         return "";
     }
@@ -141,14 +197,14 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     action = () => {
-        if (this.status.controlled) {
+        if (this.status.is_control) {
             return;
         }
         const observation = this.percept();
         const direct = this.plan(observation);
         this.body.setVelocity(0);
         if (direct === "stop") {
-            this.anims.stop();
+            this.stopMove();
         } else {
             this.moveTo(direct);
         }
@@ -156,27 +212,67 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     addCollider(other) {
-        if (this.name == other.name) {
-            return false;
+        if (other instanceof Agent) {
+            if (this.name == other.name) {
+                return false;
+            }
+            if (this.colliders.has(other.name) || other.colliders.has(this.name)) {
+                return false;
+            }
+            this.colliders.add(other.name);
+            other.colliders.add(this.name);
+            this.scene.physics.add.collider(this, other, (agent, other) => {
+                agent.stopMove();
+                other.stopMove();
+            });
+        } else {
+            this.scene.physics.add.collider(this, other, (agent, other) => {
+                agent.stopMove();
+            });
         }
-        if (this.colliders.has(other.name) || other.colliders.has(this.name)) {
-            return false;
-        }
-        this.colliders.add(other.name);
-        other.colliders.add(this.name);
-        this.scene.physics.add.collider(this, other, (agent, other) => {
-            agent.body.setVelocity(0);
-            other.body.setVelocity(0);
-        }, null, this);
         return true;
     }
 
-    enableControl() {
-        this.status.controlled = true;
+    setObserve(is_observe) {
+        this.status.is_observe = is_observe;
     }
 
-    disableControl = () => {
-        this.status.controlled = false;
-        this.scene.time.delayedCall(this.status.think_time, this.action, [], this);
+    setControl(is_control) {
+        this.status.is_control = is_control;
+        if (!this.status.is_control) {
+            this.scene.time.delayedCall(this.status.think_time, this.action, [], this);
+        }
     }
+
+}
+
+export class AgentBoard {
+    constructor(scene_ctx) {
+        this.ctx = scene_ctx
+        this.scene = scene_ctx.scene;
+        this.agents = this.ctx.agents;
+        this.display = false;
+        this.scene_name = "persona";
+        this.scene.launch(this.scene_name, { land: scene_ctx });
+        //this.scene.pause(this.scene_name);
+        //this.scene.setVisible(false, this.scene_name);
+        //scene_ctx.input.keyboard.on('keydown-P', this.switch);
+    }
+
+    switch = (event) => {
+        if (event.keyCode === Phaser.Input.Keyboard.KeyCodes.P) {
+            console.log("P is pressed")
+            console.log("current player " + this.ctx.player)
+            if (this.enable) {
+                this.scene.pause(this.scene_name);
+                this.scene.setVisible(false, this.scene_name);
+                this.enable = false;
+            } else {
+                this.scene.resume(this.scene_name);
+                this.scene.setVisible(true, this.scene_name);
+                this.enable = true;
+            }
+        }
+    }
+
 }

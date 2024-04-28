@@ -1,6 +1,6 @@
-import create_map from "./tilemap.js"
-import SceneCamera from "./camera.js"
-import Agent from "./agent.js"
+import tileMapCreator from "./tilemap.js"
+import LandCamera from "./camera.js"
+import { Agent, AgentBoard } from "./agent.js"
 
 export default class Land extends Phaser.Scene {
     current_player = "unknown";
@@ -35,8 +35,9 @@ export default class Land extends Phaser.Scene {
 
     create() {
         const land_config = this.cache.json.get('config.land');
-        const map = create_map(this, land_config.map);
-        this.camera = new SceneCamera(this, land_config.camera, map);
+        const map_creator = new tileMapCreator(this, land_config.map);
+        this.map = map_creator.create();
+        this.camera = new LandCamera(this, land_config.camera);
 
         // create agent
         this.agents = {}
@@ -51,7 +52,17 @@ export default class Land extends Phaser.Scene {
                 this.agents[name].addCollider(agent);
             }
         }
-        this.changePlayer(land_config.player);
+        // add colliders
+        for (const [name, layer] of Object.entries(map_creator.layers)) {
+            if (layer.info.collision) {
+                for (const agent of Object.values(this.agents)) {
+                    agent.addCollider(layer.layer);
+                }
+            }
+        }
+
+        // create agent board
+        this.agent_board = new AgentBoard(this, document);
 
         // set events
         this.cursors = this.input.keyboard.createCursorKeys()
@@ -85,14 +96,12 @@ export default class Land extends Phaser.Scene {
         }
     }
 
-
     changePlayer = (name) => {
         if (this.player) {
-            this.player.disableControl();
+            this.player.setObserve(false);
         }
         this.player = this.agents[name];
-        this.player.enableControl();
-        this.camera.startFollow(this.player);
+        this.player.setObserve(true);
     }
 
     objClicked = (pointer, obj) => {

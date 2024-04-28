@@ -3,8 +3,14 @@
 {% load static %}
 
 {% block content %}
-
+<!--
 <div id="env">[[message]]</div>
+
+<div class="nes-container is-rounded is-dark with-title" style="font-size:xx-small; width:50%">
+    <p class="title">Container.is-dark</p>
+    <p>Good morning. Thou hast had a good night's sleep, I hope.</p>
+</div>
+-->
 
 <div id='phaser-canvas'></div>
 
@@ -19,8 +25,6 @@
             message: 'Welcome to the Village',
             assets_root: "{% static 'assets/village' %}",
             parent: "phaser-canvas",
-            width: 1600,
-            height: 1200
         },
     });
 </script>

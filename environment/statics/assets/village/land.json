@@ -67,9 +67,10 @@
                 "tileset_group": [
                     "blocks"
                 ],
-                "depth": -1,
                 "collision": {
-                    "collide": true
+                    "exclusion": [
+                        -1
+                    ]
                 }
             }
         ]
@@ -81,6 +82,5 @@
             10,
             0.01
         ]
-    },
-    "player": "Abigail_Chen"
+    }
 }

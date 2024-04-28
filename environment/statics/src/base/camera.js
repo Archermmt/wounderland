@@ -1,20 +1,20 @@
-export default class SceneCamera {
-    constructor(scene, config, map, player) {
-        this.name = 'scene_camera';
+export default class LandCamera {
+    constructor(land, config) {
+        this.name = 'land_camera';
         this.status = {
             "zoom_factor": config.zoom_factor || 1,
             "zoom_range": config.zoom_range || [1, 10, 0.01]
         }
-        this.camera = scene.cameras.main;
-        this.camera.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+        this.camera = land.cameras.main;
+        this.camera.setBounds(0, 0, land.map.widthInPixels, land.map.heightInPixels);
         this.camera.setZoom(this.status.zoom_factor);
 
         // set events
         if (config.enable_zoom || true) {
-            scene.input.on("wheel", this.zoom);
+            land.input.on("wheel", this.zoom);
         }
-        if (config.enable_drag || false) {
-            scene.input.on("pointermove", this.drag);
+        if (config.enable_drag || true) {
+            land.input.on("pointermove", this.drag);
         }
     }
 
