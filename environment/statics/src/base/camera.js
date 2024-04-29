@@ -8,6 +8,7 @@ export default class LandCamera {
         this.camera = land.cameras.main;
         this.camera.setBounds(0, 0, land.map.widthInPixels, land.map.heightInPixels);
         this.camera.setZoom(this.status.zoom_factor);
+        this.offset(0, 0);
 
         // set events
         if (config.enable_zoom || true) {
@@ -18,13 +19,24 @@ export default class LandCamera {
         }
     }
 
-    startFollow(obj) {
-        this.camera.startFollow(obj);
+    setFollow(obj, follow) {
+        if (follow) {
+            this.camera.startFollow(obj);
+            this.camera.followOffset.set(-this.offsetCoords.x, this.offsetCoords.y);
+        } else {
+            this.camera.stopFollow();
+        }
     }
 
     locate(obj) {
         this.camera.startFollow(obj);
         this.camera.stopFollow();
+        this.camera.scrollX += this.offsetCoords.x / this.camera.zoom;
+        this.camera.scrollY += this.offsetCoords.y / this.camera.zoom;
+    }
+
+    offset(x, y) {
+        this.offsetCoords = { "x": x, "y": y };
     }
 
     zoom = (pointer, gameObjects, deltaX, deltaY, deltaZ) => {

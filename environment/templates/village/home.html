@@ -4,19 +4,62 @@
 
 {% block content %}
 
-<div id="env" style="font-size:xx-small; width:40%; position:fixed">
-    <div class="nes-container is-rounded is-dark with-title">
+<div id="env" style="font-size:x-small; width:40%; height:100%; position:fixed">
+    <div class="nes-container is-rounded is-dark with-title" style="height:100%">
         <p class="title">Persona</p>
-        <div style="background-color:#212529; padding: 0;width:calc(100% + 8px)">
-            <label for="dark_select" style="color:#fff">[[message]]</label>
+        <div style="background-color:#212529; padding:0; width:100%">
             <div class="nes-select is-dark">
-                <select required id="dark_select">
+                <select required id="dark_select" @change="changePlayer($event)">
                     <option value="" disabled selected hidden>Choose agent...</option>
                     <option v-for="agent in agents" :value=[[agent]]>
                         [[agent]]
                     </option>
                 </select>
             </div>
+        </div><br>
+
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link" style="padding: 1em" @click="displayPlayer('agent')">Agent</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" style="padding: 1em" @click="displayPlayer('memory')">Memory</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" style="padding: 1em" @click="displayPlayer('plan')">Plan</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" style="padding: 1em" @click="displayPlayer('space')">Space</a>
+            </li>
+        </ul>
+
+        <div id="Agent" v-show="display.agent">
+            <img v-bind:src="[[player_info.agent.portrait]]" alt="" style="margin: 2em;">
+            <label style="padding: 2em 4em">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
+                <span>Follow</span>
+            </label>
+
+            <label style="padding: 2em 4em">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="controlPlayer($event)">
+                <span>Control</span>
+            </label>
+            <p>Status:</p>
+            <p v-for="d in player_info.agent.status" style="font-size:8px;">&nbsp;[[d]]</p><br>
+            <p>Describe:</p>
+            <p v-for="d in player_info.agent.describe" style="font-size:8px;">&nbsp;[[d]]</p><br>
+        </div>
+
+        <div id="Memory" v-show="display.memory">
+            <p>This is memeory</p>
+        </div>
+
+        <div id="Plan" v-show="display.plan">
+            <p>This is plan</p>
+        </div>
+
+        <div id="Space" v-show="display.space">
+            <p>This is space</p>
         </div>
     </div>
 </div>
@@ -34,8 +77,49 @@
             message: 'Welcome to the Village',
             assets_root: "{% static 'assets/village' %}",
             parent: "phaser-canvas",
-            agents: '{{agents}}'
+            agents: [],
+            update_info: null,
+            player_info: {
+                name: "",
+                agent: {
+                    portrait: "",
+                    status: [],
+                    describe: []
+                },
+                memory: null,
+                plan: null,
+                spane: null,
+            },
+            display: {
+                agent: true,
+                memory: false,
+                plan: false,
+                space: false,
+            },
         },
+        methods: {
+            update: function (key, value) {
+                if (!this.update_info) {
+                    this.update_info = {};
+                }
+                this.update_info[key] = value;
+            },
+            changePlayer: function (event) {
+                this.update("player", event.target.value);
+            },
+            followPlayer: function (event) {
+                this.update("follow_player", event.target.checked);
+            },
+            controlPlayer: function (event) {
+                this.update("control_player", event.target.checked);
+            },
+            displayPlayer: function (tab_name) {
+                for (const key of Object.keys(this.display)) {
+                    this.display[key] = false;
+                }
+                this.display[tab_name] = true;
+            }
+        }
     });
 </script>
 

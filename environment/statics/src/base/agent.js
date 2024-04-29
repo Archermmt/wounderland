@@ -1,7 +1,6 @@
 class AgentStatus {
     constructor(config) {
         const move_config = config.move;
-        this.is_observe = false;
         this.is_control = false;
         this.direction = config.direction;
         this.speed = move_config.speed;
@@ -10,17 +9,21 @@ class AgentStatus {
         this.plan = config.plan;
     }
 
-    toString = () => {
-        let str = "  is_observe: " + this.is_observe;
-        str += "\n  movement: " + this.direction + " X " + this.speed;
+    toLines() {
+        var des = ["Movement: " + this.direction + " X " + this.speed];
         if (this.is_control) {
-            str += "\n  action: control";
+            des.push("Action: control");
         } else {
-            str += "\n  action: percept+plan / " + this.think_time + " ms";
-            str += "\n  percept: " + JSON.stringify(this.percept);
-            str += "\n  plan: " + JSON.stringify(this.plan);
+            des.push("Action: percept+plan / " + this.think_time + " ms");
+            des.push("Percept: " + JSON.stringify(this.percept));
+            des.push("Plan: " + JSON.stringify(this.plan));
         }
-        return str
+        return des;
+    }
+
+    toString() {
+        const lines = this.toLines();
+        return lines.join("\n  ");
     }
 }
 
@@ -37,6 +40,12 @@ export class Agent extends Phaser.GameObjects.Sprite {
         this.scene = scene;
         this.config = config;
         this.name = config.name;
+        if (this.config.portrait) {
+            const portrait_asset = scene.config.assets[this.config.portrait];
+            if (portrait_asset) {
+                this.portrait_path = scene.getAsset(portrait_asset["path"]);
+            }
+        }
         this.status = new AgentStatus(config);
         // add sprite
         scene.add.existing(this);
@@ -98,9 +107,17 @@ export class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
-    toString = () => {
-        return this.name + " @ " + Math.round(this.body.position.x) + "," + Math.round(this.body.position.y) + "\n" + this.status;
+    getStatus() {
+        var status = ["Coord: " + Math.round(this.body.position.x) + "," + Math.round(this.body.position.y)];
+        status.push(...this.status.toLines());
+        return status;
     }
+
+    toString = () => {
+        return this.name + "\n  " + this.getStatus().join("\n  ");
+    }
+
+
 
     moveTo(direction) {
         const move_config = this.config.move;
@@ -184,10 +201,6 @@ export class Agent extends Phaser.GameObjects.Sprite {
         return true;
     }
 
-    setObserve(is_observe) {
-        this.status.is_observe = is_observe;
-    }
-
     setControl(is_control) {
         this.status.is_control = is_control;
         if (!this.status.is_control) {
@@ -197,6 +210,7 @@ export class Agent extends Phaser.GameObjects.Sprite {
 
 }
 
+/*
 export default class Persona extends Phaser.Scene {
     constructor() {
         super("persona")
@@ -247,30 +261,25 @@ export default class Persona extends Phaser.Scene {
     update() {
     }
 }
+*/
 
 export class AgentBoard {
-    constructor(scene_ctx) {
-        this.ctx = scene_ctx
-        this.scene = scene_ctx.scene;
-        this.agents = this.ctx.agents;
-        this.display = false;
-        this.scene_name = "persona";
-        this.scene.launch(this.scene_name, { land: scene_ctx });
+    constructor(ctx) {
+        this.ctx = ctx
+        var agents = [];
+        for (const agent of Object.values(ctx.agents)) {
+            agents.push(agent.name);
+        }
+        this.ctx.env.agents = agents;
+        this.setDisplay(true);
     }
 
-    switch = (event) => {
-        if (event.keyCode === Phaser.Input.Keyboard.KeyCodes.P) {
-            console.log("P is pressed")
-            console.log("current player " + this.ctx.player)
-            if (this.enable) {
-                this.scene.pause(this.scene_name);
-                this.scene.setVisible(false, this.scene_name);
-                this.enable = false;
-            } else {
-                this.scene.resume(this.scene_name);
-                this.scene.setVisible(true, this.scene_name);
-                this.enable = true;
-            }
+    setDisplay(display) {
+        this.display = display;
+        if (this.display) {
+            this.ctx.camera.offset(-this.ctx.sys.game.canvas.width * 0.2, 0);
+        } else {
+            this.ctx.camera.offset(0, 0);
         }
     }
 

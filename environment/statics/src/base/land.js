@@ -47,7 +47,9 @@ export default class Land extends Phaser.Scene {
             if (common_config) {
                 agent_config = { ...common_config, ...agent_config }
             }
-            player_name = name;
+            if (!player_name) {
+                player_name = name;
+            }
             this.agents[name] = new Agent(this, agent_config);
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
@@ -62,16 +64,18 @@ export default class Land extends Phaser.Scene {
             }
         }
 
-        // create agent board
-        //this.agent_board = new AgentBoard(this, document);
-
         // create camera
         this.camera = new LandCamera(this, land_config.camera);
-        this.changePlayer(player_name);
+
+        // create agent board
+        this.agent_board = new AgentBoard(this);
 
         // set events
         this.cursors = this.input.keyboard.createCursorKeys()
         this.input.on('gameobjectdown', this.objClicked);
+
+        // change player
+        this.changePlayer(player_name);
     }
 
     update() {
@@ -84,6 +88,18 @@ export default class Land extends Phaser.Scene {
         if (this.cursors.space.isUp && this.on_debug) {
             this.debug();
             this.on_debug = false;
+        }
+        if (this.env.update_info) {
+            if (this.env.update_info.player) {
+                this.changePlayer(this.env.update_info.player);
+            }
+            if (this.player && (typeof this.env.update_info.follow_player !== "undefined")) {
+                this.camera.setFollow(this.player, this.env.update_info.follow_player);
+            }
+            if (this.player && (typeof this.env.update_info.control_player !== "undefined")) {
+                this.player.setControl(this.env.update_info.control_player);
+            }
+            this.env.update_info = null;
         }
     }
 
@@ -99,21 +115,25 @@ export default class Land extends Phaser.Scene {
         for (const agent of Object.values(this.agents)) {
             console.log(agent.toString());
         }
-        this.env.message = "on debugging";
     }
 
     changePlayer = (name) => {
         if (this.player) {
-            this.player.setObserve(false);
+            this.player.setControl(false);
+            this.camera.setFollow(this.player, false);
         }
         this.player = this.agents[name];
-        this.player.setObserve(true);
         this.camera.locate(this.player);
+        this.env.player_info["name"] = this.player.name;
+        this.env.player_info["agent"] = {
+            "portrait": this.player.portrait_path,
+            "status": this.player.getStatus()
+        }
+        console.log("Change player to " + this.player);
     }
 
     objClicked = (pointer, obj) => {
         if (obj instanceof Agent) {
-            console.log("Change player to " + obj);
             this.changePlayer(obj.name);
         }
     }
