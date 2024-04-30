@@ -9,21 +9,24 @@ class AgentStatus {
         this.plan = config.plan;
     }
 
-    toLines() {
-        var des = ["Movement: " + this.direction + " X " + this.speed];
+    toDict() {
+        var dict = { "Movement": this.direction + " X " + this.speed };
         if (this.is_control) {
-            des.push("Action: control");
+            dict["Action"] = "control";
         } else {
-            des.push("Action: percept+plan / " + this.think_time + " ms");
-            des.push("Percept: " + JSON.stringify(this.percept));
-            des.push("Plan: " + JSON.stringify(this.plan));
+            dict["Action"] = "percept+plan / " + this.think_time + " ms";
+            dict["Percept"] = JSON.stringify(this.percept);
+            dict["Plan"] = JSON.stringify(this.plan);
         }
-        return des;
+        return dict;
     }
 
     toString() {
-        const lines = this.toLines();
-        return lines.join("\n  ");
+        var str = "";
+        for (const [name, info] of Object.entries(this.toDict())) {
+            str += name + ": " + info;
+        }
+        return str;
     }
 }
 
@@ -107,17 +110,24 @@ export class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
+    getPosition() {
+        return Math.round(this.body.position.x) + "," + Math.round(this.body.position.y);
+    }
+
     getStatus() {
-        var status = ["Coord: " + Math.round(this.body.position.x) + "," + Math.round(this.body.position.y)];
-        status.push(...this.status.toLines());
-        return status;
+        return {
+            "position": this.getPosition(),
+            ...this.status.toDict()
+        }
+    }
+
+    getDescribe() {
+        return { "name": this.name };
     }
 
     toString = () => {
-        return this.name + "\n  " + this.getStatus().join("\n  ");
+        return this.name + " @ " + this.getPosition() + "\n" + this.status;
     }
-
-
 
     moveTo(direction) {
         const move_config = this.config.move;
@@ -210,67 +220,9 @@ export class Agent extends Phaser.GameObjects.Sprite {
 
 }
 
-/*
-export default class Persona extends Phaser.Scene {
-    constructor() {
-        super("persona")
-    }
-
-    init(data) {
-        console.log('init in profile' + data);
-        this.land = data.land;
-        this.agents = this.land.agents;
-        for (const agent of Object.values(this.agents)) {
-            console.log(agent.toString());
-        }
-        console.log("lan payer " + this.land.player);
-    }
-
-    preload() {
-        console.log("calling preload of AgentProfile");
-    }
-
-    create() {
-        console.log("calling create of AgentProfile");
-        console.log("see the document in agent board " + document);
-        const board = document.createElement("div");
-        board.className = "nes-container is-rounded is-dark with-title";
-        const board_height = this.sys.game.canvas.height * 0.98;
-        board.style = "font-size:xx-small; width:400px; height:" + board_height + "px";
-        console.log("board.style " + board.style)
-
-        const title = document.createElement("p");
-        title.className = "title";
-        title.innerText = "tag1";
-        board.appendChild(title);
-
-        const text = document.createElement("p");
-        text.innerText = "Good morning. Thou hast had a good night's sleep, I hope.";
-        board.appendChild(text);
-
-        console.log("map widthInPixels " + this.land.map.widthInPixels);
-        console.log("map heightInPixels " + this.land.map.heightInPixels);
-        console.log("canvas width " + this.sys.game.canvas.width);
-        console.log("canvas height " + this.sys.game.canvas.height);
-
-        this.add.dom(200, board_height / 2, board);
-        console.log("board width " + board.offsetWidth);
-        console.log("board height " + board.offsetHeight);
-    }
-
-    update() {
-    }
-}
-*/
-
 export class AgentBoard {
     constructor(ctx) {
         this.ctx = ctx
-        var agents = [];
-        for (const agent of Object.values(ctx.agents)) {
-            agents.push(agent.name);
-        }
-        this.ctx.env.agents = agents;
         this.setDisplay(true);
     }
 

@@ -40,16 +40,14 @@ export default class Land extends Phaser.Scene {
 
         // create agent
         this.agents = {};
-        var player_name;
+        var agent_names = [];
         const common_config = this.cache.json.get("config.agent_common");
         for (const name of Object.keys(this.config.agents)) {
             let agent_config = this.cache.json.get("config.agent." + name);
             if (common_config) {
                 agent_config = { ...common_config, ...agent_config }
             }
-            if (!player_name) {
-                player_name = name;
-            }
+            agent_names.push(name);
             this.agents[name] = new Agent(this, agent_config);
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
@@ -69,13 +67,14 @@ export default class Land extends Phaser.Scene {
 
         // create agent board
         this.agent_board = new AgentBoard(this);
+        this.env.agents = agent_names;
 
         // set events
         this.cursors = this.input.keyboard.createCursorKeys()
         this.input.on('gameobjectdown', this.objClicked);
 
         // change player
-        this.changePlayer(player_name);
+        this.changePlayer(agent_names[0]);
     }
 
     update() {
@@ -101,6 +100,9 @@ export default class Land extends Phaser.Scene {
             }
             this.env.update_info = null;
         }
+        if (this.player && this.env.display.profile) {
+            this.env.player.profile.status = this.player.getStatus();
+        }
     }
 
     getAsset(path) {
@@ -124,10 +126,11 @@ export default class Land extends Phaser.Scene {
         }
         this.player = this.agents[name];
         this.camera.locate(this.player);
-        this.env.player_info["name"] = this.player.name;
-        this.env.player_info["agent"] = {
+        this.env.player["name"] = this.player.name;
+        this.env.player["profile"] = {
             "portrait": this.player.portrait_path,
-            "status": this.player.getStatus()
+            "status": this.player.getStatus(),
+            "describe": this.player.getDescribe()
         }
         console.log("Change player to " + this.player);
     }

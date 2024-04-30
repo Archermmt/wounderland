@@ -6,7 +6,7 @@
 
 <div id="env" style="font-size:x-small; width:40%; height:100%; position:fixed">
     <div class="nes-container is-rounded is-dark with-title" style="height:100%">
-        <p class="title">Persona</p>
+        <p class="title" style="font-size:1.5em">Agent</p>
         <div style="background-color:#212529; padding:0; width:100%">
             <div class="nes-select is-dark">
                 <select required id="dark_select" @change="changePlayer($event)">
@@ -20,7 +20,7 @@
 
         <ul class="nav nav-tabs">
             <li class="nav-item">
-                <a class="nav-link" style="padding: 1em" @click="displayPlayer('agent')">Agent</a>
+                <a class="nav-link" style="padding: 1em" @click="displayPlayer('profile')">Profile</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" style="padding: 1em" @click="displayPlayer('memory')">Memory</a>
@@ -33,8 +33,8 @@
             </li>
         </ul>
 
-        <div id="Agent" v-show="display.agent">
-            <img v-bind:src="[[player_info.agent.portrait]]" alt="" style="margin: 2em;">
+        <div id="Profile" v-show="display.profile">
+            <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 2em;">
             <label style="padding: 2em 4em">
                 <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
                 <span>Follow</span>
@@ -45,9 +45,9 @@
                 <span>Control</span>
             </label>
             <p>Status:</p>
-            <p v-for="d in player_info.agent.status" style="font-size:8px;">&nbsp;[[d]]</p><br>
+            <p v-for="(v,k) in player.profile.status" style="font-size:8px;">&nbsp;[[k]]: [[v]]</p><br>
             <p>Describe:</p>
-            <p v-for="d in player_info.agent.describe" style="font-size:8px;">&nbsp;[[d]]</p><br>
+            <p v-for="(v,k) in player.profile.describe" style="font-size:8px;">&nbsp;[[k]]: [[v]]</p><br>
         </div>
 
         <div id="Memory" v-show="display.memory">
@@ -79,19 +79,19 @@
             parent: "phaser-canvas",
             agents: [],
             update_info: null,
-            player_info: {
+            player: {
                 name: "",
-                agent: {
+                profile: {
                     portrait: "",
-                    status: [],
-                    describe: []
+                    status: {},
+                    describe: {}
                 },
-                memory: null,
-                plan: null,
-                spane: null,
+                memory: {},
+                plan: {},
+                spane: {},
             },
             display: {
-                agent: true,
+                profile: true,
                 memory: false,
                 plan: false,
                 space: false,
