@@ -22,9 +22,9 @@ class AgentStatus {
     }
 
     toString() {
-        var str = "";
+        var str = " ";
         for (const [name, info] of Object.entries(this.toDict())) {
-            str += name + ": " + info;
+            str += name + ": " + info + "\n ";
         }
         return str;
     }
@@ -122,7 +122,8 @@ export class Agent extends Phaser.GameObjects.Sprite {
     }
 
     getDescribe() {
-        return { "name": this.name };
+        const describe = this.config.describe || {};
+        return { "name": this.name, ...describe };
     }
 
     toString = () => {

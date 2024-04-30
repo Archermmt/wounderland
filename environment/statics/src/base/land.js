@@ -3,8 +3,6 @@ import LandCamera from "./camera.js"
 import { Agent, AgentBoard } from "./agent.js"
 
 export default class Land extends Phaser.Scene {
-    current_player = "unknown";
-    new_player = "unknown";
     init(data) {
         this.env = data;
         this.assets_root = data.assets_root;
@@ -88,21 +86,6 @@ export default class Land extends Phaser.Scene {
             this.debug();
             this.on_debug = false;
         }
-        if (this.env.update_info) {
-            if (this.env.update_info.player) {
-                this.changePlayer(this.env.update_info.player);
-            }
-            if (this.player && (typeof this.env.update_info.follow_player !== "undefined")) {
-                this.camera.setFollow(this.player, this.env.update_info.follow_player);
-            }
-            if (this.player && (typeof this.env.update_info.control_player !== "undefined")) {
-                this.player.setControl(this.env.update_info.control_player);
-            }
-            this.env.update_info = null;
-        }
-        if (this.player && this.env.display.profile) {
-            this.env.player.profile.status = this.player.getStatus();
-        }
     }
 
     getAsset(path) {
@@ -119,19 +102,13 @@ export default class Land extends Phaser.Scene {
         }
     }
 
-    changePlayer = (name) => {
+    changePlayer(name) {
         if (this.player) {
             this.player.setControl(false);
             this.camera.setFollow(this.player, false);
         }
         this.player = this.agents[name];
         this.camera.locate(this.player);
-        this.env.player["name"] = this.player.name;
-        this.env.player["profile"] = {
-            "portrait": this.player.portrait_path,
-            "status": this.player.getStatus(),
-            "describe": this.player.getDescribe()
-        }
         console.log("Change player to " + this.player);
     }
 

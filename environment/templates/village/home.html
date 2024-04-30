@@ -4,62 +4,71 @@
 
 {% block content %}
 
-<div id="env" style="font-size:x-small; width:40%; height:100%; position:fixed">
-    <div class="nes-container is-rounded is-dark with-title" style="height:100%">
-        <p class="title" style="font-size:1.5em">Agent</p>
-        <div style="background-color:#212529; padding:0; width:100%">
-            <div class="nes-select is-dark">
-                <select required id="dark_select" @change="changePlayer($event)">
-                    <option value="" disabled selected hidden>Choose agent...</option>
-                    <option v-for="agent in agents" :value=[[agent]]>
-                        [[agent]]
-                    </option>
-                </select>
-            </div>
-        </div><br>
-
-        <ul class="nav nav-tabs">
-            <li class="nav-item">
-                <a class="nav-link" style="padding: 1em" @click="displayPlayer('profile')">Profile</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" style="padding: 1em" @click="displayPlayer('memory')">Memory</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" style="padding: 1em" @click="displayPlayer('plan')">Plan</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" style="padding: 1em" @click="displayPlayer('space')">Space</a>
-            </li>
-        </ul>
-
-        <div id="Profile" v-show="display.profile">
-            <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 2em;">
-            <label style="padding: 2em 4em">
+<div id="env" style="font-size:x-small; width:40%; position:fixed">
+    <div class="nes-container is-rounded is-dark with-title">
+        <p class="title" style="font-size:1.5em" @click="displayAgent()">Agent <i :class=[[display.arrow]]></i>
+        </p>
+        <div id="Agent" v-show="display.agent" style="height:92vh">
+            <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 1em;">
+            <label style="padding: 1em 1em">
                 <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
                 <span>Follow</span>
             </label>
-
-            <label style="padding: 2em 4em">
+            <label style="padding: 1em 1em">
                 <input type="checkbox" class="nes-checkbox is-dark" @change="controlPlayer($event)">
                 <span>Control</span>
             </label>
-            <p>Status:</p>
-            <p v-for="(v,k) in player.profile.status" style="font-size:8px;">&nbsp;[[k]]: [[v]]</p><br>
-            <p>Describe:</p>
-            <p v-for="(v,k) in player.profile.describe" style="font-size:8px;">&nbsp;[[k]]: [[v]]</p><br>
-        </div>
 
-        <div id="Memory" v-show="display.memory">
-            <p>This is memeory</p>
-        </div>
+            <div style="background-color:#212529; padding:0; width:100%">
+                <div class="nes-select is-dark">
+                    <select required id="dark_select" @change="changePlayer($event)">
+                        <option value="" disabled selected hidden>Choose agent...</option>
+                        <option v-for="agent in agents" :value=[[agent]]>
+                            [[agent]]
+                        </option>
+                    </select>
+                </div>
+            </div><br>
 
-        <div id="Plan" v-show="display.plan">
-            <p>This is plan</p>
-        </div>
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('profile')">Profile</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('memory')">Memory</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('plan')">Plan</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('space')">Space</a>
+                </li>
+            </ul>
 
-        <div id="Space" v-show="display.space">
-            <p>This is space</p>
+            <div id="Profile" class="nes-container is-dark message_box" v-show="display.profile">
+                <p>Status:</p>
+                <p v-for="(v,k) in player.profile.status" class="message">
+                    &nbsp;[[k]]: [[v]]
+                </p>
+                <br>
+                <p>Describe:</p>
+                <p v-for="(v,k) in player.profile.describe" class="message">
+                    &nbsp;[[k]]:[[v]]
+                </p>
+                <br>
+            </div>
+
+            <div id="Memory" class="nes-container is-dark message_box" v-show="display.memory">
+                <p>This is memeory</p>
+            </div>
+
+            <div id="Plan" class="nes-container is-dark message_box" v-show="display.plan">
+                <p>This is plan</p>
+            </div>
+
+            <div id="Space" class="nes-container is-dark message_box" v-show="display.space">
+                <p>This is space</p>
+            </div>
         </div>
     </div>
 </div>
@@ -91,6 +100,8 @@
                 spane: {},
             },
             display: {
+                agent: true,
+                arrow: "arrow up",
                 profile: true,
                 memory: false,
                 plan: false,
@@ -106,6 +117,8 @@
             },
             changePlayer: function (event) {
                 this.update("player", event.target.value);
+                this.update("follow_player", false);
+                this.update("control_player", false);
             },
             followPlayer: function (event) {
                 this.update("follow_player", event.target.checked);
@@ -115,9 +128,20 @@
             },
             displayPlayer: function (tab_name) {
                 for (const key of Object.keys(this.display)) {
-                    this.display[key] = false;
+                    if (key !== "agent" && key !== "arrow") {
+                        this.display[key] = false;
+                    }
                 }
                 this.display[tab_name] = true;
+            },
+            displayAgent: function () {
+                if (this.display.agent) {
+                    this.display.agent = false;
+                    this.display.arrow = "arrow down";
+                } else {
+                    this.display.agent = true;
+                    this.display.arrow = "arrow up";
+                }
             }
         }
     });

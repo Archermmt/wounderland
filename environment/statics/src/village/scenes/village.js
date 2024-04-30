@@ -36,7 +36,35 @@ export default class Village extends Land {
             config.assets[agent + ".portrait"] = { "type": "image", "path": "agents/" + agent + "/portrait.png" };
             config.agents[agent] = "agents/" + agent + "/persona.json";
         }
-
         return config;
+    }
+
+    update() {
+        super.update();
+        if (this.env.update_info) {
+            if (this.env.update_info.player) {
+                this.changePlayer(this.env.update_info.player);
+            }
+            if (this.player && (typeof this.env.update_info.follow_player !== "undefined")) {
+                this.camera.setFollow(this.player, this.env.update_info.follow_player);
+            }
+            if (this.player && (typeof this.env.update_info.control_player !== "undefined")) {
+                this.player.setControl(this.env.update_info.control_player);
+            }
+            this.env.update_info = null;
+        }
+        if (this.player && this.env.display.profile) {
+            this.env.player.profile.status = this.player.getStatus();
+        }
+    }
+
+    changePlayer(name) {
+        super.changePlayer(name);
+        this.env.player["name"] = this.player.name;
+        this.env.player["profile"] = {
+            "portrait": this.player.portrait_path,
+            "status": this.player.getStatus(),
+            "describe": this.player.getDescribe()
+        }
     }
 }

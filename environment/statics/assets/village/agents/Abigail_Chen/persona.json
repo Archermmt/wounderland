@@ -1,4 +1,11 @@
 {
   "name": "Abigail_Chen",
-  "portrait": "Abigail_Chen.portrait"
+  "portrait": "Abigail_Chen.portrait",
+  "describe": {
+    "innate": "open-minded, curious, determined",
+    "learned": "Abigail Chen is a digital artist and animator who loves to explore how technology can be used to express ideas. She is always looking for new ways to combine art and technology.",
+    "currently": "Abigail Chen is working on an animation project for a client. She is also experimenting with different tools and techniques to create interactive art.",
+    "lifestyle": "Abigail Chen goes to bed around midnight, awakes up around 8am, eats dinner around 6pm.",
+    "living_area": "the Ville:artist's co-living space:Abigail Chen's room"
+  }
 }
