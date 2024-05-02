@@ -41,17 +41,17 @@ export default class Village extends Land {
 
     update() {
         super.update();
-        if (this.env.update_info) {
-            if (this.env.update_info.player) {
-                this.changePlayer(this.env.update_info.player);
+        if (this.env.update) {
+            if (this.env.update.player) {
+                this.changePlayer(this.env.update.player);
             }
-            if (this.player && (typeof this.env.update_info.follow_player !== "undefined")) {
-                this.camera.setFollow(this.player, this.env.update_info.follow_player);
+            if (this.player && (typeof this.env.update.follow_player !== "undefined")) {
+                this.camera.setFollow(this.player, this.env.update.follow_player);
             }
-            if (this.player && (typeof this.env.update_info.control_player !== "undefined")) {
-                this.player.setControl(this.env.update_info.control_player);
+            if (this.player && (typeof this.env.update.control_player !== "undefined")) {
+                this.player.setControl(this.env.update.control_player);
             }
-            this.env.update_info = null;
+            this.env.update = null;
         }
         if (this.player && this.env.display.profile) {
             this.env.player.profile.status = this.player.getStatus();

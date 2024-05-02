@@ -1,6 +1,6 @@
 import tileMapCreator from "./tilemap.js"
 import LandCamera from "./camera.js"
-import { Agent, AgentBoard } from "./agent.js"
+import Agent from "./agent.js"
 
 export default class Land extends Phaser.Scene {
     init(data) {
@@ -63,8 +63,7 @@ export default class Land extends Phaser.Scene {
         // create camera
         this.camera = new LandCamera(this, land_config.camera);
 
-        // create agent board
-        this.agent_board = new AgentBoard(this);
+        // update agents of env
         this.env.agents = agent_names;
 
         // set events

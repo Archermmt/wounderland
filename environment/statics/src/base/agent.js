@@ -30,7 +30,7 @@ class AgentStatus {
     }
 }
 
-export class Agent extends Phaser.GameObjects.Sprite {
+export default class Agent extends Phaser.GameObjects.Sprite {
     constructor(scene, config) {
         let position = [0, 0];
         if (config.position) {
@@ -218,22 +218,4 @@ export class Agent extends Phaser.GameObjects.Sprite {
             this.scene.time.delayedCall(this.status.think_time, this.action, [], this);
         }
     }
-
-}
-
-export class AgentBoard {
-    constructor(ctx) {
-        this.ctx = ctx
-        this.setDisplay(true);
-    }
-
-    setDisplay(display) {
-        this.display = display;
-        if (this.display) {
-            this.ctx.camera.offset(-this.ctx.sys.game.canvas.width * 0.2, 0);
-        } else {
-            this.ctx.camera.offset(0, 0);
-        }
-    }
-
 }

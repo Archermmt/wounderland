@@ -4,21 +4,23 @@
 
 {% block content %}
 
-<div id="env" style="font-size:x-small; width:40%; position:fixed">
+<div id="env" style="font-size:1vw; width:35%; position:fixed">
     <div class="nes-container is-rounded is-dark with-title">
-        <p class="title" style="font-size:1.5em" @click="displayAgent()">Agent <i :class=[[display.arrow]]></i>
+        <p class="title" style="font-size:1.5vw" @click="displayAgent()">Agent <i
+                :class="{ 'arrow': true, 'up': display.agent, 'down': !display.agent }"></i>
         </p>
-        <div id="Agent" v-show="display.agent" style="height:92vh">
-            <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 1em;">
-            <label style="padding: 1em 1em">
-                <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
-                <span>Follow</span>
-            </label>
-            <label style="padding: 1em 1em">
-                <input type="checkbox" class="nes-checkbox is-dark" @change="controlPlayer($event)">
-                <span>Control</span>
-            </label>
 
+        <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 1vh 0.5vw;">
+        <label style="padding: 1vh 0.5vw">
+            <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
+            <span>Follow</span>
+        </label>
+        <label style="padding: 1vh 0.5vw">
+            <input type="checkbox" class="nes-checkbox is-dark" @change="controlPlayer($event)">
+            <span>Control</span>
+        </label>
+
+        <div id="Agent" v-show="display.agent" style="height:92vh">
             <div style="background-color:#212529; padding:0; width:100%">
                 <div class="nes-select is-dark">
                     <select required id="dark_select" @change="changePlayer($event)">
@@ -32,16 +34,16 @@
 
             <ul class="nav nav-tabs">
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('profile')">Profile</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('profile')">Profile</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('memory')">Memory</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('plan')">Plan</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('plan')">Plan</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('memory')">Memory</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 1em" @click="displayPlayer('space')">Space</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('space')">Space</a>
                 </li>
             </ul>
 
@@ -58,12 +60,12 @@
                 <br>
             </div>
 
-            <div id="Memory" class="nes-container is-dark message_box" v-show="display.memory">
-                <p>This is memeory</p>
-            </div>
-
             <div id="Plan" class="nes-container is-dark message_box" v-show="display.plan">
                 <p>This is plan</p>
+            </div>
+
+            <div id="Memory" class="nes-container is-dark message_box" v-show="display.memory">
+                <p>This is memeory</p>
             </div>
 
             <div id="Space" class="nes-container is-dark message_box" v-show="display.space">
@@ -83,11 +85,10 @@
         delimiters: ['[[', ']]'],
         el: '#env',
         data: {
-            message: 'Welcome to the Village',
-            assets_root: "{% static 'assets/village' %}",
             parent: "phaser-canvas",
+            assets_root: "{% static 'assets/village' %}",
             agents: [],
-            update_info: null,
+            update: null,
             player: {
                 name: "",
                 profile: {
@@ -101,7 +102,6 @@
             },
             display: {
                 agent: true,
-                arrow: "arrow up",
                 profile: true,
                 memory: false,
                 plan: false,
@@ -109,38 +109,39 @@
             },
         },
         methods: {
-            update: function (key, value) {
-                if (!this.update_info) {
-                    this.update_info = {};
+            updateInfo: function (key, value) {
+                if (!this.update) {
+                    this.update = {};
                 }
-                this.update_info[key] = value;
+                this.update[key] = value;
             },
             changePlayer: function (event) {
-                this.update("player", event.target.value);
-                this.update("follow_player", false);
-                this.update("control_player", false);
+                this.updateInfo("player", event.target.value);
+                this.updateInfo("follow_player", false);
+                this.updateInfo("control_player", false);
             },
             followPlayer: function (event) {
-                this.update("follow_player", event.target.checked);
+                this.updateInfo("follow_player", event.target.checked);
             },
             controlPlayer: function (event) {
-                this.update("control_player", event.target.checked);
+                this.updateInfo("control_player", event.target.checked);
             },
             displayPlayer: function (tab_name) {
                 for (const key of Object.keys(this.display)) {
-                    if (key !== "agent" && key !== "arrow") {
+                    if (key !== "agent") {
                         this.display[key] = false;
                     }
                 }
-                this.display[tab_name] = true;
+                if (tab_name) {
+                    this.display[tab_name] = true;
+                }
             },
             displayAgent: function () {
-                if (this.display.agent) {
-                    this.display.agent = false;
-                    this.display.arrow = "arrow down";
+                this.display.agent = !this.display.agent;
+                if (!this.display.agent) {
+                    this.displayPlayer("");
                 } else {
-                    this.display.agent = true;
-                    this.display.arrow = "arrow up";
+                    this.displayPlayer("profile");
                 }
             }
         }
