@@ -4,23 +4,23 @@
 
 {% block content %}
 
-<div id="env" style="font-size:1vw; width:35%; position:fixed">
+<div id="env" style="font-size:0.8vw; width:35%; position:fixed">
     <div class="nes-container is-rounded is-dark with-title">
-        <p class="title" style="font-size:1.5vw" @click="displayAgent()">Agent <i
+        <p class="title" style="font-size:1.2vw" @click="displayAgent()">Agent <i
                 :class="{ 'arrow': true, 'up': display.agent, 'down': !display.agent }"></i>
         </p>
 
-        <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 1vh 0.5vw;">
-        <label style="padding: 1vh 0.5vw">
-            <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
-            <span>Follow</span>
-        </label>
-        <label style="padding: 1vh 0.5vw">
-            <input type="checkbox" class="nes-checkbox is-dark" @change="controlPlayer($event)">
-            <span>Control</span>
-        </label>
+        <div id="AgentSelect">
+            <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 1vh 0.5vw;">
+            <label style="padding: 1vh 0.5vw">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
+                <span>Follow</span>
+            </label>
+            <label style="padding: 1vh 0.5vw">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="controlPlayer($event)">
+                <span>Control</span>
+            </label>
 
-        <div id="Agent" v-show="display.agent" style="height:92vh">
             <div style="background-color:#212529; padding:0; width:100%">
                 <div class="nes-select is-dark">
                     <select required id="dark_select" @change="changePlayer($event)">
@@ -30,8 +30,11 @@
                         </option>
                     </select>
                 </div>
-            </div><br>
+            </div>
+        </div>
 
+        <div id="AgentBoard" v-show="display.agent" style="height:80vh">
+            <br>
             <ul class="nav nav-tabs">
                 <li class="nav-item">
                     <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('profile')">Profile</a>
@@ -81,13 +84,14 @@
 
 {% block js_content %}
 <script>
+    var src_agents = {{ agents| safe }};
     var env = new Vue({
         delimiters: ['[[', ']]'],
         el: '#env',
         data: {
             parent: "phaser-canvas",
             assets_root: "{% static 'assets/village' %}",
-            agents: [],
+            agents: src_agents,
             update: null,
             player: {
                 name: "",
@@ -101,7 +105,7 @@
                 spane: {},
             },
             display: {
-                agent: true,
+                agent: false,
                 profile: true,
                 memory: false,
                 plan: false,
@@ -138,11 +142,6 @@
             },
             displayAgent: function () {
                 this.display.agent = !this.display.agent;
-                if (!this.display.agent) {
-                    this.displayPlayer("");
-                } else {
-                    this.displayPlayer("profile");
-                }
             }
         }
     });

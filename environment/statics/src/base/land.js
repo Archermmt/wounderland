@@ -38,14 +38,12 @@ export default class Land extends Phaser.Scene {
 
         // create agent
         this.agents = {};
-        var agent_names = [];
         const common_config = this.cache.json.get("config.agent_common");
-        for (const name of Object.keys(this.config.agents)) {
+        for (const name of this.env.agents) {
             let agent_config = this.cache.json.get("config.agent." + name);
             if (common_config) {
                 agent_config = { ...common_config, ...agent_config }
             }
-            agent_names.push(name);
             this.agents[name] = new Agent(this, agent_config);
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
@@ -63,15 +61,12 @@ export default class Land extends Phaser.Scene {
         // create camera
         this.camera = new LandCamera(this, land_config.camera);
 
-        // update agents of env
-        this.env.agents = agent_names;
-
         // set events
         this.cursors = this.input.keyboard.createCursorKeys()
         this.input.on('gameobjectdown', this.objClicked);
 
         // change player
-        this.changePlayer(agent_names[0]);
+        this.changePlayer(this.env.agents[0]);
     }
 
     update() {

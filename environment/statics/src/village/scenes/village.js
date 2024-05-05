@@ -30,7 +30,7 @@ export default class Village extends Land {
             "agent_common": "persona.json",
             "agents": {}
         }
-        const agents = ["Abigail_Chen", "Adam_Smith", "Arthur_Burton", "Ayesha_Khan"];
+        const agents = ["Abigail_Chen", "Adam_Smith", "Arthur_Burton", "Ayesha_Khan", "Isabella_Rodriguez", "Klaus_Mueller", "Maria_Lopez"];
         for (const agent of agents) {
             config.assets[agent] = { "type": "atlas", "texture": "agents/" + agent + "/texture.png", "sprite": "agents/sprite.json" };
             config.assets[agent + ".portrait"] = { "type": "image", "path": "agents/" + agent + "/portrait.png" };

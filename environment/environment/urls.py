@@ -16,9 +16,10 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
-from world import views
+from world import views as world_views
+from agent import views as agent_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("village/", views.village),
+    path("village/", world_views.village),
 ]

@@ -26,15 +26,15 @@
 }
 
 .nes-container.message_box {
-    margin: 0px;
+    margin: 0;
     border-width: 2px;
-    padding: 0.5rem 0.5rem;
+    padding: 0.5vh 0.5vw;
     overflow: auto;
     height: 70vh;
 }
 
 .message {
-    font-size: 8px;
+    font-size: 0.6vw;
     padding: 0;
     margin: 0
 }
