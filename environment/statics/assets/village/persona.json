@@ -53,12 +53,8 @@
         }
     },
     "think_time": 1000,
-    "percept": {
-        "mode": "circle"
-    },
-    "plan": {
-        "mode": "random"
-    },
+    "percept_mode": "circle",
+    "plan_mode": "random",
     "move": {
         "speed": 100,
         "left": {

@@ -22,12 +22,14 @@ export default class Land extends Phaser.Scene {
             }
         }
         // load config
-        this.load.json('config.land', this.getAsset(this.config.land));
-        if (this.config.agent_common) {
-            this.load.json('config.agent_common', this.getAsset(this.config.agent_common));
-        }
-        for (const [name, profile] of Object.entries(this.config.agents)) {
-            this.load.json("config.agent." + name, this.getAsset(profile));
+        for (const [name, config] of Object.entries(this.config.config)) {
+            if (name == "agents") {
+                for (const [a_name, a_config] of Object.entries(config)) {
+                    this.load.json('config.agent.' + a_name, this.getAsset(a_config.path));
+                }
+            } else if (config.load == "frontend" || config.load == "both") {
+                this.load.json('config.' + name, this.getAsset(config.path));
+            }
         }
     }
 
@@ -38,11 +40,11 @@ export default class Land extends Phaser.Scene {
 
         // create agent
         this.agents = {};
-        const common_config = this.cache.json.get("config.agent_common");
+        const agent_base_config = this.cache.json.get("config.agent.base");
         for (const name of this.env.agents) {
             let agent_config = this.cache.json.get("config.agent." + name);
-            if (common_config) {
-                agent_config = { ...common_config, ...agent_config }
+            if (agent_base_config) {
+                agent_config = { ...agent_base_config, ...agent_config }
             }
             this.agents[name] = new Agent(this, agent_config);
             for (const agent of Object.values(this.agents)) {
@@ -66,7 +68,13 @@ export default class Land extends Phaser.Scene {
         this.input.on('gameobjectdown', this.objClicked);
 
         // change player
-        this.changePlayer(this.env.agents[0]);
+        this.changePlayer(this.env.agents[this.env.agents.length - 1]);
+
+        // start backend
+        var retrieve_xobj = new XMLHttpRequest();
+        retrieve_xobj.overrideMimeType("application/json");
+        retrieve_xobj.open('POST', this.env.start_url, true);
+        retrieve_xobj.send(JSON.stringify(this.config.config));
     }
 
     update() {

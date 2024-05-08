@@ -1,6 +1,7 @@
 {
-  "name": "Adam_Smith",
-  "portrait": "Adam_Smith.portrait",
+  "name": "Adam Smith",
+  "tag": "Adam_Smith",
+  "portrait": "assets/village/agents/Adam_Smith/portrait.png",
   "describe": {
     "innate": "thoughtful, reflective, intellectual",
     "learned": "Adam Smith is a philosopher who loves to explore different ideas. He is always looking for ways to challenge people’s preconceptions.",

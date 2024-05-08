@@ -5,8 +5,8 @@ class AgentStatus {
         this.direction = config.direction;
         this.speed = move_config.speed;
         this.think_time = config.think_time || 1000;
-        this.percept = config.percept;
-        this.plan = config.plan;
+        this.percept_mode = config.percept_mode;
+        this.plan_mode = config.plan_mode;
     }
 
     toDict() {
@@ -16,7 +16,7 @@ class AgentStatus {
         } else {
             dict["Action"] = "percept+plan / " + this.think_time + " ms";
             dict["Percept"] = JSON.stringify(this.percept);
-            dict["Plan"] = JSON.stringify(this.plan);
+            dict["Plan"] = JSON.stringify(this.plan_mode);
         }
         return dict;
     }
@@ -39,16 +39,11 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             position[0] = Math.floor(Math.random() * (config.zone[0][1] - config.zone[0][0])) + config.zone[0][0];
             position[1] = Math.floor(Math.random() * (config.zone[1][1] - config.zone[1][0])) + config.zone[1][0];
         }
-        super(scene, position[0], position[1], config.name)
+        super(scene, position[0], position[1], config.tag || config.name);
         this.scene = scene;
         this.config = config;
         this.name = config.name;
-        if (this.config.portrait) {
-            const portrait_asset = scene.config.assets[this.config.portrait];
-            if (portrait_asset) {
-                this.portrait_path = scene.getAsset(portrait_asset["path"]);
-            }
-        }
+        this.tag = config.tag || this.name;
         this.status = new AgentStatus(config);
         // add sprite
         scene.add.existing(this);
@@ -68,11 +63,16 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.animations = {};
         for (const [a_key, anim] of Object.entries(config.anims)) {
             this.animations[a_key] = scene.anims.create({
-                key: this.name + "." + a_key,
-                frames: scene.anims.generateFrameNames(this.name, anim.frames),
+                key: this.tag + "." + a_key,
+                frames: scene.anims.generateFrameNames(this.tag, anim.frames),
                 frameRate: anim.frameRate || 4,
                 repeat: anim.repeat || -1
             });
+        }
+
+        // add portrait
+        if (this.config.portrait) {
+            this.portrait = scene.getAsset(this.config.portrait);
         }
 
         // set body
@@ -168,7 +168,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
     plan = (observation) => {
         let direct;
-        if (this.status.plan.mode === "random") {
+        if (this.status.plan_mode === "random") {
             const directs = ["left", "right", "up", "down", "stop"];
             direct = directs[Math.floor(Math.random() * directs.length)];
         }

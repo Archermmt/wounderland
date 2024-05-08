@@ -14,12 +14,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf.urls import url
 from django.contrib import admin
 from django.urls import path
 from world import views as world_views
-from agent import views as agent_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("village/", world_views.village),
+    path("village", world_views.village),
+    url(r"^start_game/$", world_views.start_game, name="start_game"),
 ]

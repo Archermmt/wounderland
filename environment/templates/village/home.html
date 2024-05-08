@@ -25,7 +25,7 @@
                 <div class="nes-select is-dark">
                     <select required id="dark_select" @change="changePlayer($event)">
                         <option value="" disabled selected hidden>Choose agent...</option>
-                        <option v-for="agent in agents" :value=[[agent]]>
+                        <option v-for="agent in agents" :value=[[agent]] selected>
                             [[agent]]
                         </option>
                     </select>
@@ -90,7 +90,8 @@
         el: '#env',
         data: {
             parent: "phaser-canvas",
-            assets_root: "{% static 'assets/village' %}",
+            assets_root: "{% static '' %}",
+            start_url: "{% url 'start_game' %}",
             agents: src_agents,
             update: null,
             player: {

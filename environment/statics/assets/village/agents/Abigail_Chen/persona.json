@@ -1,6 +1,7 @@
 {
-  "name": "Abigail_Chen",
-  "portrait": "Abigail_Chen.portrait",
+  "name": "Abigail Chen",
+  "tag": "Abigail_Chen",
+  "portrait": "assets/village/agents/Abigail_Chen/portrait.png",
   "describe": {
     "innate": "open-minded, curious, determined",
     "learned": "Abigail Chen is a digital artist and animator who loves to explore how technology can be used to express ideas. She is always looking for new ways to combine art and technology.",

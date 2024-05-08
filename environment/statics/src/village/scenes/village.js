@@ -6,35 +6,40 @@ export default class Village extends Land {
     }
 
     config() {
+        const root = "assets/village/";
         var config = {
             "assets": {
-                "map": { "type": "tilemapTiledJSON", "path": "tilemap/tilemap.json" },
-                "blocks": { "type": "image", "path": "tilemap/blocks_1.png" },
-                "Room_Builder_32x32": { "type": "image", "path": "tilemap/Room_Builder_32x32.png" },
-                "interiors_pt1": { "type": "image", "path": "tilemap/interiors_pt1.png" },
-                "interiors_pt2": { "type": "image", "path": "tilemap/interiors_pt2.png" },
-                "interiors_pt3": { "type": "image", "path": "tilemap/interiors_pt3.png" },
-                "interiors_pt4": { "type": "image", "path": "tilemap/interiors_pt4.png" },
-                "interiors_pt5": { "type": "image", "path": "tilemap/interiors_pt5.png" },
-                "CuteRPG_Field_B": { "type": "image", "path": "tilemap/CuteRPG_Field_B.png" },
-                "CuteRPG_Field_C": { "type": "image", "path": "tilemap/CuteRPG_Field_C.png" },
-                "CuteRPG_Harbor_C": { "type": "image", "path": "tilemap/CuteRPG_Harbor_C.png" },
-                "CuteRPG_Village_B": { "type": "image", "path": "tilemap/CuteRPG_Village_B.png" },
-                "CuteRPG_Forest_B": { "type": "image", "path": "tilemap/CuteRPG_Forest_B.png" },
-                "CuteRPG_Desert_C": { "type": "image", "path": "tilemap/CuteRPG_Desert_C.png" },
-                "CuteRPG_Mountains_B": { "type": "image", "path": "tilemap/CuteRPG_Mountains_B.png" },
-                "CuteRPG_Desert_B": { "type": "image", "path": "tilemap/CuteRPG_Desert_B.png" },
-                "CuteRPG_Forest_C": { "type": "image", "path": "tilemap/CuteRPG_Forest_C.png" }
+                "map": { "type": "tilemapTiledJSON", "path": root + "tilemap/tilemap.json" },
+                "blocks": { "type": "image", "path": root + "tilemap/blocks_1.png" },
+                "Room_Builder_32x32": { "type": "image", "path": root + "tilemap/Room_Builder_32x32.png" },
+                "interiors_pt1": { "type": "image", "path": root + "tilemap/interiors_pt1.png" },
+                "interiors_pt2": { "type": "image", "path": root + "tilemap/interiors_pt2.png" },
+                "interiors_pt3": { "type": "image", "path": root + "tilemap/interiors_pt3.png" },
+                "interiors_pt4": { "type": "image", "path": root + "tilemap/interiors_pt4.png" },
+                "interiors_pt5": { "type": "image", "path": root + "tilemap/interiors_pt5.png" },
+                "CuteRPG_Field_B": { "type": "image", "path": root + "tilemap/CuteRPG_Field_B.png" },
+                "CuteRPG_Field_C": { "type": "image", "path": root + "tilemap/CuteRPG_Field_C.png" },
+                "CuteRPG_Harbor_C": { "type": "image", "path": root + "tilemap/CuteRPG_Harbor_C.png" },
+                "CuteRPG_Village_B": { "type": "image", "path": root + "tilemap/CuteRPG_Village_B.png" },
+                "CuteRPG_Forest_B": { "type": "image", "path": root + "tilemap/CuteRPG_Forest_B.png" },
+                "CuteRPG_Desert_C": { "type": "image", "path": root + "tilemap/CuteRPG_Desert_C.png" },
+                "CuteRPG_Mountains_B": { "type": "image", "path": root + "tilemap/CuteRPG_Mountains_B.png" },
+                "CuteRPG_Desert_B": { "type": "image", "path": root + "tilemap/CuteRPG_Desert_B.png" },
+                "CuteRPG_Forest_C": { "type": "image", "path": root + "tilemap/CuteRPG_Forest_C.png" }
             },
-            "land": "land.json",
-            "agent_common": "persona.json",
-            "agents": {}
+            "config": {
+                "land": { "path": root + "land.json", "load": "frontend" },
+                "maze": { "path": root + "tilemap/maze.json", "load": "backend" },
+                "agents": {
+                    "base": { "path": root + "persona.json", "load": "both" },
+                }
+            }
         }
         const agents = ["Abigail_Chen", "Adam_Smith", "Arthur_Burton", "Ayesha_Khan", "Isabella_Rodriguez", "Klaus_Mueller", "Maria_Lopez"];
         for (const agent of agents) {
-            config.assets[agent] = { "type": "atlas", "texture": "agents/" + agent + "/texture.png", "sprite": "agents/sprite.json" };
-            config.assets[agent + ".portrait"] = { "type": "image", "path": "agents/" + agent + "/portrait.png" };
-            config.agents[agent] = "agents/" + agent + "/persona.json";
+            const agent_root = root + "agents/" + agent + "/";
+            config.assets[agent] = { "type": "atlas", "texture": agent_root + "texture.png", "sprite": root + "agents/sprite.json" };
+            config.config.agents[agent] = { "path": agent_root + "persona.json", "load": "both" };
         }
         return config;
     }
@@ -62,7 +67,7 @@ export default class Village extends Land {
         super.changePlayer(name);
         this.env.player["name"] = this.player.name;
         this.env.player["profile"] = {
-            "portrait": this.player.portrait_path,
+            "portrait": this.player.portrait || "",
             "status": this.player.getStatus(),
             "describe": this.player.getDescribe()
         }
