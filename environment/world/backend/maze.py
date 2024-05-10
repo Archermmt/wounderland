@@ -1,14 +1,8 @@
-import json
-
-
 class Maze:
-    def __init__(self, maze_file: str):
-        with open(maze_file, "r") as f:
-            maze_info = json.load(f)
-
+    def __init__(self, config: dict):
         def _get_empty():
             return {
-                "world": maze_info["world"],
+                "world": config["world"],
                 "sector": "",
                 "arena": "",
                 "game_object": "",
@@ -18,13 +12,13 @@ class Maze:
             }
 
         # define tiles
-        self.maze_height, self.maze_width = maze_info["size"]
-        self.sq_tile_size = maze_info["tile_size"]
+        self.maze_height, self.maze_width = config["size"]
+        self.sq_tile_size = config["tile_size"]
         self.tiles = [
             [_get_empty() for _ in range(self.maze_width)]
             for _ in range(self.maze_height)
         ]
-        for tile in maze_info["tiles"]:
+        for tile in config["tiles"]:
             row, col = tile.pop("coord")
             events = tile.pop("events")
             self.tiles[row][col].update(tile)
@@ -58,3 +52,5 @@ class Maze:
                         self.address_tiles[add].add((j, i))
                     else:
                         self.address_tiles[add] = set([(j, i)])
+        # slot for persona
+        self.persona_tiles = {}

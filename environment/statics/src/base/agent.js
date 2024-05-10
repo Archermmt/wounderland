@@ -15,7 +15,7 @@ class AgentStatus {
             dict["Action"] = "control";
         } else {
             dict["Action"] = "percept+plan / " + this.think_time + " ms";
-            dict["Percept"] = JSON.stringify(this.percept);
+            dict["Percept"] = JSON.stringify(this.percept_mode);
             dict["Plan"] = JSON.stringify(this.plan_mode);
         }
         return dict;
@@ -39,11 +39,11 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             position[0] = Math.floor(Math.random() * (config.zone[0][1] - config.zone[0][0])) + config.zone[0][0];
             position[1] = Math.floor(Math.random() * (config.zone[1][1] - config.zone[1][0])) + config.zone[1][0];
         }
-        super(scene, position[0], position[1], config.tag || config.name);
+        super(scene, 0, 0, config.name);
+        this.setPosition(position[0] + this.width / 2, position[1] + this.height / 2);
         this.scene = scene;
         this.config = config;
         this.name = config.name;
-        this.tag = config.tag || this.name;
         this.status = new AgentStatus(config);
         // add sprite
         scene.add.existing(this);
@@ -63,8 +63,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.animations = {};
         for (const [a_key, anim] of Object.entries(config.anims)) {
             this.animations[a_key] = scene.anims.create({
-                key: this.tag + "." + a_key,
-                frames: scene.anims.generateFrameNames(this.tag, anim.frames),
+                key: this.name + "." + a_key,
+                frames: scene.anims.generateFrameNames(this.name, anim.frames),
                 frameRate: anim.frameRate || 4,
                 repeat: anim.repeat || -1
             });
@@ -111,7 +111,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     getPosition() {
-        return Math.round(this.body.position.x) + "," + Math.round(this.body.position.y);
+        return [Math.round(this.body.position.x), Math.round(this.body.position.y)];
     }
 
     getStatus() {

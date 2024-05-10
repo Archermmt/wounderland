@@ -15,7 +15,7 @@ for f in os.listdir():
     with open(os.path.join(folder, "profile.json"), "w") as profile_f:
         profile_f.write(json.dumps({"name": f}, indent=2))
     """
-    src_path = os.path.join(folder, "profile.json")
-    dst_path = os.path.join(folder, "persona.json")
+    src_path = os.path.join(folder, "persona.json")
+    dst_path = os.path.join(folder, "agent.json")
     if os.path.isfile(src_path):
         shutil.move(src_path, dst_path)

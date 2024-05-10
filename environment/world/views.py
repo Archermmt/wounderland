@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Create your views here.
 def village(request):
-    context = {"agents": ["Isabella_Rodriguez", "Klaus_Mueller", "Maria_Lopez"]}
+    context = {"agents": ["Isabella Rodriguez", "Klaus Mueller", "Maria Lopez"]}
     return render(request, "village/home.html", context)
 
 

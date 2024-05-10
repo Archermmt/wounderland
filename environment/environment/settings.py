@@ -136,10 +136,6 @@ LOGGING = {
         }
     },
     "loggers": {
-        "": {
-            "handlers": ["console"],
-            "level": "NOTSET",
-        },
         "django.request": {
             "handlers": ["console"],
             "propagate": False,

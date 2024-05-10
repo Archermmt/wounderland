@@ -1,6 +1,6 @@
-import Land from "../../base/land.js"
+import Maze from "../../base/maze.js"
 
-export default class Village extends Land {
+export default class Village extends Maze {
     constructor() {
         super("village")
     }
@@ -28,18 +28,16 @@ export default class Village extends Land {
                 "CuteRPG_Forest_C": { "type": "image", "path": root + "tilemap/CuteRPG_Forest_C.png" }
             },
             "config": {
-                "land": { "path": root + "land.json", "load": "frontend" },
-                "maze": { "path": root + "tilemap/maze.json", "load": "backend" },
-                "agents": {
-                    "base": { "path": root + "persona.json", "load": "both" },
-                }
+                "maze": { "path": root + "maze.json", "load": "both" },
+                "agent_base": { "path": root + "agent.json", "load": "both" },
+                "agents": {}
             }
         }
-        const agents = ["Abigail_Chen", "Adam_Smith", "Arthur_Burton", "Ayesha_Khan", "Isabella_Rodriguez", "Klaus_Mueller", "Maria_Lopez"];
+        const agents = ["Abigail Chen", "Adam Smith", "Arthur Burton", "Ayesha Khan", "Isabella Rodriguez", "Klaus Mueller", "Maria Lopez"];
         for (const agent of agents) {
-            const agent_root = root + "agents/" + agent + "/";
+            const agent_root = root + "agents/" + agent.replace(" ", "_") + "/";
             config.assets[agent] = { "type": "atlas", "texture": agent_root + "texture.png", "sprite": root + "agents/sprite.json" };
-            config.config.agents[agent] = { "path": agent_root + "persona.json", "load": "both" };
+            config.config.agents[agent] = { "path": agent_root + "agent.json", "load": "both" };
         }
         return config;
     }
