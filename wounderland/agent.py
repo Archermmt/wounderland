@@ -1,10 +1,9 @@
 import random
-from .maze import Maze
-from world.wounderland import memory
+from wounderland import memory
 
 
 class Agent:
-    def __init__(self, config: dict, maze: Maze):
+    def __init__(self, config, maze, logger):
         self.name = config["name"]
         self.position = [int(p / maze.sq_tile_size) for p in config["position"]]
 
@@ -36,12 +35,14 @@ class Agent:
         maze.tiles[p_y][p_x]["events"].add(self.get_curr_event())
         maze.persona_tiles[self.name] = self.position
 
+        self.logger = logger
+
     def __str__(self):
         return "{} @ {}, precept {}, think: {}".format(
             self.name, self.position, self.percept_config, self.think_config
         )
 
-    def think(self, info):
+    def think(self, status):
         if self.think_config["mode"] == "random":
             direct = random.choice(["left", "right", "up", "down", "stop"])
         return {"direct": direct}

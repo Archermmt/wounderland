@@ -1,8 +1,8 @@
 import os
 import copy
 
-from world.wounderland.utils import GameMap, GameKey
-from world.wounderland import utils
+from wounderland.utils import GameMap, GameKey
+from wounderland import utils
 from .maze import Maze
 from .agent import Agent
 
@@ -10,9 +10,9 @@ from .agent import Agent
 class Game:
     """The Game"""
 
-    def __init__(self, static_root: str, config: dict):
+    def __init__(self, static_root, config, logger):
         self.static_root = static_root
-        self.maze = Maze(self.load_static(config["maze"]["path"]))
+        self.maze = Maze(self.load_static(config["maze"]["path"]), logger)
         self.agents = {}
         if "agent_base" in config:
             agent_base = self.load_static(config["agent_base"]["path"])
@@ -24,7 +24,8 @@ class Game:
             agent_config = copy.deepcopy(agent_base)
             agent_config.update(self.load_static(agent["path"]))
             agent_config.update(agent.get("status", {}))
-            self.agents[name] = Agent(agent_config, self.maze)
+            self.agents[name] = Agent(agent_config, self.maze, logger)
+        self.logger = logger
 
     def load_static(self, path):
         return utils.load_dict(os.path.join(self.static_root, path))
@@ -33,10 +34,10 @@ class Game:
         return self.agents[name]
 
 
-def create_game(static_root: str, config: dict):
+def create_game(static_root, config, logger):
     """Create the game"""
 
-    GameMap.set(GameKey.GAME, Game(static_root, config))
+    GameMap.set(GameKey.GAME, Game(static_root, config, logger))
     return {"start": True}
 
 

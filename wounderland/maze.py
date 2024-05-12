@@ -1,5 +1,5 @@
 class Maze:
-    def __init__(self, config: dict):
+    def __init__(self, config, logger):
         def _get_empty():
             return {
                 "world": config["world"],
@@ -54,3 +54,4 @@ class Maze:
                         self.address_tiles[add] = set([(j, i)])
         # slot for persona
         self.persona_tiles = {}
+        self.logger = logger

@@ -5,7 +5,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
-from world.wounderland.game import create_game, get_game
+from wounderland.game import create_game, get_game
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def village(request):
 def start_game(request):
     if request.method == "POST":
         return JsonResponse(
-            create_game(settings.STATICFILES_DIRS[0], json.loads(request.body))
+            create_game(settings.STATICFILES_DIRS[0], json.loads(request.body), logger)
         )
     return JsonResponse({"start": False})
 

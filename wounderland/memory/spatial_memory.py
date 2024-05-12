@@ -1,4 +1,4 @@
-from world.wounderland import utils
+from wounderland import utils
 
 
 class MemoryTree:
