@@ -4,14 +4,16 @@
 
 {% block content %}
 
-<div id="env" style="font-size:0.8vw; width:35%; position:fixed">
+<div id="msg" style="font-size:0.8vw; width:35%; position:fixed">
     <div class="nes-container is-rounded is-dark with-title">
-        <p class="title" style="font-size:1.2vw" @click="displayAgent()">Agent <i
-                :class="{ 'arrow': true, 'up': display.agent, 'down': !display.agent }"></i>
+        <p class="title" style="font-size:1.2vw" @click="displayAgent()">
+            Agent
+            <i
+                :class="{ 'arrow': true, 'up': agent_board.info.board.display, 'down': !agent_board.info.board.display }"></i>
         </p>
 
         <div id="AgentSelect">
-            <img v-bind:src="[[player.profile.portrait]]" alt="" style="margin: 1vh 0.5vw;">
+            <img v-bind:src="[[agent_board.info.profile.portrait]]" alt="" style="margin: 1vh 0.5vw;">
             <label style="padding: 1vh 0.5vw">
                 <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
                 <span>Follow</span>
@@ -33,7 +35,7 @@
             </div>
         </div>
 
-        <div id="AgentBoard" v-show="display.agent" style="height:80vh">
+        <div id="AgentBoard" v-show="agent_board.info.board.display" style="height:80vh">
             <br>
             <ul class="nav nav-tabs">
                 <li class="nav-item">
@@ -50,28 +52,28 @@
                 </li>
             </ul>
 
-            <div id="Profile" class="nes-container is-dark message_box" v-show="display.profile">
+            <div id="Profile" class="nes-container is-dark message_box" v-show="agent_board.info.profile.display">
                 <p>Status:</p>
-                <p v-for="(v,k) in player.profile.status" class="message">
+                <p v-for="(v,k) in agent_board.info.profile.status" class="message">
                     &nbsp;[[k]]: [[v]]
                 </p>
                 <br>
                 <p>Describe:</p>
-                <p v-for="(v,k) in player.profile.describe" class="message">
+                <p v-for="(v,k) in agent_board.info.profile.describe" class="message">
                     &nbsp;[[k]]:[[v]]
                 </p>
                 <br>
             </div>
 
-            <div id="Plan" class="nes-container is-dark message_box" v-show="display.plan">
+            <div id="Plan" class="nes-container is-dark message_box" v-show="agent_board.info.plan.display">
                 <p>This is plan</p>
             </div>
 
-            <div id="Memory" class="nes-container is-dark message_box" v-show="display.memory">
+            <div id="Memory" class="nes-container is-dark message_box" v-show="agent_board.info.memory.display">
                 <p>This is memeory</p>
             </div>
 
-            <div id="Space" class="nes-container is-dark message_box" v-show="display.space">
+            <div id="Space" class="nes-container is-dark message_box" v-show="agent_board.info.space.display">
                 <p>This is space</p>
             </div>
         </div>
@@ -85,9 +87,9 @@
 {% block js_content %}
 <script>
     var src_agents = {{ agents| safe }};
-    var env = new Vue({
+    var msg = new Vue({
         delimiters: ['[[', ']]'],
-        el: '#env',
+        el: '#msg',
         data: {
             parent: "phaser-canvas",
             assets_root: "{% static '' %}",
@@ -96,56 +98,61 @@
                 agent_think: "{% url 'agent_think' %}",
             },
             agents: src_agents,
-            update: null,
-            player: {
-                name: "",
-                profile: {
-                    portrait: "",
-                    status: {},
-                    scratch: {}
+            agent_board: {
+                update: null,
+                info: {
+                    name: "",
+                    board: {
+                        display: false
+                    },
+                    profile: {
+                        display: true,
+                        portrait: "",
+                        status: {},
+                        describe: {}
+                    },
+                    memory: {
+                        display: false,
+                    },
+                    plan: {
+                        display: false,
+                    },
+                    space: {
+                        display: false,
+                    },
                 },
-                memory: {},
-                plan: {},
-                spane: {},
             },
-            display: {
-                agent: false,
-                profile: true,
-                memory: false,
-                plan: false,
-                space: false,
-            },
+            config_board: {}
         },
         methods: {
-            updateInfo: function (key, value) {
-                if (!this.update) {
-                    this.update = {};
+            updateAgent: function (key, value) {
+                if (!this.agent_board.update) {
+                    this.agent_board.update = {};
                 }
-                this.update[key] = value;
+                this.agent_board.update[key] = value;
             },
             changePlayer: function (event) {
-                this.updateInfo("player", event.target.value);
-                this.updateInfo("follow_player", false);
-                this.updateInfo("control_player", false);
+                this.updateAgent("player", event.target.value);
+                this.updateAgent("follow_player", false);
+                this.updateAgent("control_player", false);
             },
             followPlayer: function (event) {
-                this.updateInfo("follow_player", event.target.checked);
+                this.updateAgent("follow_player", event.target.checked);
             },
             controlPlayer: function (event) {
-                this.updateInfo("control_player", event.target.checked);
+                this.updateAgent("control_player", event.target.checked);
             },
             displayPlayer: function (tab_name) {
-                for (const key of Object.keys(this.display)) {
-                    if (key !== "agent") {
-                        this.display[key] = false;
-                    }
+                const tabs = ["profile", "memory", "plan", "space"];
+                for (const key of tabs) {
+                    this.agent_board.info[key].display = false;
                 }
                 if (tab_name) {
-                    this.display[tab_name] = true;
+                    this.agent_board.info[tab_name].display = true;
                 }
             },
             displayAgent: function () {
-                this.display.agent = !this.display.agent;
+                this.agent_board.info.board.display = !this.agent_board.info.board.display;
             }
         }
     });

@@ -59,9 +59,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             this.setInteractive();
         }
         this.setControl(false);
-
-        // record plan
         this.is_thinking = false;
+        this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
     }
 
     update() {
@@ -84,9 +83,6 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     action = () => {
-        if (this.is_control) {
-            return;
-        }
         if (!this.is_thinking) {
             this.is_thinking = true;
             var agent = this;
@@ -95,7 +91,9 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             xobj.onreadystatechange = function () {
                 if (xobj.readyState == XMLHttpRequest.DONE) {
                     const plan = JSON.parse(xobj.responseText);
-                    agent.move(plan.direct);
+                    if (!agent.is_control) {
+                        agent.move(plan.direct);
+                    }
                     agent.is_thinking = false;
                     agent.scene.time.delayedCall(agent.config.think.interval, agent.action, [], agent);
                 }
@@ -134,9 +132,22 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
+    getStatus() {
+        this.status.position = [Math.round(this.body.position.x), Math.round(this.body.position.y)];
+        return this.status;
+    }
+
+    getDescribe() {
+        return this.config.describe;
+    }
+
+    toString = () => {
+        return this.name + "\n" + JSON.stringify(this.status);
+    }
+
     addCollider(other) {
         if (other instanceof Agent) {
-            if (this.name == other.name) {
+            if (this.name === other.name) {
                 return false;
             }
             if (this.colliders.has(other.name) || other.colliders.has(this.name)) {
@@ -158,22 +169,5 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
     setControl(is_control) {
         this.is_control = is_control;
-        if (!this.is_control) {
-            this.scene.time.delayedCall(this.status.think_time, this.action, [], this);
-        }
     }
-
-    getStatus() {
-        this.status.position = [Math.round(this.body.position.x), Math.round(this.body.position.y)];
-        return this.status;
-    }
-
-    getDescribe() {
-        return this.config.describe;
-    }
-
-    toString = () => {
-        return this.name + "\n" + this.status;
-    }
-
 }

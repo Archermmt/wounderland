@@ -1,9 +1,9 @@
-import { TileMapCreator, MazeCamera } from "./utils.js"
+import Maze from "./maze.js"
 import Agent from "./agent.js"
 
 export default class Land extends Phaser.Scene {
     init(data) {
-        this.env = data;
+        this.msg = data;
         this.assets_root = data.assets_root;
     }
 
@@ -24,7 +24,7 @@ export default class Land extends Phaser.Scene {
         for (const [name, config] of Object.entries(this.config.config)) {
             if (name == "agents") {
                 this.game_config[name] = {};
-                for (const a_name of this.env.agents) {
+                for (const a_name of this.msg.agents) {
                     this.game_config[name][a_name] = config[a_name];
                     this.load.json('config.agent.' + a_name, this.getAsset(config[a_name].path));
                 }
@@ -36,40 +36,35 @@ export default class Land extends Phaser.Scene {
     }
 
     create() {
-        const maze_config = this.cache.json.get('config.maze');
-        const map_creator = new TileMapCreator(this, maze_config.map);
-        this.map = map_creator.create();
+        // create maze
+        this.maze = new Maze(this, this.cache.json.get('config.maze'));
 
         // create agent
         this.agents = {};
         const agent_base_config = this.cache.json.get("config.agent_base");
-        for (const name of this.env.agents) {
+        for (const name of this.msg.agents) {
             let agent_config = this.cache.json.get("config.agent." + name);
             if (agent_base_config) {
                 agent_config = { ...agent_base_config, ...agent_config }
             }
-            this.agents[name] = new Agent(this, agent_config, this.env.urls);
+            this.agents[name] = new Agent(this, agent_config, this.msg.urls);
             this.game_config["agents"][name].status = this.agents[name].getStatus();
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
             }
         }
         // add colliders
-        for (const layer of Object.values(map_creator.layers)) {
+        for (const layer of Object.values(this.maze.layers)) {
             if (layer.info.collision) {
                 for (const agent of Object.values(this.agents)) {
                     agent.addCollider(layer.layer);
                 }
             }
         }
-
-        // create camera
-        this.camera = new MazeCamera(this, maze_config.camera);
-
         // change player
-        this.changePlayer(this.env.agents[this.env.agents.length - 1]);
+        this.changePlayer(this.msg.agents[this.msg.agents.length - 1]);
 
-        // start retrieve
+        // start game
         this.game_status = { start: false };
         var land = this;
         var xobj = new XMLHttpRequest();
@@ -79,7 +74,7 @@ export default class Land extends Phaser.Scene {
                 land.game_status = JSON.parse(xobj.responseText);
             }
         }
-        xobj.open('POST', this.env.urls.start_game, true);
+        xobj.open('POST', this.msg.urls.start_game, true);
         xobj.send(JSON.stringify(this.game_config));
 
         // set events
@@ -118,10 +113,10 @@ export default class Land extends Phaser.Scene {
     changePlayer(name) {
         if (this.player) {
             this.player.setControl(false);
-            this.camera.setFollow(this.player, false);
+            this.maze.setFollow(this.player, false);
         }
         this.player = this.agents[name];
-        this.camera.locate(this.player);
+        this.maze.locate(this.player);
     }
 
     objClicked = (pointer, obj) => {

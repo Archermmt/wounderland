@@ -4,7 +4,7 @@ const config = {
     type: Phaser.AUTO,
     pixelArt: true,
     scale: {
-        parent: env.parent,
+        parent: msg.parent,
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: window.innerWidth,
@@ -23,4 +23,4 @@ const config = {
 }
 
 const game = new Phaser.Game(config);
-game.scene.start("village", env);
+game.scene.start("village", msg);

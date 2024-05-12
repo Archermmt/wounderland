@@ -43,9 +43,10 @@ class Agent:
         )
 
     def think(self, status):
+        plan = {"name": self.name, "direct": "stop"}
         if self.think_config["mode"] == "random":
-            direct = random.choice(["left", "right", "up", "down", "stop"])
-        return {"direct": direct}
+            plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])
+        return plan
 
     def get_curr_event(self, as_obj=False):
         if not self.act_address:
