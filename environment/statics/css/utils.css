@@ -25,12 +25,20 @@
     -webkit-transform: rotate(45deg);
 }
 
-.nes-container.message_box {
+.nes-container.agent_msg_box {
     margin: 0;
     border-width: 2px;
     padding: 0.5vh 0.5vw;
     overflow: auto;
-    height: 70vh;
+    height: 90%;
+}
+
+.nes-container.user_msg_box {
+    margin: 0;
+    border-width: 2px;
+    padding: 0.5vh 0.5vw;
+    overflow: auto;
+    height: 80%;
 }
 
 .message {

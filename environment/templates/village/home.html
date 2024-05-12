@@ -4,28 +4,29 @@
 
 {% block content %}
 
-<div id="msg" style="font-size:0.8vw; width:35%; position:fixed">
-    <div class="nes-container is-rounded is-dark with-title">
-        <p class="title" style="font-size:1.2vw" @click="displayAgent()">
+<div id="msg" style="font-size:0.8vw">
+    <div id="agent_board" class="nes-container is-rounded is-dark with-title"
+        style="width:35vw; position:fixed; float:left">
+        <p class="title" style="font-size:1.2vw" @click="displayAgent('board')">
             Agent
             <i
                 :class="{ 'arrow': true, 'up': agent_board.info.board.display, 'down': !agent_board.info.board.display }"></i>
         </p>
 
-        <div id="AgentSelect">
-            <img v-bind:src="[[agent_board.info.profile.portrait]]" alt="" style="margin: 1vh 0.5vw;">
+        <div id="agent_select">
+            <img v-bind:src="[[agent_board.info.portrait]]" alt="" style="margin: 1vh 0.5vw;">
             <label style="padding: 1vh 0.5vw">
-                <input type="checkbox" class="nes-checkbox is-dark" @change="followPlayer($event)">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="followAgent($event)">
                 <span>Follow</span>
             </label>
             <label style="padding: 1vh 0.5vw">
-                <input type="checkbox" class="nes-checkbox is-dark" @change="controlPlayer($event)">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="controlAgent($event)">
                 <span>Control</span>
             </label>
 
             <div style="background-color:#212529; padding:0; width:100%">
                 <div class="nes-select is-dark">
-                    <select required id="dark_select" @change="changePlayer($event)">
+                    <select required id="dark_select" @change="changeAgent($event)">
                         <option value="" disabled selected hidden>Choose agent...</option>
                         <option v-for="agent in agents" :value=[[agent]] selected>
                             [[agent]]
@@ -35,24 +36,25 @@
             </div>
         </div>
 
-        <div id="AgentBoard" v-show="agent_board.info.board.display" style="height:80vh">
+        <div id="agent_info" v-show="agent_board.info.board.display" style="height:80vh">
             <br>
             <ul class="nav nav-tabs">
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('profile')">Profile</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayAgent('profile')">Profile</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('plan')">Plan</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayAgent('plan')">Plan</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('memory')">Memory</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayAgent('memory')">Memory</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" style="padding: 0.5vw" @click="displayPlayer('space')">Space</a>
+                    <a class="nav-link" style="padding: 0.5vw" @click="displayAgent('spatial')">Spatial</a>
                 </li>
             </ul>
 
-            <div id="Profile" class="nes-container is-dark message_box" v-show="agent_board.info.profile.display">
+            <div id="agent_profile" class="nes-container is-dark agent_msg_box"
+                v-show="agent_board.info.profile.display">
                 <p>Status:</p>
                 <p v-for="(v,k) in agent_board.info.profile.status" class="message">
                     &nbsp;[[k]]: [[v]]
@@ -65,19 +67,43 @@
                 <br>
             </div>
 
-            <div id="Plan" class="nes-container is-dark message_box" v-show="agent_board.info.plan.display">
+            <div id="agent_plan" class="nes-container is-dark agent_msg_box" v-show="agent_board.info.plan.display">
                 <p>This is plan</p>
             </div>
 
-            <div id="Memory" class="nes-container is-dark message_box" v-show="agent_board.info.memory.display">
+            <div id="agent_memory" class="nes-container is-dark agent_msg_box" v-show="agent_board.info.memory.display">
                 <p>This is memeory</p>
             </div>
 
-            <div id="Space" class="nes-container is-dark message_box" v-show="agent_board.info.space.display">
-                <p>This is space</p>
+            <div id="agent_spatial" class="nes-container is-dark agent_msg_box"
+                v-show="agent_board.info.spatial.display">
+                <p>This is spatial</p>
             </div>
         </div>
     </div>
+
+    <div id="user_board" v-show="user_board.info.board.display" class="nes-container is-rounded is-dark with-title"
+        style="top: 0vh; left: 35vw; width:35vw; height:40vh; position:fixed;">
+        <p class="title" style="font-size:1.2vw">User</p>
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link" style="padding: 0.5vw" @click="displayUser('keys')">keys</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" style="padding: 0.5vw" @click="displayUser('login')">login</a>
+            </li>
+        </ul>
+
+        <div id="user_keys" class="nes-container is-dark user_msg_box" v-show="user_board.info.keys.display">
+            <p>This is keys</p>
+        </div>
+
+        <div id="user_login" class="nes-container is-dark user_msg_box" v-show="user_board.info.login.display">
+            <p>This is login</p>
+        </div>
+    </div>
+
+
 </div>
 
 <div id='phaser-canvas'></div>
@@ -102,12 +128,12 @@
                 update: null,
                 info: {
                     name: "",
+                    portrait: "",
                     board: {
                         display: false
                     },
                     profile: {
                         display: true,
-                        portrait: "",
                         status: {},
                         describe: {}
                     },
@@ -117,12 +143,25 @@
                     plan: {
                         display: false,
                     },
-                    space: {
+                    spatial: {
                         display: false,
                     },
                 },
             },
-            config_board: {}
+            user_board: {
+                update: null,
+                info: {
+                    board: {
+                        display: false
+                    },
+                    keys: {
+                        display: true
+                    },
+                    login: {
+                        display: false
+                    }
+                }
+            }
         },
         methods: {
             updateAgent: function (key, value) {
@@ -131,28 +170,37 @@
                 }
                 this.agent_board.update[key] = value;
             },
-            changePlayer: function (event) {
+            changeAgent: function (event) {
                 this.updateAgent("player", event.target.value);
                 this.updateAgent("follow_player", false);
                 this.updateAgent("control_player", false);
             },
-            followPlayer: function (event) {
+            followAgent: function (event) {
                 this.updateAgent("follow_player", event.target.checked);
             },
-            controlPlayer: function (event) {
+            controlAgent: function (event) {
                 this.updateAgent("control_player", event.target.checked);
             },
-            displayPlayer: function (tab_name) {
-                const tabs = ["profile", "memory", "plan", "space"];
+            displayAgent: function (tab_name) {
+                const tabs = ["profile", "memory", "plan", "spatial"];
                 for (const key of tabs) {
                     this.agent_board.info[key].display = false;
                 }
-                if (tab_name) {
+                if (tab_name === "board") {
+                    this.agent_board.info.board.display = !this.agent_board.info.board.display;
+                    if (this.agent_board.info.board.display) {
+                        this.agent_board.info.profile.display = true;
+                    }
+                } else {
                     this.agent_board.info[tab_name].display = true;
                 }
             },
-            displayAgent: function () {
-                this.agent_board.info.board.display = !this.agent_board.info.board.display;
+            displayUser: function (tab_name) {
+                const tabs = ["keys", "login"];
+                for (const key of tabs) {
+                    this.user_board.info[key].display = false;
+                }
+                this.user_board.info[tab_name].display = true;
             }
         }
     });

@@ -89,12 +89,62 @@ export default class Land extends Phaser.Scene {
                 agent.update();
             }
         }
+        this.configAgent();
         if (this.cursors.space.isDown && !this.on_config) {
             this.on_config = true;
         }
         if (this.cursors.space.isUp && this.on_config) {
             this.configUser();
             this.on_config = false;
+        }
+    }
+
+    configAgent() {
+        var agent_board = this.msg.agent_board;
+        var agent_update = agent_board.update;
+        var agent_info = agent_board.info;
+        if (agent_update) {
+            if (agent_update.player) {
+                this.changePlayer(agent_update.player);
+            }
+            if (this.player && (typeof agent_update.follow_player !== "undefined")) {
+                this.maze.setFollow(this.player, agent_update.follow_player);
+            }
+            if (this.player && (typeof agent_update.control_player !== "undefined")) {
+                this.player.setControl(agent_update.control_player);
+            }
+            agent_board.update = null;
+        }
+        if (this.player && agent_info.profile.display) {
+            agent_info.profile.status = this.player.getStatus();
+        }
+    }
+
+    configUser() {
+        var user_board = this.msg.user_board;
+        var user_info = user_board.info;
+        user_info.board.display = !user_info.board.display;
+    }
+
+    changePlayer(name) {
+        if (this.player) {
+            this.player.setControl(false);
+            this.maze.setFollow(this.player, false);
+        }
+        this.player = this.agents[name];
+        this.maze.locate(this.player);
+        var agent_board = this.msg.agent_board;
+        var agent_info = agent_board.info;
+        if (this.player && agent_info.profile.display) {
+            agent_info.portrait = this.player.portrait || "";
+            agent_info.profile.status = this.player.getStatus();
+            agent_info.profile.describe = this.player.getDescribe();
+        }
+    }
+
+    objClicked = (pointer, obj) => {
+        if (obj instanceof Agent) {
+            this.changePlayer(obj.name);
         }
     }
 
@@ -105,24 +155,4 @@ export default class Land extends Phaser.Scene {
         }
         return this.assets_root + "/" + abs_path;
     }
-
-    configUser = () => {
-        console.log("calling configUser");
-    }
-
-    changePlayer(name) {
-        if (this.player) {
-            this.player.setControl(false);
-            this.maze.setFollow(this.player, false);
-        }
-        this.player = this.agents[name];
-        this.maze.locate(this.player);
-    }
-
-    objClicked = (pointer, obj) => {
-        if (obj instanceof Agent) {
-            this.changePlayer(obj.name);
-        }
-    }
-
 }

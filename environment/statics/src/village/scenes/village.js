@@ -41,37 +41,4 @@ export default class Village extends Land {
         }
         return config;
     }
-
-    update() {
-        super.update();
-        var agent_board = this.msg.agent_board;
-        var agent_update = agent_board.update;
-        var agent_info = agent_board.info;
-        if (agent_update) {
-            if (agent_update.player) {
-                this.changePlayer(agent_update.player);
-            }
-            if (this.player && (typeof agent_update.follow_player !== "undefined")) {
-                this.maze.setFollow(this.player, agent_update.follow_player);
-            }
-            if (this.player && (typeof agent_update.control_player !== "undefined")) {
-                this.player.setControl(agent_update.control_player);
-            }
-            agent_board.update = null;
-        }
-        if (this.player && agent_info.profile.display) {
-            agent_info.profile.status = this.player.getStatus();
-        }
-    }
-
-    changePlayer(name) {
-        super.changePlayer(name);
-        var agent_board = this.msg.agent_board;
-        var agent_info = agent_board.info;
-        if (this.player && agent_info.profile.display) {
-            agent_info.profile["portrait"] = this.player.portrait || "";
-            agent_info.profile["status"] = this.player.getStatus();
-            agent_info.profile["describe"] = this.player.getDescribe();
-        }
-    }
 }
