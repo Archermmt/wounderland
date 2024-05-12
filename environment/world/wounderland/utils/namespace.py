@@ -2,8 +2,8 @@ from typing import Any, Optional
 import copy
 
 
-class WorldMap:
-    """Global Namespace map for World"""
+class GameMap:
+    """Global Namespace map for Land"""
 
     MAP = {}
 
@@ -34,7 +34,7 @@ class WorldMap:
         cls.MAP = {}
 
 
-class WorldKey:
-    """Keys for the WorldMap"""
+class GameKey:
+    """Keys for the LandMap"""
 
-    MAZE = "maze"
+    GAME = "game"

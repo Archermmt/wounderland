@@ -1,37 +1,5 @@
-class AgentStatus {
-    constructor(config) {
-        const move_config = config.move;
-        this.is_control = false;
-        this.direction = config.direction;
-        this.speed = move_config.speed;
-        this.think_time = config.think_time || 1000;
-        this.percept_mode = config.percept_mode;
-        this.plan_mode = config.plan_mode;
-    }
-
-    toDict() {
-        var dict = { "Movement": this.direction + " X " + this.speed };
-        if (this.is_control) {
-            dict["Action"] = "control";
-        } else {
-            dict["Action"] = "percept+plan / " + this.think_time + " ms";
-            dict["Percept"] = JSON.stringify(this.percept_mode);
-            dict["Plan"] = JSON.stringify(this.plan_mode);
-        }
-        return dict;
-    }
-
-    toString() {
-        var str = " ";
-        for (const [name, info] of Object.entries(this.toDict())) {
-            str += name + ": " + info + "\n ";
-        }
-        return str;
-    }
-}
-
 export default class Agent extends Phaser.GameObjects.Sprite {
-    constructor(scene, config) {
+    constructor(scene, config, urls) {
         let position = [0, 0];
         if (config.position) {
             position = config.position;
@@ -44,7 +12,11 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.scene = scene;
         this.config = config;
         this.name = config.name;
-        this.status = new AgentStatus(config);
+        this.urls = urls;
+
+        // status
+        this.status = { direction: "stop", speed: config.move.speed, position: position };
+
         // add sprite
         scene.add.existing(this);
         scene.physics.add.existing(this);
@@ -80,61 +52,66 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.body.allowGravity = (body_config.gravity || true);
         this.body.immovable = !(body_config.movable || true);
         this.body.setCollideWorldBounds(true);
+        this.colliders = new Set();
 
         // set events
         if (config.interactive || true) {
             this.setInteractive();
         }
-        scene.time.delayedCall(this.status.think_time, this.action, [], this);
+        this.setControl(false);
 
-        //record colliders
-        this.colliders = new Set();
+        // record plan
+        this.is_thinking = false;
     }
 
     update() {
-        if (!this.status.is_control) {
+        if (!this.is_control) {
             return;
         }
         const cursors = this.scene.cursors;
         if (cursors.left.isDown) {
-            this.moveTo("left");
+            this.move("left");
         } else if (cursors.right.isDown) {
-            this.moveTo("right");
+            this.move("right");
         } else if (cursors.up.isDown) {
-            this.moveTo("up");
+            this.move("up");
         } else if (cursors.down.isDown) {
-            this.moveTo("down");
+            this.move("down");
         }
         if (cursors.left.isUp && cursors.right.isUp && cursors.up.isUp && cursors.down.isUp) {
-            this.stopMove();
+            this.move("stop");
         }
     }
 
-    getPosition() {
-        return [Math.round(this.body.position.x), Math.round(this.body.position.y)];
-    }
-
-    getStatus() {
-        return {
-            "position": this.getPosition(),
-            ...this.status.toDict()
+    action = () => {
+        if (this.is_control) {
+            return;
+        }
+        if (!this.is_thinking) {
+            this.is_thinking = true;
+            var agent = this;
+            var xobj = new XMLHttpRequest();
+            xobj.overrideMimeType("application/json");
+            xobj.onreadystatechange = function () {
+                if (xobj.readyState == XMLHttpRequest.DONE) {
+                    const plan = JSON.parse(xobj.responseText);
+                    agent.move(plan.direct);
+                    agent.is_thinking = false;
+                    agent.scene.time.delayedCall(agent.config.think.interval, agent.action, [], agent);
+                }
+            }
+            xobj.open('POST', this.urls.agent_think, true);
+            xobj.send(JSON.stringify({ name: this.name, status: this.getStatus() }));
         }
     }
 
-    getDescribe() {
-        const describe = this.config.describe || {};
-        return { "name": this.name, ...describe };
-    }
-
-    toString = () => {
-        return this.name + " @ " + this.getPosition() + "\n" + this.status;
-    }
-
-    moveTo(direction) {
+    move(direction) {
         const move_config = this.config.move;
         this.status.direction = direction;
         this.body.setVelocity(0);
-        if (direction === "left") {
+        if (direction === "stop") {
+            this.anims.stop();
+        } else if (direction === "left") {
             if (move_config.left) {
                 this.anims.play(this.animations[move_config.left.anim], true);
             }
@@ -157,39 +134,6 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
-    stopMove() {
-        this.anims.stop();
-        this.body.setVelocity(0);
-    }
-
-    percept = () => {
-        return "";
-    }
-
-    plan = (observation) => {
-        let direct;
-        if (this.status.plan_mode === "random") {
-            const directs = ["left", "right", "up", "down", "stop"];
-            direct = directs[Math.floor(Math.random() * directs.length)];
-        }
-        return direct;
-    }
-
-    action = () => {
-        if (this.status.is_control) {
-            return;
-        }
-        const observation = this.percept();
-        const direct = this.plan(observation);
-        this.body.setVelocity(0);
-        if (direct === "stop") {
-            this.stopMove();
-        } else {
-            this.moveTo(direct);
-        }
-        this.scene.time.delayedCall(this.status.think_time, this.action, [], this);
-    }
-
     addCollider(other) {
         if (other instanceof Agent) {
             if (this.name == other.name) {
@@ -201,21 +145,35 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             this.colliders.add(other.name);
             other.colliders.add(this.name);
             this.scene.physics.add.collider(this, other, (agent, other) => {
-                agent.stopMove();
-                other.stopMove();
+                agent.move("stop");
+                other.move("stop");
             });
         } else {
             this.scene.physics.add.collider(this, other, (agent, other) => {
-                agent.stopMove();
+                agent.move("stop");
             });
         }
         return true;
     }
 
     setControl(is_control) {
-        this.status.is_control = is_control;
-        if (!this.status.is_control) {
+        this.is_control = is_control;
+        if (!this.is_control) {
             this.scene.time.delayedCall(this.status.think_time, this.action, [], this);
         }
     }
+
+    getStatus() {
+        this.status.position = [Math.round(this.body.position.x), Math.round(this.body.position.y)];
+        return this.status;
+    }
+
+    getDescribe() {
+        return this.config.describe;
+    }
+
+    toString = () => {
+        return this.name + "\n" + this.status;
+    }
+
 }

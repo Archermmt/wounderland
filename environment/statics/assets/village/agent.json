@@ -52,9 +52,16 @@
             }
         }
     },
-    "think_time": 1000,
-    "percept_mode": "circle",
-    "plan_mode": "random",
+    "percept": {
+        "mode": "box",
+        "vision_r": 8,
+        "att_bandwidth": 8,
+        "retention": 8
+    },
+    "think": {
+        "mode": "random",
+        "interval": 1000
+    },
     "move": {
         "speed": 100,
         "left": {

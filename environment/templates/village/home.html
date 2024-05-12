@@ -91,7 +91,10 @@
         data: {
             parent: "phaser-canvas",
             assets_root: "{% static '' %}",
-            start_url: "{% url 'start_game' %}",
+            urls: {
+                start_game: "{% url 'start_game' %}",
+                agent_think: "{% url 'agent_think' %}",
+            },
             agents: src_agents,
             update: null,
             player: {

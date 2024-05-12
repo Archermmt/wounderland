@@ -1,6 +1,6 @@
-import Maze from "../../base/maze.js"
+import Land from "../../base/land.js"
 
-export default class Village extends Maze {
+export default class Village extends Land {
     constructor() {
         super("village")
     }
@@ -28,8 +28,8 @@ export default class Village extends Maze {
                 "CuteRPG_Forest_C": { "type": "image", "path": root + "tilemap/CuteRPG_Forest_C.png" }
             },
             "config": {
-                "maze": { "path": root + "maze.json", "load": "both" },
-                "agent_base": { "path": root + "agent.json", "load": "both" },
+                "maze": { "path": root + "maze.json" },
+                "agent_base": { "path": root + "agent.json" },
                 "agents": {}
             }
         }
@@ -37,7 +37,7 @@ export default class Village extends Maze {
         for (const agent of agents) {
             const agent_root = root + "agents/" + agent.replace(" ", "_") + "/";
             config.assets[agent] = { "type": "atlas", "texture": agent_root + "texture.png", "sprite": root + "agents/sprite.json" };
-            config.config.agents[agent] = { "path": agent_root + "agent.json", "load": "both" };
+            config.config.agents[agent] = { "path": agent_root + "agent.json" };
         }
         return config;
     }

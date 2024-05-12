@@ -22,5 +22,6 @@ from world import views as world_views
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("village", world_views.village),
-    url(r"^start_game/$", world_views.start_game, name="start_game"),
+    url("start_game", world_views.start_game, name="start_game"),
+    url("agent_think", world_views.agent_think, name="agent_think"),
 ]

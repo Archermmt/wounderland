@@ -1,4 +1,4 @@
-export class tileMapCreator {
+export class TileMapCreator {
     constructor(scene, config) {
         this.scene = scene;
         this.config = config;

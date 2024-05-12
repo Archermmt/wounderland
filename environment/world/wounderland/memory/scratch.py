@@ -1,10 +1,5 @@
 class Scratch:
     def __init__(self, config):
-        # ENV SETTING
-        self.vision_r = 4
-        self.att_bandwidth = 3
-        self.retention = 5
-
         # REFLECTION VARIABLES
         self.concept_forget = 100
         self.daily_reflection_time = 60 * 3
@@ -23,8 +18,8 @@ class Scratch:
         self.importance_ele_n = 0
         self.thought_count = 5
 
-        self.name = config["name"]
         self.describe = config["describe"]
+        """
         # PERSONA PLANNING
         # <daily_req> is a list of various goals the persona is aiming to achieve
         # today.
@@ -119,13 +114,4 @@ class Scratch:
         # destination tile.
         # e.g., [(50, 10), (49, 10), (48, 10), ...]
         self.planned_path = []
-
-    def get_curr_event(self, as_obj=False):
-        if not self.act_address:
-            return ("" if as_obj else self.name, None, None, None)
-        return (
-            self.act_address if as_obj else self.act_event[0],
-            self.act_event[1],
-            self.act_event[2],
-            self.act_description,
-        )
+        """

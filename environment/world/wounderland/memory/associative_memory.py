@@ -1,4 +1,4 @@
-from world import utils
+from world.wounderland import utils
 
 
 class ConceptNode:
