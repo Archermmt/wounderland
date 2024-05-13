@@ -33,3 +33,14 @@ def agent_think(request):
         plan = game.get_agent(data["name"]).think(data["status"])
         return JsonResponse(plan)
     return JsonResponse({"direct": "stop"})
+
+
+@csrf_exempt
+def user_login(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        if not data.get("name"):
+            return JsonResponse({"success": False, "error": "missing user name"})
+        print("has data " + str(data))
+        return JsonResponse({"success": True, "name": data["name"]})
+    return JsonResponse({"success": False, "error": "not a valid request"})

@@ -102,7 +102,6 @@ export default class Land extends Phaser.Scene {
     configAgent() {
         var agent_board = this.msg.agent_board;
         var agent_update = agent_board.update;
-        var agent_info = agent_board.info;
         if (agent_update) {
             if (agent_update.player) {
                 this.changePlayer(agent_update.player);
@@ -115,15 +114,14 @@ export default class Land extends Phaser.Scene {
             }
             agent_board.update = null;
         }
-        if (this.player && agent_info.profile.display) {
-            agent_info.profile.status = this.player.getStatus();
+        if (this.player && agent_board.profile.display) {
+            agent_board.profile.status = this.player.getStatus();
         }
     }
 
     configUser() {
         var user_board = this.msg.user_board;
-        var user_info = user_board.info;
-        user_info.board.display = !user_info.board.display;
+        user_board.display = !user_board.display;
     }
 
     changePlayer(name) {
@@ -134,11 +132,10 @@ export default class Land extends Phaser.Scene {
         this.player = this.agents[name];
         this.maze.locate(this.player);
         var agent_board = this.msg.agent_board;
-        var agent_info = agent_board.info;
-        if (this.player && agent_info.profile.display) {
-            agent_info.portrait = this.player.portrait || "";
-            agent_info.profile.status = this.player.getStatus();
-            agent_info.profile.describe = this.player.getDescribe();
+        if (this.player && agent_board.profile.display) {
+            agent_board.portrait = this.player.portrait || "";
+            agent_board.profile.status = this.player.getStatus();
+            agent_board.profile.describe = this.player.getDescribe();
         }
     }
 
