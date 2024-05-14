@@ -1,10 +1,12 @@
 import Maze from "./maze.js"
 import Agent from "./agent.js"
+import jsonRequest from "./utils.js";
 
 export default class Land extends Phaser.Scene {
     init(data) {
         this.msg = data;
         this.assets_root = data.assets_root;
+        this.urls = data.urls;
     }
 
     preload() {
@@ -33,6 +35,13 @@ export default class Land extends Phaser.Scene {
                 this.load.json('config.' + name, this.getAsset(config.path));
             }
         }
+        // start game
+        this.game_status = { start: false };
+        let callback = (response) => {
+            this.game_status = response;
+
+        }
+        jsonRequest(this.urls.start_game, this.game_config, callback);
     }
 
     create() {
@@ -48,7 +57,6 @@ export default class Land extends Phaser.Scene {
                 agent_config = { ...agent_base_config, ...agent_config }
             }
             this.agents[name] = new Agent(this, agent_config, this.msg.urls);
-            this.game_config["agents"][name].status = this.agents[name].getStatus();
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
             }
@@ -63,19 +71,6 @@ export default class Land extends Phaser.Scene {
         }
         // change player
         this.changePlayer(this.msg.agents[this.msg.agents.length - 1]);
-
-        // start game
-        this.game_status = { start: false };
-        var land = this;
-        var xobj = new XMLHttpRequest();
-        xobj.overrideMimeType("application/json");
-        xobj.onreadystatechange = function () {
-            if (xobj.readyState == XMLHttpRequest.DONE) {
-                land.game_status = JSON.parse(xobj.responseText);
-            }
-        }
-        xobj.open('POST', this.msg.urls.start_game, true);
-        xobj.send(JSON.stringify(this.game_config));
 
         // set events
         this.cursors = this.input.keyboard.createCursorKeys()

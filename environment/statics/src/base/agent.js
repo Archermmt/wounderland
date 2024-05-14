@@ -1,3 +1,5 @@
+import jsonRequest from "./utils.js";
+
 export default class Agent extends Phaser.GameObjects.Sprite {
     constructor(scene, config, urls) {
         let position = [0, 0];
@@ -85,21 +87,14 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     action = () => {
         if (!this.is_thinking) {
             this.is_thinking = true;
-            var agent = this;
-            var xobj = new XMLHttpRequest();
-            xobj.overrideMimeType("application/json");
-            xobj.onreadystatechange = function () {
-                if (xobj.readyState == XMLHttpRequest.DONE) {
-                    const plan = JSON.parse(xobj.responseText);
-                    if (!agent.is_control) {
-                        agent.move(plan.direct);
-                    }
-                    agent.is_thinking = false;
-                    agent.scene.time.delayedCall(agent.config.think.interval, agent.action, [], agent);
+            let callback = (response) => {
+                if (!this.is_control) {
+                    this.move(response.direct);
                 }
+                this.is_thinking = false;
+                this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
             }
-            xobj.open('POST', this.urls.agent_think, true);
-            xobj.send(JSON.stringify({ name: this.name, status: this.getStatus() }));
+            jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
         }
     }
 

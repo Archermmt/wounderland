@@ -25,4 +25,6 @@ urlpatterns = [
     url("start_game", world_views.start_game, name="start_game"),
     url("agent_think", world_views.agent_think, name="agent_think"),
     url("user_login", world_views.user_login, name="user_login"),
+    url("user_logout", world_views.user_logout, name="user_logout"),
+    url("user_add_key", world_views.user_add_key, name="user_add_key"),
 ]

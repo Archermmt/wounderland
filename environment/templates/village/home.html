@@ -98,20 +98,37 @@
                     v-model="user_board.info.password">
                 <input type="text" class="nes-input is-dark" placeholder="user email" v-model="user_board.info.email">
             </form>
-            <p v-show="user_board.user !=''">Login as [[user_board.user]]</p>
-            <button type="submit" v-show="user_board.user ==''" class="nes-btn" style="width:8vw"
+            <div v-show="user_board.user !=''">
+                <p>Login as [[user_board.user]]</p>
+                <table class="nes-table is-bordered is-dark message" style="width:100%; margin:0">
+                    <thead>
+                        <tr>
+                            <th>LLM Key</th>
+                            <th>Create at</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="key in user_board.llm_keys">
+                            <td>[[key.key]]</td>
+                            <td>[[key.create]]</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button type="submit" v-show="user_board.user ==''" class="nes-btn is-warning" style="width:8vw"
                 @click="userLogin()">Login</button>
             <button type="submit" v-show="user_board.user !=''" class="nes-btn is-warning" style="width:8vw"
                 @click="userLogout()">Logout</button>
         </div>
 
         <div id="user_keys" class="nes-container is-dark user_msg_box" v-show="user_board.keys.display">
-            <p>This is keys</p>
+            <form>
+                <input type="text" class="nes-input is-dark" placeholder="key" v-model="user_board.keys.key">
+                <input type="text" class="nes-input is-dark" placeholder="value" v-model="user_board.keys.value">
+            </form>
+            <button type="submit" class="nes-btn is-warning" style="width:8vw" @click="userAddKey()">AddKey</button>
         </div>
-
     </div>
-
-
 </div>
 
 <div id='phaser-canvas'></div>
@@ -120,7 +137,7 @@
 
 {% block js_content %}
 <script>
-    var src_agents = {{ agents| safe }};
+    var ctx = {{ ctx| safe }};
     var msg = new Vue({
         delimiters: ['[[', ']]'],
         el: '#msg',
@@ -131,8 +148,10 @@
                 start_game: "{% url 'start_game' %}",
                 agent_think: "{% url 'agent_think' %}",
                 user_login: "{% url 'user_login' %}",
+                user_logout: "{% url 'user_logout' %}",
+                user_add_key: "{% url 'user_add_key' %}",
             },
-            agents: src_agents,
+            agents: ctx.agents,
             agent_board: {
                 update: null,
                 name: "",
@@ -154,20 +173,35 @@
                 },
             },
             user_board: {
-                user: "",
+                user: ctx.user,
+                llm_keys: ctx.llm_keys,
                 display: false,
-                keys: {
-                    display: true
-                },
                 info: {
-                    display: false,
+                    display: true,
                     name: "",
                     password: "",
                     email: ""
+                },
+                keys: {
+                    display: false,
+                    key: "",
+                    value: "",
                 }
             }
         },
         methods: {
+            jsonRequest: function (url, data, callback) {
+                var xobj = new XMLHttpRequest();
+                xobj.overrideMimeType("application/json");
+                xobj.onreadystatechange = function () {
+                    if (xobj.readyState == XMLHttpRequest.DONE) {
+                        const response = JSON.parse(xobj.responseText);
+                        callback(response);
+                    }
+                }
+                xobj.open('POST', url, true);
+                xobj.send(JSON.stringify(data));
+            },
             agentUpdate: function (key, value) {
                 if (!this.agent_board.update) {
                     this.agent_board.update = {};
@@ -212,60 +246,33 @@
                     this.user_board.info[key] = "";
                 }
             },
-            userRequest: function (url, data, callback) {
-                var xobj = new XMLHttpRequest();
-                xobj.overrideMimeType("application/json");
-                xobj.onreadystatechange = function () {
-                    if (xobj.readyState == XMLHttpRequest.DONE) {
-                        const response = JSON.parse(xobj.responseText);
-                        callback(response);
-                    }
-                }
-                xobj.open('POST', url, true);
-                xobj.send(JSON.stringify(data));
-            },
             userLogin: function () {
-                console.log("calling userLogin: " + JSON.stringify(this.user_board.info));
-                callback = (response) => {
-                    console.log("get resp " + JSON.stringify(resp));
-                    if (resp.success) {
-                        this.user_board.user = resp.name;
+                let callback = (response) => {
+                    if (response.success) {
+                        this.user_board.user = response.name;
+                        this.user_board.llm_keys = response.llm_keys;
                     }
                 }
-                userRequest(this.urls.user_login, this.user_board.info,);
-                /*
-                var xobj = new XMLHttpRequest();
-                xobj.overrideMimeType("application/json");
-                xobj.onreadystatechange = function () {
-                    if (xobj.readyState == XMLHttpRequest.DONE) {
-                        const resp = JSON.parse(xobj.responseText);
-                        console.log("get resp " + JSON.stringify(resp));
-                        if (resp.success) {
-                            this.user_board.user = resp.name;
-                        }
-                    }
-                }
-                xobj.open('POST', this.urls.user_login, true);
-                xobj.send(JSON.stringify(this.user_board.info));
-                */
+                this.jsonRequest(this.urls.user_login, this.user_board.info, callback);
                 this.userEmpty();
             },
             userLogout: function () {
-                console.log("calling userLogout!!");
-                var xobj = new XMLHttpRequest();
-                xobj.overrideMimeType("application/json");
-                xobj.onreadystatechange = function () {
-                    if (xobj.readyState == XMLHttpRequest.DONE) {
-                        const resp = JSON.parse(xobj.responseText);
-                        console.log("get resp " + JSON.stringify(resp));
-                        if (resp.success) {
-                            this.user_board.user = "";
-                        }
+                let callback = (response) => {
+                    if (response.success) {
+                        this.user_board.user = "";
+                        this.user_board.llm_keys = [];
                     }
                 }
-                xobj.open('GET', this.urls.user_logout, true);
-                this.userEmpty();
+                this.jsonRequest(this.urls.user_logout, {}, callback);
             },
+            userAddKey: function () {
+                let callback = (response) => {
+                    if (response.success) {
+                        this.user_board.llm_keys = response.llm_keys;
+                    }
+                }
+                this.jsonRequest(this.urls.user_add_key, this.user_board.keys, callback);
+            }
         }
     });
 </script>
