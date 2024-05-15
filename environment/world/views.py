@@ -28,10 +28,11 @@ def village(request):
 @csrf_exempt
 def start_game(request):
     if request.method == "POST":
-        return JsonResponse(
-            create_game(settings.STATICFILES_DIRS[0], json.loads(request.body), logger)
+        info = create_game(
+            settings.STATICFILES_DIRS[0], json.loads(request.body), logger
         )
-    return JsonResponse({"start": False})
+        return JsonResponse({"success": True, "info": info})
+    return JsonResponse({"success": False, "error": "not a valid request"})
 
 
 @csrf_exempt
@@ -39,9 +40,9 @@ def agent_think(request):
     game = get_game()
     if request.method == "POST" and game:
         data = json.loads(request.body)
-        plan = game.get_agent(data["name"]).think(data["status"])
-        return JsonResponse(plan)
-    return JsonResponse({"direct": "stop"})
+        info = game.get_agent(data["name"]).think(data["status"])
+        return JsonResponse({"success": True, "info": info})
+    return JsonResponse({"success": True, "info": {"direct": "stop"}})
 
 
 @csrf_exempt
@@ -51,19 +52,11 @@ def user_login(request):
         if not data.get("name") or not data.get("password"):
             return JsonResponse({"success": False, "error": "missing user name"})
         request.session["user"] = data["name"]
-        user = User.objects.filter(name=data["name"])
-        if user:
-            user = user.first()
-            if user.password != data.get("password"):
-                return JsonResponse({"success": False, "error": "password mismatch"})
-        else:
-            user = User(
-                name=data["name"], email=data["email"], password=data["password"]
-            )
-            user.save()
-        return JsonResponse(
-            {"success": True, "name": data["name"], "llm_keys": user.all_llm_keys()}
-        )
+        user, error = User.safe_get(data["name"], data["password"], data["email"])
+        if not user:
+            return JsonResponse({"success": False, "error": error})
+        info = {"name": data["name"], "llm_keys": user.all_llm_keys()}
+        return JsonResponse({"success": True, "info": info})
     return JsonResponse({"success": False, "error": "not a valid request"})
 
 
@@ -71,7 +64,7 @@ def user_login(request):
 def user_logout(request):
     user = request.session.get("user", "")
     request.session.pop("user")
-    return JsonResponse({"success": True, "name": user})
+    return JsonResponse({"success": True, "info": {"name": user}})
 
 
 @csrf_exempt
@@ -80,24 +73,10 @@ def user_add_key(request):
         user_name = request.session.get("user", "")
         if not user_name:
             return JsonResponse({"success": False, "error": "Can not find user"})
-        user = User.objects.filter(name=user_name)
-        if not user:
-            return JsonResponse(
-                {
-                    "success": False,
-                    "error": "Can not find user with name " + str(user_name),
-                }
-            )
-        user, data = user.first(), json.loads(request.body)
-        if not data.get("key") or not data.get("value"):
-            return JsonResponse({"success": False, "error": "missing key or value"})
-        llm_key = LLMKey.objects.filter(key=data["key"])
-        if llm_key:
-            llm_key.first().value = data["value"]
-        else:
-            llm_key = LLMKey(user=user, key=data["key"], value=data["value"])
-        llm_key.save()
-        return JsonResponse(
-            {"success": True, "user": user_name, "llm_keys": user.all_llm_keys()}
-        )
+        data = json.loads(request.body)
+        llm_key, error = LLMKey.safe_get(user_name, data["key"], data["value"])
+        if not llm_key:
+            return JsonResponse({"success": False, "error": error})
+        info = {"user": user_name, "llm_keys": llm_key.user.all_llm_keys()}
+        return JsonResponse({"success": True, "info": info})
     return JsonResponse({"success": False, "error": "not a valid request"})

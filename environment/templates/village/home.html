@@ -54,13 +54,12 @@
 
             <div id="agent_profile" class="nes-container is-dark agent_msg_box" v-show="agent_board.profile.display">
                 <p>Status:</p>
-                <p v-for="(v,k) in agent_board.profile.status" class="message">
-                    &nbsp;[[k]]: [[v]]
-                </p>
-                <br>
+                <p v-for="line in agent_board.profile.status" class="message">
+                    [[line]]
+                </p><br>
                 <p>Describe:</p>
-                <p v-for="(v,k) in agent_board.profile.describe" class="message">
-                    &nbsp;[[k]]:[[v]]
+                <p v-for="line in agent_board.profile.describe" class="message">
+                    [[line]]
                 </p>
                 <br>
             </div>
@@ -196,7 +195,11 @@
                 xobj.onreadystatechange = function () {
                     if (xobj.readyState == XMLHttpRequest.DONE) {
                         const response = JSON.parse(xobj.responseText);
-                        callback(response);
+                        if (response.success) {
+                            callback(response.info);
+                        } else {
+                            alert(response.error);
+                        }
                     }
                 }
                 xobj.open('POST', url, true);
@@ -240,38 +243,38 @@
                 }
                 this.user_board[tab_name].display = true;
             },
-            userEmpty: function () {
-                const keys = ["name", "password", "email"];
+            userEmpty: function (tab_name) {
+                let keys = [];
+                if (tab_name === "info") {
+                    keys = ["name", "password", "email"];
+                } else if (tab_name === "keys") {
+                    keys = ["key", "value"];
+                }
                 for (const key of keys) {
-                    this.user_board.info[key] = "";
+                    this.user_board[tab_name][key] = "";
                 }
             },
             userLogin: function () {
-                let callback = (response) => {
-                    if (response.success) {
-                        this.user_board.user = response.name;
-                        this.user_board.llm_keys = response.llm_keys;
-                    }
+                let callback = (info) => {
+                    this.user_board.user = info.name;
+                    this.user_board.llm_keys = info.llm_keys;
                 }
                 this.jsonRequest(this.urls.user_login, this.user_board.info, callback);
-                this.userEmpty();
+                this.userEmpty("info");
             },
             userLogout: function () {
-                let callback = (response) => {
-                    if (response.success) {
-                        this.user_board.user = "";
-                        this.user_board.llm_keys = [];
-                    }
+                let callback = (info) => {
+                    this.user_board.user = "";
+                    this.user_board.llm_keys = [];
                 }
                 this.jsonRequest(this.urls.user_logout, {}, callback);
             },
             userAddKey: function () {
-                let callback = (response) => {
-                    if (response.success) {
-                        this.user_board.llm_keys = response.llm_keys;
-                    }
+                let callback = (info) => {
+                    this.user_board.llm_keys = info.llm_keys;
                 }
                 this.jsonRequest(this.urls.user_add_key, this.user_board.keys, callback);
+                this.userEmpty("keys");
             }
         }
     });

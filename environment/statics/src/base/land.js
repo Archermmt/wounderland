@@ -1,6 +1,6 @@
 import Maze from "./maze.js"
 import Agent from "./agent.js"
-import jsonRequest from "./utils.js";
+import utils from "./utils.js";
 
 export default class Land extends Phaser.Scene {
     init(data) {
@@ -37,11 +37,10 @@ export default class Land extends Phaser.Scene {
         }
         // start game
         this.game_status = { start: false };
-        let callback = (response) => {
-            this.game_status = response;
-
+        let callback = (info) => {
+            this.game_status = info;
         }
-        jsonRequest(this.urls.start_game, this.game_config, callback);
+        utils.jsonRequest(this.urls.start_game, this.game_config, callback);
     }
 
     create() {
@@ -110,7 +109,7 @@ export default class Land extends Phaser.Scene {
             agent_board.update = null;
         }
         if (this.player && agent_board.profile.display) {
-            agent_board.profile.status = this.player.getStatus();
+            agent_board.profile.status = utils.textBlock(this.player.getStatus());
         }
     }
 
@@ -129,8 +128,8 @@ export default class Land extends Phaser.Scene {
         var agent_board = this.msg.agent_board;
         if (this.player && agent_board.profile.display) {
             agent_board.portrait = this.player.portrait || "";
-            agent_board.profile.status = this.player.getStatus();
-            agent_board.profile.describe = this.player.getDescribe();
+            agent_board.profile.status = utils.textBlock(this.player.getStatus());
+            agent_board.profile.describe = utils.textBlock(this.player.getDescribe());
         }
     }
 

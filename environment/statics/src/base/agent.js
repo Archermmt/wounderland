@@ -1,4 +1,4 @@
-import jsonRequest from "./utils.js";
+import utils from "./utils.js";
 
 export default class Agent extends Phaser.GameObjects.Sprite {
     constructor(scene, config, urls) {
@@ -87,14 +87,14 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     action = () => {
         if (!this.is_thinking) {
             this.is_thinking = true;
-            let callback = (response) => {
+            let callback = (info) => {
                 if (!this.is_control) {
-                    this.move(response.direct);
+                    this.move(info.direct);
                 }
                 this.is_thinking = false;
                 this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
             }
-            jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
+            utils.jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
         }
     }
 
