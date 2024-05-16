@@ -95,17 +95,17 @@ export default class Land extends Phaser.Scene {
 
     configAgent() {
         var player = this.msg.player;
-        if (player.update) {
+        if (Object.keys(player.update).length > 0) {
             if (player.update.player) {
                 this.changePlayer(player.update.player);
             }
-            if (this.player && (typeof player.update.follow_player !== "undefined")) {
-                this.maze.setFollow(this.player, player.update.follow_player);
+            if (this.player && (typeof player.update.follow !== "undefined")) {
+                this.maze.setFollow(this.player, player.update.follow);
             }
-            if (this.player && (typeof player.update.control_player !== "undefined")) {
-                this.player.setControl(player.update.control_player);
+            if (this.player && (typeof player.update.control !== "undefined")) {
+                this.player.setControl(player.update.control);
             }
-            player.update = null;
+            player.update = {};
         }
         if (this.player && this.msg.agent.display.profile) {
             this.msg.agent.profile.status = utils.textBlock(this.player.getStatus());

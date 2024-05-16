@@ -1,12 +1,12 @@
 import random
 from wounderland import memory
+from .event import Event
 
 
 class Agent:
     def __init__(self, config, maze, logger):
         self.name = config["name"]
         self.maze = maze
-        self.position = [int(p / self.maze.sq_tile_size) for p in config["position"]]
 
         # attrs
         self.percept_config = config["percept"]
@@ -30,38 +30,53 @@ class Agent:
         # <event_form> represents the event triple that the persona is currently
         # engaged in.
         self.act_event = (self.name, None, None)
+        self.idle_events = {}
+
+        # plan
+        self.planned_path = []
 
         # update maze
-        p_x, p_y = self.position
-        self.maze.tiles[p_y][p_x]["events"].add(self.get_curr_event())
-        self.maze.persona_tiles[self.name] = self.position
+        self.coord = None
+        self.move(config["position"])
 
         self.logger = logger
 
     def __str__(self):
         return "{} @ {}, precept {}, think: {}".format(
-            self.name, self.position, self.percept_config, self.think_config
+            self.name, self.coord, self.percept_config, self.think_config
         )
 
-    def move(self, new_position):
-        self.maze.remove_events(self.position, subject=self.name)
-        self.maze.add_event(new_position, self.get_curr_event())
-        self.maze.persona_tiles[self.name] = new_position
-        self.position = new_position
+    def move(self, position):
+        if self.coord:
+            self.maze.remove_events(self.coord, subject=self.name)
+        for event, coord in self.idle_events.items():
+            self.maze.update_event(coord, event, "idle")
+        self.coord = [int(p / self.maze.sq_tile_size) for p in position]
+        self.idle_events = {}
+        self.maze.add_event(self.coord, self.get_curr_event())
+        self.maze.persona_tiles[self.name] = self.coord
+        if not self.planned_path:
+            obj_event = self.get_curr_event(False)
+            self.idle_events[obj_event] = self.coord
+            self.maze.add_event(self.coord, obj_event)
+            blank = Event(obj_event.subject, None, None, None)
+            self.maze.remove_events(self.coord, event=blank)
+        print("events @ " + str(self.coord))
+        for k, v in self.maze.events_at(self.coord).items():
+            print("{} : {}".format(k, v))
 
     def think(self, status):
-        new_position = [int(p / self.maze.sq_tile_size) for p in status["position"]]
-        self.move(new_position)
+        self.move(status["position"])
         plan = {"name": self.name, "direct": "stop"}
         if self.think_config["mode"] == "random":
             plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])
         return plan
 
-    def get_curr_event(self, as_obj=False):
+    def get_curr_event(self, as_sub=True):
         if not self.act_address:
-            return ("" if as_obj else self.name, None, None, None)
-        return (
-            self.act_address if as_obj else self.act_event[0],
+            return Event(self.name if as_sub else "", None, None, None)
+        return Event(
+            self.act_event[0] if as_sub else self.act_address,
             self.act_event[1],
             self.act_event[2],
             self.act_description,

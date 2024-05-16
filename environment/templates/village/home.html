@@ -142,12 +142,12 @@
                 user_add_key: "{% url 'user_add_key' %}",
             },
             agents: ctx.agents,
-            display: { agent: false, user: false },
             player: {
-                update: null,
+                update: {},
                 player: "",
                 portrait: "",
             },
+            display: { agent: false, user: false },
             agent: {
                 display: { profile: true, memory: false, plan: false, spatial: false },
                 profile: { status: [], describe: [] },
@@ -195,22 +195,16 @@
                     this[board].display[tab_name] = true;
                 }
             },
-            playerUpdate: function (key, value) {
-                if (!this.player.update) {
-                    this.player.update = {};
-                }
-                this.player.update[key] = value;
-            },
             playerFollow: function (event) {
-                this.playerUpdate("follow_player", event.target.checked);
+                this.player.update["follow"] = event.target.checked;
             },
             playerControl: function (event) {
-                this.playerUpdate("control_player", event.target.checked);
+                this.player.update["control"] = event.target.checked;
             },
             playerChange: function (event) {
-                this.playerUpdate("player", event.target.value);
-                this.playerUpdate("follow_player", false);
-                this.playerUpdate("control_player", false);
+                this.player.update["player"] = event.target.value;
+                this.player.update["follow"] = false;
+                this.player.update["control"] = false;
             },
             userEmpty: function (tab_name) {
                 for (const key of Object.entries(this.user[tab_name])) {

@@ -114,7 +114,7 @@ def dump_dict(dict_obj: dict, flavor: str = "table:2") -> str:
         return ""
     if flavor.startswith("table:"):
 
-        def _get_lines(value, indent=2):
+        def _get_lines(value, indent=0):
             max_size = int(flavor.split(":")[1]) - indent - 2
             lines = []
             for k, v in value.items():
