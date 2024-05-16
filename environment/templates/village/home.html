@@ -5,27 +5,11 @@
 {% block content %}
 
 <div id="msg" style="font-size:0.8vw">
-    <div id="agent_board" class="nes-container is-rounded is-dark with-title"
-        style="width:35vw; position:fixed; float:left">
-        <p class="title" style="font-size:1.2vw" @click="agentDisplay('board')">
-            Agent
-            <i :class="{ 'arrow': true, 'up': agent_board.display, 'down': !agent_board.display }"></i>
-        </p>
-
-        <div id="agent_select">
-            <img v-bind:src="[[agent_board.portrait]]" alt="" style="margin: 1vh 0.5vw;">
-            <label style="padding: 1vh 0.5vw">
-                <input type="checkbox" class="nes-checkbox is-dark" @change="agentFollow($event)">
-                <span>Follow</span>
-            </label>
-            <label style="padding: 1vh 0.5vw">
-                <input type="checkbox" class="nes-checkbox is-dark" @change="agentControl($event)">
-                <span>Control</span>
-            </label>
-
+    <div id="msg_board" class="nes-container is-rounded is-dark with-title" style="width:35vw; position:fixed">
+        <div id="player">
             <div style="background-color:#212529; padding:0; width:100%">
                 <div class="nes-select is-dark">
-                    <select required id="dark_select" @change="agentChange($event)">
+                    <select required id="dark_select" @change="playerChange($event)">
                         <option value="" disabled selected hidden>Choose agent...</option>
                         <option v-for="agent in agents" :value=[[agent]] selected>
                             [[agent]]
@@ -33,99 +17,106 @@
                     </select>
                 </div>
             </div>
+
+            <img v-bind:src="[[player.portrait]]" alt="" style="margin: 1vh 0.5vw;">
+            <label style="padding: 1vh 1vw">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="playerFollow($event)">
+                <span>Follow</span>
+            </label>
+            <label style="padding: 1vh 1vw">
+                <input type="checkbox" class="nes-checkbox is-dark" @change="playerControl($event)">
+                <span>Control</span>
+            </label>
         </div>
 
-        <div id="agent_info" v-show="agent_board.display" style="height:80vh">
-            <br>
-            <ul class="nav nav-tabs">
-                <li class="nav-item">
-                    <a class="nav-link" href="#" style="padding: 0.5vw" @click="agentDisplay('profile')">Profile</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" style="padding: 0.5vw" @click="agentDisplay('plan')">Plan</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" style="padding: 0.5vw" @click="agentDisplay('memory')">Memory</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" style="padding: 0.5vw" @click="agentDisplay('spatial')">Spatial</a>
-                </li>
-            </ul>
-
-            <div id="agent_profile" class="nes-container is-dark agent_msg_box" v-show="agent_board.profile.display">
-                <p>Status:</p>
-                <p v-for="line in agent_board.profile.status" class="message">
-                    [[line]]
-                </p><br>
-                <p>Describe:</p>
-                <p v-for="line in agent_board.profile.describe" class="message">
-                    [[line]]
-                </p>
-                <br>
-            </div>
-
-            <div id="agent_plan" class="nes-container is-dark agent_msg_box" v-show="agent_board.plan.display">
-                <p>This is plan</p>
-            </div>
-
-            <div id="agent_memory" class="nes-container is-dark agent_msg_box" v-show="agent_board.memory.display">
-                <p>This is memeory</p>
-            </div>
-
-            <div id="agent_spatial" class="nes-container is-dark agent_msg_box" v-show="agent_board.spatial.display">
-                <p>This is spatial</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="user_board" v-show="user_board.display" class="nes-container is-rounded is-dark with-title"
-        style="top: 0vh; left: 35vw; width:35vw; height:40vh; position:fixed;">
-        <p class="title" style="font-size:1.2vw">User</p>
-        <ul class="nav nav-tabs">
+        <ul class="nav nav-tabs" style="font-size:1vw">
             <li class="nav-item">
-                <a class="nav-link" href="#" style="padding: 0.5vw" @click="userDisplay('info')">Info</a>
+                <a class="nav-link" style="padding: 1vw" @click="boardDisplay('agent')">Agent
+                    <i :class="{ 'arrow': true, 'up': display.agent, 'down': !display.agent }"></i>
+                </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#" style="padding: 0.5vw" @click="userDisplay('keys')">Keys</a>
+                <a class="nav-link" style="padding: 1vw" @click="boardDisplay('user')">User
+                    <i :class="{ 'arrow': true, 'up': display.user, 'down': !display.user }"></i>
+                </a>
             </li>
         </ul>
 
-        <div id="user_login" class="nes-container is-dark user_msg_box" v-show="user_board.info.display">
-            <form v-show="user_board.user ==''">
-                <input type="text" class="nes-input is-dark" placeholder="user name" v-model="user_board.info.name">
-                <input type="password" class="nes-input is-dark" placeholder="user password"
-                    v-model="user_board.info.password">
-                <input type="text" class="nes-input is-dark" placeholder="user email" v-model="user_board.info.email">
-            </form>
-            <div v-show="user_board.user !=''">
-                <p>Login as [[user_board.user]]</p>
-                <table class="nes-table is-bordered is-dark message" style="width:100%; margin:0">
-                    <thead>
-                        <tr>
-                            <th>LLM Key</th>
-                            <th>Create at</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="key in user_board.llm_keys">
-                            <td>[[key.key]]</td>
-                            <td>[[key.create]]</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div id="agent" v-show="display.agent" style="height:80vh">
+            <br>
+            <ul class="nav nav-tabs">
+                <li class="nav-item" v-for="(val,tab) in agent.display">
+                    <a class="nav-link" href="#" style="padding: 0.5vw"
+                        @click="boardDisplay([[tab]],'agent')">[[tab]]</a>
+                </li>
+            </ul>
+
+            <div id="agent_profile" class="nes-container is-dark msg_box" v-show="agent.display.profile">
+                <p>Status:</p>
+                <p v-for="l in agent.profile.status" class="message">[[l]]</p><br>
+                <p>Describe:</p>
+                <p v-for="l in agent.profile.describe" class="message">[[l]]</p><br>
             </div>
-            <button type="submit" v-show="user_board.user ==''" class="nes-btn is-warning" style="width:8vw"
-                @click="userLogin()">Login</button>
-            <button type="submit" v-show="user_board.user !=''" class="nes-btn is-warning" style="width:8vw"
-                @click="userLogout()">Logout</button>
+
+            <div id="agent_plan" class="nes-container is-dark msg_box" v-show="agent.display.plan">
+                <p>This is plan</p>
+            </div>
+
+            <div id="agent_memory" class="nes-container is-dark msg_box" v-show="agent.display.memory">
+                <p>This is memeory</p>
+            </div>
+
+            <div id="agent_spatial" class="nes-container is-dark msg_box" v-show="agent.display.spatial">
+                <p>This is spatial</p>
+            </div>
         </div>
 
-        <div id="user_keys" class="nes-container is-dark user_msg_box" v-show="user_board.keys.display">
-            <form>
-                <input type="text" class="nes-input is-dark" placeholder="key" v-model="user_board.keys.key">
-                <input type="text" class="nes-input is-dark" placeholder="value" v-model="user_board.keys.value">
-            </form>
-            <button type="submit" class="nes-btn is-warning" style="width:8vw" @click="userAddKey()">AddKey</button>
+        <div id="user" v-show="display.user" style="height:80vh">
+            <br>
+            <ul class="nav nav-tabs">
+                <li class="nav-item" v-for="(val,tab) in user.display">
+                    <a class="nav-link" href="#" style="padding: 0.5vw"
+                        @click="boardDisplay([[tab]],'user')">[[tab]]</a>
+                </li>
+            </ul>
+
+            <div id="user_info" class="nes-container is-dark msg_box" v-show="user.display.info">
+                <form v-show="user.user ==''">
+                    <input type="text" class="nes-input is-dark" placeholder="user name" v-model="user.info.name">
+                    <input type="password" class="nes-input is-dark" placeholder="user password"
+                        v-model="user.info.password">
+                    <input type="text" class="nes-input is-dark" placeholder="user email" v-model="user.info.email">
+                </form>
+                <div v-show="user.user !=''">
+                    <p>Login as [[user.user]]</p>
+                    <table class="nes-table is-bordered is-dark message" style="width:100%; margin:0">
+                        <thead>
+                            <tr>
+                                <th>LLM Key</th>
+                                <th>Create at</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="key in user.llm_keys">
+                                <td>[[key.key]]</td>
+                                <td>[[key.create]]</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button type="submit" v-show="user.user ==''" class="nes-btn is-warning" style="width:8vw"
+                    @click="userLogin()">Login</button>
+                <button type="submit" v-show="user.user !=''" class="nes-btn is-warning" style="width:8vw"
+                    @click="userLogout()">Logout</button>
+            </div>
+
+            <div id="user_keys" class="nes-container is-dark msg_box" v-show="user.display.keys">
+                <form>
+                    <input type="text" class="nes-input is-dark" placeholder="key" v-model="user.keys.key">
+                    <input type="text" class="nes-input is-dark" placeholder="value" v-model="user.keys.value">
+                </form>
+                <button type="submit" class="nes-btn is-warning" style="width:8vw" @click="userAddKey()">AddKey</button>
+            </div>
         </div>
     </div>
 </div>
@@ -151,41 +142,25 @@
                 user_add_key: "{% url 'user_add_key' %}",
             },
             agents: ctx.agents,
-            agent_board: {
+            display: { agent: false, user: false },
+            player: {
                 update: null,
-                name: "",
+                player: "",
                 portrait: "",
-                display: false,
-                profile: {
-                    display: true,
-                    status: {},
-                    describe: {}
-                },
-                memory: {
-                    display: false,
-                },
-                plan: {
-                    display: false,
-                },
-                spatial: {
-                    display: false,
-                },
             },
-            user_board: {
+            agent: {
+                display: { profile: true, memory: false, plan: false, spatial: false },
+                profile: { status: [], describe: [] },
+                memory: {},
+                plan: {},
+                spatial: {},
+            },
+            user: {
                 user: ctx.user,
                 llm_keys: ctx.llm_keys,
-                display: false,
-                info: {
-                    display: true,
-                    name: "",
-                    password: "",
-                    email: ""
-                },
-                keys: {
-                    display: false,
-                    key: "",
-                    value: "",
-                }
+                display: { info: true, keys: false },
+                info: { name: "", password: "", email: "" },
+                keys: { key: "", value: "" }
             }
         },
         methods: {
@@ -205,76 +180,67 @@
                 xobj.open('POST', url, true);
                 xobj.send(JSON.stringify(data));
             },
-            agentUpdate: function (key, value) {
-                if (!this.agent_board.update) {
-                    this.agent_board.update = {};
-                }
-                this.agent_board.update[key] = value;
-            },
-            agentChange: function (event) {
-                this.agentUpdate("player", event.target.value);
-                this.agentUpdate("follow_player", false);
-                this.agentUpdate("control_player", false);
-            },
-            agentFollow: function (event) {
-                this.agentUpdate("follow_player", event.target.checked);
-            },
-            agentControl: function (event) {
-                this.agentUpdate("control_player", event.target.checked);
-            },
-            agentDisplay: function (tab_name) {
-                const tabs = ["profile", "memory", "plan", "spatial"];
-                for (const key of tabs) {
-                    this.agent_board[key].display = false;
-                }
-                if (tab_name === "board") {
-                    this.agent_board.display = !this.agent_board.display;
-                    if (this.agent_board.display) {
-                        this.agent_board.profile.display = true;
+            boardDisplay: function (tab_name, board = "") {
+                if (board === "") {
+                    for (const key of Object.keys(this.display)) {
+                        if (key !== tab_name) {
+                            this.display[key] = false;
+                        }
                     }
+                    this.display[tab_name] = !this.display[tab_name];
                 } else {
-                    this.agent_board[tab_name].display = true;
+                    for (const key of Object.keys(this[board].display)) {
+                        this[board].display[key] = false;
+                    }
+                    this[board].display[tab_name] = true;
                 }
             },
-            userDisplay: function (tab_name) {
-                const tabs = ["info", "keys"];
-                for (const key of tabs) {
-                    this.user_board[key].display = false;
+            playerUpdate: function (key, value) {
+                if (!this.player.update) {
+                    this.player.update = {};
                 }
-                this.user_board[tab_name].display = true;
+                this.player.update[key] = value;
+            },
+            playerFollow: function (event) {
+                this.playerUpdate("follow_player", event.target.checked);
+            },
+            playerControl: function (event) {
+                this.playerUpdate("control_player", event.target.checked);
+            },
+            playerChange: function (event) {
+                this.playerUpdate("player", event.target.value);
+                this.playerUpdate("follow_player", false);
+                this.playerUpdate("control_player", false);
             },
             userEmpty: function (tab_name) {
-                let keys = [];
-                if (tab_name === "info") {
-                    keys = ["name", "password", "email"];
-                } else if (tab_name === "keys") {
-                    keys = ["key", "value"];
-                }
-                for (const key of keys) {
-                    this.user_board[tab_name][key] = "";
+                for (const key of Object.entries(this.user[tab_name])) {
+                    this.user[tab_name][key] = "";
                 }
             },
             userLogin: function () {
                 let callback = (info) => {
-                    this.user_board.user = info.name;
-                    this.user_board.llm_keys = info.llm_keys;
+                    this.user.user = info.name;
+                    this.user.llm_keys = info.llm_keys;
                 }
-                this.jsonRequest(this.urls.user_login, this.user_board.info, callback);
+                this.jsonRequest(this.urls.user_login, this.user.info, callback);
                 this.userEmpty("info");
             },
             userLogout: function () {
                 let callback = (info) => {
-                    this.user_board.user = "";
-                    this.user_board.llm_keys = [];
+                    this.user.user = "";
+                    this.user.llm_keys = [];
                 }
                 this.jsonRequest(this.urls.user_logout, {}, callback);
             },
             userAddKey: function () {
                 let callback = (info) => {
-                    this.user_board.llm_keys = info.llm_keys;
+                    this.user.llm_keys = info.llm_keys;
                 }
-                this.jsonRequest(this.urls.user_add_key, this.user_board.keys, callback);
+                this.jsonRequest(this.urls.user_add_key, this.user.keys, callback);
                 this.userEmpty("keys");
+            },
+            userDisplay: function (tab_name) {
+                singleDisplay(this.user, tab_name);
             }
         }
     });

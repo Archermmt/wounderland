@@ -1,3 +1,6 @@
+from .event import Event
+
+
 class Maze:
     def __init__(self, config, logger):
         def _get_empty():
@@ -8,7 +11,8 @@ class Maze:
                 "game_object": "",
                 "spawning_location": "",
                 "collision": False,
-                "events": set(),
+                "event_cnt": 0,
+                "events": {},
             }
 
         # define tiles
@@ -23,7 +27,9 @@ class Maze:
             events = tile.pop("events")
             self.tiles[row][col].update(tile)
             for e in events:
-                self.tiles[row][col]["events"].add(tuple(e))
+                event_id = "event_" + str(len(self.tiles[row][col]["events"]))
+                self.tiles[row][col]["events"][event_id] = Event.from_tuple(e)
+            self.tiles[row][col]["event_cnt"] = len(self.tiles[row][col]["events"])
         # define address
         self.address_tiles = dict()
         for i in range(self.maze_height):
@@ -55,3 +61,28 @@ class Maze:
         # slot for persona
         self.persona_tiles = {}
         self.logger = logger
+
+    def get_tile(self, pos):
+        return self.tiles[pos[0]][pos[1]]
+
+    def add_event(self, pos, event):
+        self.get_tile(pos)["event_cnt"] += 1
+        event_id = "event_" + str(self.tiles[pos[1]][pos[0]]["event_cnt"])
+        if isinstance(event, tuple):
+            event = Event.from_tuple(event)
+        self.get_tile(pos)["events"][event_id] = event
+
+    def remove_events(self, pos, subject=None, event=None):
+        remove_ids, tile = set(), self.get_tile(pos)
+        for id, eve in tile["events"].items():
+            if subject and eve.subject == subject:
+                remove_ids.add(id)
+            if event and eve == event:
+                remove_ids.add(id)
+        for id in remove_ids:
+            tile["events"].pop(id)
+
+    def update_event(self, pos, mode, event):
+        for eve in self.get_tile(pos)["events"].values():
+            if eve == event:
+                eve.update(mode)

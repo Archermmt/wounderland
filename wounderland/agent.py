@@ -5,7 +5,8 @@ from wounderland import memory
 class Agent:
     def __init__(self, config, maze, logger):
         self.name = config["name"]
-        self.position = [int(p / maze.sq_tile_size) for p in config["position"]]
+        self.maze = maze
+        self.position = [int(p / self.maze.sq_tile_size) for p in config["position"]]
 
         # attrs
         self.percept_config = config["percept"]
@@ -32,8 +33,8 @@ class Agent:
 
         # update maze
         p_x, p_y = self.position
-        maze.tiles[p_y][p_x]["events"].add(self.get_curr_event())
-        maze.persona_tiles[self.name] = self.position
+        self.maze.tiles[p_y][p_x]["events"].add(self.get_curr_event())
+        self.maze.persona_tiles[self.name] = self.position
 
         self.logger = logger
 
@@ -42,7 +43,15 @@ class Agent:
             self.name, self.position, self.percept_config, self.think_config
         )
 
+    def move(self, new_position):
+        self.maze.remove_events(self.position, subject=self.name)
+        self.maze.add_event(new_position, self.get_curr_event())
+        self.maze.persona_tiles[self.name] = new_position
+        self.position = new_position
+
     def think(self, status):
+        new_position = [int(p / self.maze.sq_tile_size) for p in status["position"]]
+        self.move(new_position)
         plan = {"name": self.name, "direct": "stop"}
         if self.think_config["mode"] == "random":
             plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])

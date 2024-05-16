@@ -88,34 +88,28 @@ export default class Land extends Phaser.Scene {
             this.on_config = true;
         }
         if (this.cursors.space.isUp && this.on_config) {
-            this.configUser();
+            console.log("debugging...");
             this.on_config = false;
         }
     }
 
     configAgent() {
-        var agent_board = this.msg.agent_board;
-        var agent_update = agent_board.update;
-        if (agent_update) {
-            if (agent_update.player) {
-                this.changePlayer(agent_update.player);
+        var player = this.msg.player;
+        if (player.update) {
+            if (player.update.player) {
+                this.changePlayer(player.update.player);
             }
-            if (this.player && (typeof agent_update.follow_player !== "undefined")) {
-                this.maze.setFollow(this.player, agent_update.follow_player);
+            if (this.player && (typeof player.update.follow_player !== "undefined")) {
+                this.maze.setFollow(this.player, player.update.follow_player);
             }
-            if (this.player && (typeof agent_update.control_player !== "undefined")) {
-                this.player.setControl(agent_update.control_player);
+            if (this.player && (typeof player.update.control_player !== "undefined")) {
+                this.player.setControl(player.update.control_player);
             }
-            agent_board.update = null;
+            player.update = null;
         }
-        if (this.player && agent_board.profile.display) {
-            agent_board.profile.status = utils.textBlock(this.player.getStatus());
+        if (this.player && this.msg.agent.display.profile) {
+            this.msg.agent.profile.status = utils.textBlock(this.player.getStatus());
         }
-    }
-
-    configUser() {
-        var user_board = this.msg.user_board;
-        user_board.display = !user_board.display;
     }
 
     changePlayer(name) {
@@ -125,11 +119,11 @@ export default class Land extends Phaser.Scene {
         }
         this.player = this.agents[name];
         this.maze.locate(this.player);
-        var agent_board = this.msg.agent_board;
-        if (this.player && agent_board.profile.display) {
-            agent_board.portrait = this.player.portrait || "";
-            agent_board.profile.status = utils.textBlock(this.player.getStatus());
-            agent_board.profile.describe = utils.textBlock(this.player.getDescribe());
+        var agent = this.msg.agent;
+        if (this.player && agent.display.profile) {
+            this.msg.player.portrait = this.player.portrait || "";
+            agent.profile.status = utils.textBlock(this.player.getStatus());
+            agent.profile.describe = utils.textBlock(this.player.getDescribe());
         }
     }
 
