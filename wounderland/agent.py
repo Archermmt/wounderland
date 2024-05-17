@@ -61,9 +61,9 @@ class Agent:
             self.maze.add_event(self.coord, obj_event)
             blank = Event(obj_event.subject, None, None, None)
             self.maze.remove_events(self.coord, event=blank)
-        print("events @ " + str(self.coord))
-        for k, v in self.maze.events_at(self.coord).items():
-            print("{} : {}".format(k, v))
+        print(
+            "{} @ {}->{}".format(self.name, self.coord, self.maze.tile_at(self.coord))
+        )
 
     def think(self, status):
         self.move(status["position"])

@@ -5,6 +5,7 @@ from wounderland import utils
 class Tile:
     def __init__(
         self,
+        coord,
         world,
         address=None,
         spawning_location=None,
@@ -12,6 +13,7 @@ class Tile:
         events=None,
     ):
         # in order: world, sector, arena, gameobject
+        self.coord = coord
         self.address = [world]
         if address:
             self.address += address
@@ -24,9 +26,14 @@ class Tile:
 
     def __str__(self):
         address = ":".join(self.address)
+        if self.spawning_location:
+            address += "<{}>".format(self.spawning_location)
         if self.collision:
             address += "(collision)"
-        des = {"address": address, "events": self.events}
+        des = {
+            "coord[{},{}]".format(self.coord[0], self.coord[1]): address,
+            "events": self.events,
+        }
         return utils.dump_dict(des)
 
     def add_event(self, event):
@@ -54,7 +61,7 @@ class Tile:
         addresses = []
         if len(self.address) > 1:
             addresses = [
-                ":".join(self.address[:i]) for i in range(2, len(self.address))
+                ":".join(self.address[:i]) for i in range(2, len(self.address) + 1)
             ]
         if self.spawning_location:
             addresses += [f"<spawn_loc>{self.spawning_location}"]
@@ -64,6 +71,12 @@ class Tile:
     def events(self):
         return self._events
 
+    @property
+    def is_empty(self):
+        return (
+            len(self.address) == 1 and not self._events and not self.spawning_location
+        )
+
 
 class Maze:
     def __init__(self, config, logger):
@@ -71,29 +84,19 @@ class Maze:
         self.maze_height, self.maze_width = config["size"]
         self.sq_tile_size = config["tile_size"]
         self.tiles = [
-            [Tile(config["world"]) for _ in range(self.maze_width)]
-            for _ in range(self.maze_height)
+            [Tile((x, y), config["world"]) for x in range(self.maze_width)]
+            for y in range(self.maze_height)
         ]
         for tile in config["tiles"]:
-            row, col = tile.pop("coord")
-            self.tiles[row][col] = Tile(config["world"], **tile)
+            x, y = tile.pop("coord")
+            self.tiles[y][x] = Tile((x, y), config["world"], **tile)
 
         # define address
         self.address_tiles = dict()
         for i in range(self.maze_height):
             for j in range(self.maze_width):
-                addresses = self.tile_at([j, i]).get_addresses()
-                for add in addresses:
-                    if add not in self.address_tiles:
-                        self.address_tiles[add] = set()
-                    self.address_tiles[add].add((j, i))
-        with open("tmplog", "w") as f:
-            for i in range(self.maze_height):
-                for j in range(self.maze_width):
-                    f.write("tile @ {},{}: {}\n".format(j, i, self.tile_at([j, i])))
-            f.write("\n\nCheck address:\n")
-            for k, v in self.address_tiles.items():
-                f.write("has address {}:{}\n".format(k, v))
+                for add in self.tile_at([j, i]).get_addresses():
+                    self.address_tiles.setdefault(add, set()).add((j, i))
 
         # slot for persona
         self.persona_tiles = {}
