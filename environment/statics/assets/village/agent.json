@@ -65,16 +65,20 @@
     "move": {
         "speed": 100,
         "left": {
-            "anim": "left-walk"
+            "anim": "left-walk",
+            "texture": "left"
         },
         "right": {
-            "anim": "right-walk"
+            "anim": "right-walk",
+            "texture": "right"
         },
         "up": {
-            "anim": "up-walk"
+            "anim": "up-walk",
+            "texture": "up"
         },
         "down": {
-            "anim": "down-walk"
+            "anim": "down-walk",
+            "texture": "down"
         }
     }
 }

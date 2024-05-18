@@ -56,6 +56,11 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.body.setCollideWorldBounds(true);
         this.colliders = new Set();
 
+        // pronunciation
+        var text_config = { font: Math.round(this.displayHeight * 0.6) + "px monospace" };
+        this.bubble = scene.add.text(0, 0, "🦁", text_config);
+        this.locateBubble();
+
         // set events
         if (config.interactive || true) {
             this.setInteractive();
@@ -65,7 +70,13 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
     }
 
+    locateBubble() {
+        this.bubble.x = this.body.position.x;
+        this.bubble.y = this.body.position.y - Math.round(this.displayHeight * 0.8);
+    }
+
     update() {
+        this.locateBubble();
         if (!this.is_control) {
             return;
         }
@@ -99,32 +110,27 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     move(direction) {
-        const move_config = this.config.move;
-        this.status.direction = direction;
+        const curr_move = this.config.move[direction];
         this.body.setVelocity(0);
         if (direction === "stop") {
             this.anims.stop();
-        } else if (direction === "left") {
-            if (move_config.left) {
-                this.anims.play(this.animations[move_config.left.anim], true);
+            const last_move = this.config.move[this.status.direction];
+            if (last_move && last_move.texture) {
+                this.setTexture(this.name, last_move.texture);
             }
+        } else if (curr_move.anim) {
+            this.anims.play(this.animations[curr_move.anim], true);
+        }
+        if (direction === "left") {
             this.body.setVelocityX(-this.status.speed);
         } else if (direction === "right") {
-            if (move_config.right) {
-                this.anims.play(this.animations[move_config.right.anim], true);
-            }
             this.body.setVelocityX(this.status.speed);
         } else if (direction === "up") {
-            if (move_config.up) {
-                this.anims.play(this.animations[move_config.up.anim], true);
-            }
             this.body.setVelocityY(-this.status.speed);
         } else if (direction === "down") {
-            if (move_config.down) {
-                this.anims.play(this.animations[move_config.down.anim], true);
-            }
             this.body.setVelocityY(this.status.speed);
         }
+        this.status.direction = direction;
     }
 
     getStatus() {

@@ -1,5 +1,5 @@
 import random
-from wounderland import memory
+from wounderland import memory, utils
 from .event import Event
 
 
@@ -42,9 +42,13 @@ class Agent:
         self.logger = logger
 
     def __str__(self):
-        return "{} @ {}, precept {}, think: {}".format(
-            self.name, self.coord, self.percept_config, self.think_config
-        )
+        des = {
+            "name": self.name,
+            "tile": self.maze.tile_at(self.coord),
+            "precept": self.percept_config,
+            "think": self.think_config,
+        }
+        return utils.dump_dict(des)
 
     def move(self, position):
         if self.coord:
@@ -61,9 +65,9 @@ class Agent:
             self.maze.add_event(self.coord, obj_event)
             blank = Event(obj_event.subject, None, None, None)
             self.maze.remove_events(self.coord, event=blank)
-        print(
-            "{} @ {}->{}".format(self.name, self.coord, self.maze.tile_at(self.coord))
-        )
+
+    def plan(self):
+        print("Planing: " + str(self))
 
     def think(self, status):
         self.move(status["position"])
