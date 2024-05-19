@@ -1,3 +1,5 @@
+"""wounderland.game"""
+
 import os
 import copy
 
@@ -5,28 +7,24 @@ from wounderland.utils import GameMap, GameKey
 from wounderland import utils
 from .maze import Maze
 from .agent import Agent
-from .event import Event
 
 
 class Game:
     """The Game"""
 
-    def __init__(self, static_root, config, logger):
+    def __init__(self, static_root, config, logger=None):
         self.static_root = static_root
-        self.maze = Maze(self.load_static(config["maze"]["path"]), logger)
+        self.logger = logger or utils.IOLogger()
+        self.maze = Maze(self.load_static(config["maze"]["path"]), self.logger)
         self.agents = {}
         if "agent_base" in config:
             agent_base = self.load_static(config["agent_base"]["path"])
         else:
             agent_base = {}
         for name, agent in config["agents"].items():
-            if name == "base":
-                continue
             agent_config = copy.deepcopy(agent_base)
             agent_config.update(self.load_static(agent["path"]))
-            agent_config.update(agent.get("status", {}))
-            self.agents[name] = Agent(agent_config, self.maze, logger)
-        self.logger = logger
+            self.agents[name] = Agent(agent_config, self.maze, self.logger)
 
     def agent_think(self, name, status):
         return self.agents[name].think(status, self.agents)
@@ -38,10 +36,10 @@ class Game:
         return self.agents[name]
 
 
-def create_game(static_root, config, logger):
+def create_game(static_root, config, logger=None):
     """Create the game"""
 
-    GameMap.set(GameKey.GAME, Game(static_root, config, logger))
+    GameMap.set(GameKey.GAME, Game(static_root, config, logger=logger))
     return {"start": True}
 
 

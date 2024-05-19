@@ -1,7 +1,9 @@
+"""wounderland.agent"""
+
 import math
 import random
 from wounderland import memory, utils
-from .event import Event
+from wounderland.memory import Event
 
 
 class Agent:
@@ -45,7 +47,7 @@ class Agent:
     def __str__(self):
         des = {
             "name": self.name,
-            "tile": self.maze.tile_at(self.coord),
+            "tile": self.maze.tile_at(self.coord).to_dict(),
             "precept": self.percept_config,
             "think": self.think_config,
         }
@@ -56,7 +58,7 @@ class Agent:
             self.maze.remove_events(self.coord, subject=self.name)
         for event, coord in self.idle_events.items():
             self.maze.update_event(coord, event, "idle")
-        self.coord = [int(p / self.maze.sq_tile_size) for p in position]
+        self.coord = [int(p / self.maze.tile_size) for p in position]
         self.idle_events = {}
         self.maze.add_event(self.coord, self.get_curr_event())
         self.maze.persona_tiles[self.name] = self.coord
@@ -67,30 +69,31 @@ class Agent:
             blank = Event(obj_event.subject, None, None, None)
             self.maze.remove_events(self.coord, event=blank)
 
-    def perceive(self):
+    def percept(self):
         curr_tile = self.get_curr_tile()
         scope = self.maze.get_scope(self.coord, self.percept_config)
-        if self.name == "Isabella Rodriguez":
-            print("Perceive: " + str(self))
-            # add spatial memory
-            for tile in scope:
-                if tile.has_address("game_object"):
-                    self.s_mem.add_leaf(tile.address)
-            print("has s_mem " + str(self.s_mem))
-            perceived_events, arena_path = {}, curr_tile.get_address("arena")
-            # gather events
-            for tile in scope:
-                if not tile.events or tile.get_address("arena") != arena_path:
-                    continue
-                dist = math.dist(tile.coord, self.coord)
-                for event in tile.events.values():
-                    if dist < perceived_events.get(event, float("inf")):
-                        perceived_events[event] = dist
-            print("perceived_events " + str(perceived_events))
+        print("Perceive: " + str(self))
+        # add spatial memory
+        for tile in scope:
+            if tile.has_address("game_object"):
+                self.s_mem.add_leaf(tile.address)
+        per_events, arena_path = {}, curr_tile.get_address("arena")
+        # gather events
+        for tile in scope:
+            if not tile.events or tile.get_address("arena") != arena_path:
+                continue
+            dist = math.dist(tile.coord, self.coord)
+            for event in tile.events:
+                if dist < per_events.get(event, float("inf")):
+                    per_events[event] = dist
+        per_events = list(sorted(per_events.keys(), key=lambda k: per_events[k]))
+        per_events = per_events[: self.percept_config["att_bandwidth"]]
+        for e in per_events:
+            print("has final eve " + str(e))
 
     def think(self, status, agents):
         self.move(status["position"])
-        perceived = self.perceive()
+        perceived = self.percept()
         plan = {"name": self.name, "direct": "stop"}
         if self.think_config["mode"] == "random":
             plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])

@@ -1,3 +1,5 @@
+"""wounderland.utils.arguments"""
+
 import os
 import json
 import copy
@@ -120,12 +122,15 @@ def dump_dict(dict_obj: dict, flavor: str = "table:2") -> str:
             for k, v in value.items():
                 if v is None:
                     continue
-                if isinstance(v, (dict, tuple, list)) and not v:
+                if isinstance(v, (dict, tuple, list, set)) and not v:
                     continue
                 if isinstance(v, dict) and len(str(k) + str(v)) > max_size:
                     lines.append("{}{}:".format(indent * " ", k))
                     lines.extend(_get_lines(v, indent + 2))
-                elif isinstance(v, (tuple, list)) and len(str(k) + str(v)) > max_size:
+                elif (
+                    isinstance(v, (tuple, list, set))
+                    and len(str(k) + str(v)) > max_size
+                ):
                     lines.append("{}{}:".format(indent * " ", k))
                     for idx, ele in enumerate(v):
                         if isinstance(ele, dict) and len(str(ele)) > max_size:

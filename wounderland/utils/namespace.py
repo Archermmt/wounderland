@@ -1,3 +1,5 @@
+"""wounderland.utils.namespace"""
+
 from typing import Any, Optional
 import copy
 

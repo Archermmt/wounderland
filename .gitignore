@@ -278,4 +278,7 @@ gallery/how_to/work_with_microtvm/micro_tvmc.py
 .gdb_history
 
 # Databank
-*.sqlite3 
+*.sqlite3
+
+# Keys
+.env

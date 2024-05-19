@@ -1,3 +1,6 @@
+"""wounderland.event"""
+
+
 class Event:
     def __init__(self, subject, predicate=None, object=None, describe=None):
         self.subject = subject

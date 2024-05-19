@@ -1,6 +1,8 @@
+"""wounderland.maze"""
+
 from itertools import product
 from wounderland import utils
-from .event import Event
+from wounderland.memory import Event
 
 
 class Tile:
@@ -24,45 +26,46 @@ class Tile:
         self.spawning_location = spawning_location
         self.collision = collision
         self.event_cnt = 0
-        self._events = {}
+        self._events = set()
         for eve in events or []:
             self.add_event(eve)
 
     def __str__(self):
-        address = ":".join(self.address)
-        if self.spawning_location:
-            address += "<{}>".format(self.spawning_location)
-        if self.collision:
-            address += "(collision)"
-        des = {
-            "coord[{},{}]".format(self.coord[0], self.coord[1]): address,
-            "events": self.events,
-        }
-        return utils.dump_dict(des)
+        return utils.dump_dict(self.to_dict())
 
     def __eq__(self, other):
         if isinstance(other, Tile):
             return hash(self.coord) == hash(other.coord)
         return False
 
+    def to_dict(self):
+        address = ":".join(self.address)
+        if self.spawning_location:
+            address += "<{}>".format(self.spawning_location)
+        if self.collision:
+            address += "(collision)"
+        return {
+            "coord[{},{}]".format(self.coord[0], self.coord[1]): address,
+            "events": self.events,
+        }
+
     def add_event(self, event):
         if isinstance(event, (tuple, list)):
             event = Event.from_list(event)
-        self._events["event_" + str(self.event_cnt)] = event
-        self.event_cnt += 1
+        self._events.add(event)
 
     def remove_events(self, subject=None, event=None):
-        remove_ids = set()
-        for id, eve in self._events.items():
+        r_events = set()
+        for eve in self._events:
             if subject and eve.subject == subject:
-                remove_ids.add(id)
+                r_events.add(eve)
             if event and eve == event:
-                remove_ids.add(id)
-        for id in remove_ids:
-            self._events.pop(id)
+                r_events.add(eve)
+        for r_eve in r_events:
+            self._events.remove(r_eve)
 
     def update_event(self, event, mode):
-        for eve in self._events.values():
+        for eve in self._events:
             if eve == event:
                 eve.update(mode)
 
@@ -98,7 +101,7 @@ class Maze:
     def __init__(self, config, logger):
         # define tiles
         self.maze_height, self.maze_width = config["size"]
-        self.sq_tile_size = config["tile_size"]
+        self.tile_size = config["tile_size"]
         address_keys = config["tile_address_keys"]
         self.tiles = [
             [

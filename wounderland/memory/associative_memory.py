@@ -1,4 +1,7 @@
+"""wounderland.memory.associative_memory"""
+
 from wounderland import utils
+from .event import Event
 
 
 class ConceptNode:
@@ -30,18 +33,13 @@ class ConceptNode:
         self.expiration = expiration
         self.last_accessed = self.created
 
-        self.subject = s
-        self.predicate = p
-        self.object = o
-
         self.description = description
         self.embedding_key = embedding_key
         self.poignancy = poignancy
         self.keywords = keywords
         self.filling = filling
 
-    def spo_summary(self):
-        return (self.subject, self.predicate, self.object)
+        self.event = Event(self.subject, self.predicate, self.object)
 
 
 class AssociativeMemory:
@@ -57,3 +55,6 @@ class AssociativeMemory:
         self.kw_strength_event = {}
         self.kw_strength_thought = {}
         self.embeddings = {}
+
+    def summarize_latest_events(self, retention):
+        return set([n.event for n in self.seq_event[:retention]])

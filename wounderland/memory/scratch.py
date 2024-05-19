@@ -1,3 +1,6 @@
+"""wounderland.memory.scratch"""
+
+
 class Scratch:
     def __init__(self, config):
         # REFLECTION VARIABLES

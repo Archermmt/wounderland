@@ -1,3 +1,5 @@
+"""wounderland.memory.spatial_memory"""
+
 from wounderland import utils
 
 
