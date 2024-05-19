@@ -1,4 +1,4 @@
-"""environment URL Configuration
+"""playground URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.2/topics/http/urls/
@@ -14,17 +14,17 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from django.conf.urls import url
 from django.contrib import admin
 from django.urls import path
-from world import views as world_views
+from django.conf.urls import url
+from game import views as game_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    url("village", world_views.village),
-    url("start_game", world_views.start_game, name="start_game"),
-    url("agent_think", world_views.agent_think, name="agent_think"),
-    url("user_login", world_views.user_login, name="user_login"),
-    url("user_logout", world_views.user_logout, name="user_logout"),
-    url("user_add_key", world_views.user_add_key, name="user_add_key"),
+    url("village", game_views.village),
+    url("start_game", game_views.start_game, name="start_game"),
+    url("agent_think", game_views.agent_think, name="agent_think"),
+    url("user_login", game_views.user_login, name="user_login"),
+    url("user_logout", game_views.user_logout, name="user_logout"),
+    url("user_add_key", game_views.user_add_key, name="user_add_key"),
 ]

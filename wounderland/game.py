@@ -5,6 +5,7 @@ from wounderland.utils import GameMap, GameKey
 from wounderland import utils
 from .maze import Maze
 from .agent import Agent
+from .event import Event
 
 
 class Game:
@@ -26,6 +27,9 @@ class Game:
             agent_config.update(agent.get("status", {}))
             self.agents[name] = Agent(agent_config, self.maze, logger)
         self.logger = logger
+
+    def agent_think(self, name, status):
+        return self.agents[name].think(status, self.agents)
 
     def load_static(self, path):
         return utils.load_dict(os.path.join(self.static_root, path))

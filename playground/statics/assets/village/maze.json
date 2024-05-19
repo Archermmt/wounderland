@@ -89,6 +89,12 @@
             0.01
         ]
     },
+    "tile_address_keys": [
+        "world",
+        "sector",
+        "arena",
+        "game_object"
+    ],
     "tiles": [
         {
             "coord": [

@@ -1,3 +1,4 @@
+import math
 import random
 from wounderland import memory, utils
 from .event import Event
@@ -66,15 +67,44 @@ class Agent:
             blank = Event(obj_event.subject, None, None, None)
             self.maze.remove_events(self.coord, event=blank)
 
-    def plan(self):
-        print("Planing: " + str(self))
+    def perceive(self):
+        curr_tile = self.get_curr_tile()
+        scope = self.maze.get_scope(self.coord, self.percept_config)
+        if self.name == "Isabella Rodriguez":
+            print("Perceive: " + str(self))
+            # add spatial memory
+            for tile in scope:
+                if tile.has_address("game_object"):
+                    self.s_mem.add_leaf(tile.address)
+            print("has s_mem " + str(self.s_mem))
+            perceived_events, arena_path = {}, curr_tile.get_address("arena")
+            # gather events
+            for tile in scope:
+                if not tile.events or tile.get_address("arena") != arena_path:
+                    continue
+                dist = math.dist(tile.coord, self.coord)
+                for event in tile.events.values():
+                    if dist < perceived_events.get(event, float("inf")):
+                        perceived_events[event] = dist
+            print("perceived_events " + str(perceived_events))
 
-    def think(self, status):
+    def think(self, status, agents):
         self.move(status["position"])
+        perceived = self.perceive()
         plan = {"name": self.name, "direct": "stop"}
         if self.think_config["mode"] == "random":
             plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])
+
+        """
+        perceived = self.perceive(maze)
+        retrieved = self.retrieve(perceived)
+        plan = self.plan(maze, personas, new_day, retrieved)
+        self.reflect()
+        """
         return plan
+
+    def get_curr_tile(self):
+        return self.maze.tile_at(self.coord)
 
     def get_curr_event(self, as_sub=True):
         if not self.act_address:

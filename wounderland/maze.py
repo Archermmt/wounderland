@@ -1,5 +1,6 @@
-from .event import Event
+from itertools import product
 from wounderland import utils
+from .event import Event
 
 
 class Tile:
@@ -7,6 +8,7 @@ class Tile:
         self,
         coord,
         world,
+        address_keys,
         address=None,
         spawning_location=None,
         collision=False,
@@ -17,6 +19,8 @@ class Tile:
         self.address = [world]
         if address:
             self.address += address
+        self.address_keys = address_keys
+        self.address_map = dict(zip(address_keys[: len(self.address)], self.address))
         self.spawning_location = spawning_location
         self.collision = collision
         self.event_cnt = 0
@@ -35,6 +39,11 @@ class Tile:
             "events": self.events,
         }
         return utils.dump_dict(des)
+
+    def __eq__(self, other):
+        if isinstance(other, Tile):
+            return hash(self.coord) == hash(other.coord)
+        return False
 
     def add_event(self, event):
         if isinstance(event, (tuple, list)):
@@ -56,6 +65,13 @@ class Tile:
         for eve in self._events.values():
             if eve == event:
                 eve.update(mode)
+
+    def has_address(self, key):
+        return key in self.address_map
+
+    def get_address(self, level):
+        pos = self.address_keys.index(level)
+        return ":".join(self.address[:pos])
 
     def get_addresses(self):
         addresses = []
@@ -83,13 +99,17 @@ class Maze:
         # define tiles
         self.maze_height, self.maze_width = config["size"]
         self.sq_tile_size = config["tile_size"]
+        address_keys = config["tile_address_keys"]
         self.tiles = [
-            [Tile((x, y), config["world"]) for x in range(self.maze_width)]
+            [
+                Tile((x, y), config["world"], address_keys)
+                for x in range(self.maze_width)
+            ]
             for y in range(self.maze_height)
         ]
         for tile in config["tiles"]:
             x, y = tile.pop("coord")
-            self.tiles[y][x] = Tile((x, y), config["world"], **tile)
+            self.tiles[y][x] = Tile((x, y), config["world"], address_keys, **tile)
 
         # define address
         self.address_tiles = dict()
@@ -116,3 +136,18 @@ class Maze:
 
     def update_event(self, coord, event, mode):
         self.tile_at(coord).update_event(event, mode)
+
+    def get_scope(self, coord, config):
+        coords = []
+        vision_r = config["vision_r"]
+        if config["mode"] == "box":
+            x_range = [
+                max(coord[0] - vision_r, 0),
+                min(coord[0] + vision_r + 1, self.maze_width),
+            ]
+            y_range = [
+                max(coord[1] - vision_r, 0),
+                min(coord[1] + vision_r + 1, self.maze_height),
+            ]
+            coords = list(product(list(range(*x_range)), list(range(*y_range))))
+        return [self.tile_at(c) for c in coords]

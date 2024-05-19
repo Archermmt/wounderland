@@ -39,8 +39,7 @@ def start_game(request):
 def agent_think(request):
     game = get_game()
     if request.method == "POST" and game:
-        data = json.loads(request.body)
-        info = game.get_agent(data["name"]).think(data["status"])
+        info = game.agent_think(**json.loads(request.body))
         return JsonResponse({"success": True, "info": info})
     return JsonResponse({"success": True, "info": {"direct": "stop"}})
 
