@@ -1,6 +1,9 @@
 import os
 import argparse
 from simulate_server import SimulateServer
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
 
 parser = argparse.ArgumentParser(description="Test for village")
 parser.add_argument(

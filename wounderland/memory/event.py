@@ -32,6 +32,24 @@ class Event:
     def to_id(self):
         return (self.subject, self.predicate, self.object, self.describe)
 
+    def obj_desc(self):
+        desc = "{} is {}".format(self.core_object, self.describe)
+        if "(" in desc:
+            desc = desc.split("(")[1].split(")")[0].strip()
+        return desc
+
+    @property
+    def core_subject(self):
+        if ":" in self.subject:
+            return self.subject.split(":")[-1]
+        return self.subject
+
+    @property
+    def core_object(self):
+        if ":" in self.object:
+            return self.object.split(":")[-1]
+        return self.object
+
     @classmethod
     def from_list(cls, event):
         if len(event) == 3:

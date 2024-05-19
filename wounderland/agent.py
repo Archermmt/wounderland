@@ -87,9 +87,24 @@ class Agent:
                 if dist < per_events.get(event, float("inf")):
                     per_events[event] = dist
         per_events = list(sorted(per_events.keys(), key=lambda k: per_events[k]))
-        per_events = per_events[: self.percept_config["att_bandwidth"]]
-        for e in per_events:
-            print("has final eve " + str(e))
+        # retention events
+        ret_events = []
+        for p_event in per_events[: self.percept_config["att_bandwidth"]]:
+            print("has percept event " + str(p_event))
+            latest_events = self.a_mem.summarize_latest_events(
+                self.percept_config["retention"]
+            )
+            print("latest_events " + str(latest_events))
+            if p_event not in latest_events:
+                obj_desc = p_event.obj_desc()
+                print("obj_desc " + str(obj_desc))
+                if obj_desc in self.a_mem.embeddings:
+                    event_embedding = self.a_mem.embeddings[obj_desc]
+                else:
+                    event_embedding = get_embedding(obj_desc)
+                print("event_embedding " + str(event_embedding))
+
+        return ret_events
 
     def think(self, status, agents):
         self.move(status["position"])

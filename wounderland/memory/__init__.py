@@ -1,3 +1,5 @@
+"""wounderland.memory"""
+
 from .associative_memory import *
 from .event import *
 from .scratch import *
