@@ -4,6 +4,8 @@ import math
 import random
 from wounderland import memory, utils
 from wounderland.memory import Event
+from wounderland.model.llm_model import create_llm_model
+from .user import get_user
 
 
 class Agent:
@@ -11,9 +13,15 @@ class Agent:
         self.name = config["name"]
         self.maze = maze
 
-        # attrs
+        # agent config
         self.percept_config = config["percept"]
         self.think_config = config["think"]
+        if self.think_config["mode"] == "llm":
+            self._llm = create_llm_model(
+                **self.think_config["llm"], keys=get_user().keys
+            )
+        else:
+            self._llm = None
 
         # memory
         self.s_mem = memory.MemoryTree(config["spatial_memory"])
@@ -87,24 +95,25 @@ class Agent:
                 if dist < per_events.get(event, float("inf")):
                     per_events[event] = dist
         per_events = list(sorted(per_events.keys(), key=lambda k: per_events[k]))
-        # retention events
-        ret_events = []
-        for p_event in per_events[: self.percept_config["att_bandwidth"]]:
-            print("has percept event " + str(p_event))
-            latest_events = self.a_mem.summarize_latest_events(
-                self.percept_config["retention"]
-            )
-            print("latest_events " + str(latest_events))
-            if p_event not in latest_events:
-                obj_desc = p_event.obj_desc()
-                print("obj_desc " + str(obj_desc))
-                if obj_desc in self.a_mem.embeddings:
-                    event_embedding = self.a_mem.embeddings[obj_desc]
-                else:
-                    event_embedding = get_embedding(obj_desc)
-                print("event_embedding " + str(event_embedding))
-
-        return ret_events
+        if self._llm:
+            # retention events
+            ret_events = []
+            for p_event in per_events[: self.percept_config["att_bandwidth"]]:
+                print("has percept event " + str(p_event))
+                latest_events = self.a_mem.get_recent_events(
+                    self.percept_config["retention"]
+                )
+                print("latest_events " + str(latest_events))
+                if p_event not in latest_events:
+                    obj_desc = p_event.obj_desc()
+                    print("obj_desc " + str(obj_desc))
+                    if obj_desc in self.a_mem.embeddings:
+                        event_embedding = self.a_mem.embeddings[obj_desc]
+                    else:
+                        event_embedding = self._llm.embedding(obj_desc)
+                    print("event_embedding " + str(event_embedding))
+            return ret_events
+        return per_events
 
     def think(self, status, agents):
         self.move(status["position"])

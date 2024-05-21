@@ -3,10 +3,11 @@
 import os
 import copy
 
-from wounderland.utils import GameMap, GameKey
+from wounderland.utils import WounderMap, WounderKey
 from wounderland import utils
 from .maze import Maze
 from .agent import Agent
+from .user import create_user
 
 
 class Game:
@@ -39,11 +40,11 @@ class Game:
 def create_game(static_root, config, logger=None):
     """Create the game"""
 
-    GameMap.set(GameKey.GAME, Game(static_root, config, logger=logger))
+    WounderMap.set(WounderKey.GAME, Game(static_root, config, logger=logger))
     return {"start": True}
 
 
 def get_game():
     """Get the gloabl game"""
 
-    return GameMap.get(GameKey.GAME)
+    return WounderMap.get(WounderKey.GAME)

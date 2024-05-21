@@ -4,7 +4,7 @@ from typing import Any, Optional
 import copy
 
 
-class GameMap:
+class WounderMap:
     """Global Namespace map for Land"""
 
     MAP = {}
@@ -36,7 +36,15 @@ class GameMap:
         cls.MAP = {}
 
 
-class GameKey:
+class WounderKey:
     """Keys for the LandMap"""
 
     GAME = "game"
+    USER = "user"
+    MODELS = "models"
+
+
+class ModelType:
+    """Model Type"""
+
+    LLM = "llm"

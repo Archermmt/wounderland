@@ -1,14 +1,15 @@
 import os
 import copy
-import time
 from wounderland.game import create_game, get_game
+from wounderland.user import create_user
 from wounderland import utils
 
 
 class SimulateServer:
-    def __init__(self, static_root, config):
+    def __init__(self, static_root, config, env_file):
         self.static_root = static_root
         create_game(static_root, config)
+        create_user("test", keys=utils.load_dict(env_file)["keys"])
         self.game = get_game()
         self.tile_size = self.game.maze.tile_size
         self.agent_status = {}

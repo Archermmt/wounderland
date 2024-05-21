@@ -1,0 +1,218 @@
+"""wounderland.model.llm_model"""
+
+import os
+import json
+import requests
+from wounderland.utils.namespace import ModelType
+from wounderland import utils
+
+
+class ModelStyle:
+    """Model Style"""
+
+    OPEN_AI = "openai"
+    QIANFAN = "qianfan"
+    SPARK_AI = "sparkai"
+    ZHIPU_AI = "zhipuai"
+
+
+class LLMModel:
+    def __init__(self, model, keys, config=None):
+        self._model = model
+        self._handle = self.setup(keys, config)
+
+    def embedding(self, text):
+        raise NotImplementedError("embedding is not support for " + str(self.__class__))
+
+    def completion(self, prompt):
+        raise NotImplementedError(
+            "completion is not support for " + str(self.__class__)
+        )
+
+    @classmethod
+    def model_type(cls):
+        return ModelType.LLM
+
+
+@utils.register_model
+class OpenAILLMModel(LLMModel):
+    def setup(self, keys, config):
+        from openai import OpenAI
+
+        assert (
+            "OPENAI_API_KEY" in keys
+        ), "OPENAI_API_KEY is needed to create openai client"
+        self._embedding_model = config.get("embedding_model", "text-embedding-3-small")
+        return OpenAI(api_key=keys["OPENAI_API_KEY"])
+
+    def embedding(self, text):
+        response = self._handle.embeddings.create(
+            input=text, model=self._embedding_model
+        )
+        return response.data[0].embedding
+
+    def completion(self, prompt, temperature=0):
+        messages = [{"role": "user", "content": prompt}]
+        response = self._handle.chat.completions.create(
+            model=self._model, messages=messages, temperature=temperature
+        )
+        if len(response.choices) > 0:
+            return response.choices[0].message.content
+        return ""
+
+    @classmethod
+    def support_model(cls, model):
+        return model in ("gpt-3.5-turbo", "text-embedding-3-small")
+
+    @classmethod
+    def model_style(cls):
+        return ModelStyle.OPEN_AI
+
+
+@utils.register_model
+class ZhipuAILLMModel(LLMModel):
+    def setup(self, keys, config):
+        from zhipuai import ZhipuAI
+
+        assert (
+            "ZHIPUAI_API_KEY" in keys
+        ), "ZHIPUAI_API_KEY is needed to create zhipu client"
+        return ZhipuAI(api_key=keys["ZHIPUAI_API_KEY"])
+
+    def embedding(self, text):
+        response = self._handle.embeddings.create(model="embedding-2", input=text)
+        return response.data[0].embedding
+
+    def completion(self, prompt, temperature=0):
+        messages = [{"role": "user", "content": prompt}]
+        response = self._handle.chat.completions.create(
+            model=self._model, messages=messages, temperature=temperature
+        )
+        if len(response.choices) > 0:
+            return response.choices[0].message.content
+        return ""
+
+    @classmethod
+    def support_model(cls, model):
+        return model in ("glm-4")
+
+    @classmethod
+    def model_style(cls):
+        return ModelStyle.ZHIPU_AI
+
+
+@utils.register_model
+class QIANFANLLMModel(LLMModel):
+    def setup(self, keys, config):
+        needed_keys = ["QIANFAN_AK", "QIANFAN_SK"]
+        assert all(k in keys for k in needed_keys), "Missing some keys " + str(
+            needed_keys
+        )
+        handle = {k: keys[k] for k in needed_keys}
+        for k, v in handle.items():
+            os.environ[k] = v
+        return handle
+
+    def embedding(self, text):
+        url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={0}&client_secret={1}".format(
+            self._handle["QIANFAN_AK"], self._handle["QIANFAN_SK"]
+        )
+        payload = json.dumps("")
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        response = requests.request("POST", url, headers=headers, data=payload)
+        url = (
+            "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/embeddings/embedding-v1?access_token="
+            + str(response.json().get("access_token"))
+        )
+        input = []
+        input.append(text)
+        payload = json.dumps({"input": input})
+        headers = {"Content-Type": "application/json"}
+        # send request
+        response = requests.request("POST", url, headers=headers, data=payload)
+        response = json.loads(response.text)
+        return response["data"][0]["embedding"]
+
+    def completion(self, prompt, temperature=0):
+        import qianfan
+
+        messages = [{"role": "user", "content": prompt}]
+        resp = qianfan.ChatCompletion().do(
+            messages=messages, model=self._model, temperature=temperature
+        )
+        return resp["result"]
+
+    @classmethod
+    def support_model(cls, model):
+        return model in ("ERNIE-Bot", "Yi-34B-Chat")
+
+    @classmethod
+    def model_style(cls):
+        return ModelStyle.QIANFAN
+
+
+@utils.register_model
+class SparkAILLMModel(LLMModel):
+    def setup(self, keys, config):
+        spark_url_tpl = "wss://spark-api.xf-yun.com/{}/chat"
+        handle = {"params": {}, "keys": {}}
+        if self._model == "spark_v1.5":
+            handle["params"] = {
+                "domain": "general",  # 用于配置大模型版本
+                "spark_url": spark_url_tpl.format("v1.1"),  # 云端环境的服务地址
+            }
+        elif self._model == "spark_v2.0":
+            handle["params"] = {
+                "domain": "generalv2",  # 用于配置大模型版本
+                "spark_url": spark_url_tpl.format("v2.1"),  # 云端环境的服务地址
+            }
+        elif self._model == "spark_v3.0":
+            handle["params"] = {
+                "domain": "generalv3",  # 用于配置大模型版本
+                "spark_url": spark_url_tpl.format("v3.1"),  # 云端环境的服务地址
+            }
+        elif self._model == "spark_v3.5":
+            handle["params"] = {
+                "domain": "generalv3.5",  # 用于配置大模型版本
+                "spark_url": spark_url_tpl.format("v3.5"),  # 云端环境的服务地址
+            }
+        needed_keys = ["SPARK_APPID", "SPARK_API_SECRET", "SPARK_API_KEY"]
+        assert all(k in keys for k in needed_keys), "Missing some keys in " + str(
+            needed_keys
+        )
+        handle["keys"] = {k: keys[k] for k in needed_keys}
+        return handle
+
+    def completion(self, prompt, temperature=0):
+        from sparkai.llm.llm import ChatSparkLLM
+        from sparkai.core.messages import ChatMessage
+
+        spark_llm = ChatSparkLLM(
+            spark_api_url=self._handle["params"]["spark_url"],
+            spark_app_id=self._handle["keys"]["SPARK_APPID"],
+            spark_api_key=self._handle["keys"]["SPARK_API_KEY"],
+            spark_api_secret=self._handle["keys"]["SPARK_API_SECRET"],
+            spark_llm_domain=self._handle["params"]["domain"],
+            temperature=temperature,
+            streaming=False,
+        )
+        messages = [ChatMessage(role="user", content=prompt)]
+        resp = spark_llm.generate([messages])
+        return resp
+
+    @classmethod
+    def support_model(cls, model):
+        return model in ("spark_v1.5", "spark_v2.1", "spark_v3.1", "spark_v3.5")
+
+    @classmethod
+    def model_style(cls):
+        return ModelStyle.SPARK_AI
+
+
+def create_llm_model(model, keys, config):
+    """Create llm model"""
+
+    for _, model_cls in utils.get_registered_model(ModelType.LLM).items():
+        if model_cls.support_model(model):
+            return model_cls(model, keys, config)
+    raise Exception("Unknown model " + str(model))
