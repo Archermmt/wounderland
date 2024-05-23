@@ -5,7 +5,7 @@
     4032,
     1472
   ],
-  "describe": {
+  "scratch": {
     "age": 20,
     "daily_plan_req": "Klaus Mueller goes to the library at Oak Hill College early in the morning, spends his days writing, and eats at Hobbs Cafe.",
     "innate": "kind, inquisitive, passionate",
@@ -14,7 +14,7 @@
     "lifestyle": "Klaus Mueller goes to bed around 11pm, awakes up around 7am, eats dinner around 5pm.",
     "living_area": "the Ville:Dorm for Oak Hill College:Klaus Mueller's room"
   },
-  "spatial_memory": {
+  "spatial": {
     "the Ville": {
       "Oak Hill College": {
         "hallway": [],

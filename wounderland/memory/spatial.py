@@ -1,9 +1,9 @@
-"""wounderland.memory.spatial_memory"""
+"""wounderland.memory.spatial"""
 
 from wounderland import utils
 
 
-class MemoryTree:
+class Spatial:
     def __init__(self, config):
         self.tree = config
 

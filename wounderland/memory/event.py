@@ -32,20 +32,30 @@ class Event:
     def to_id(self):
         return (self.subject, self.predicate, self.object, self.describe)
 
-    def obj_desc(self):
-        desc = "{} is {}".format(self.core_object, self.describe)
+    def fit(self, subject=None, predicate=None, object=None):
+        if subject and self.subject != subject:
+            return False
+        if predicate and self.predicate != predicate:
+            return False
+        if object and self.object != object:
+            return False
+        return True
+
+    @property
+    def sub_desc(self):
+        desc = "{} is {}".format(self.local_subject, self.describe)
         if "(" in desc:
             desc = desc.split("(")[1].split(")")[0].strip()
         return desc
 
     @property
-    def core_subject(self):
+    def local_subject(self):
         if ":" in self.subject:
             return self.subject.split(":")[-1]
         return self.subject
 
     @property
-    def core_object(self):
+    def local_object(self):
         if ":" in self.object:
             return self.object.split(":")[-1]
         return self.object

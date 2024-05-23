@@ -7,7 +7,7 @@ from wounderland.utils import WounderMap, WounderKey
 from wounderland import utils
 from .maze import Maze
 from .agent import Agent
-from .user import create_user
+from .user import User
 
 
 class Game:
@@ -23,9 +23,11 @@ class Game:
         else:
             agent_base = {}
         for name, agent in config["agents"].items():
-            agent_config = copy.deepcopy(agent_base)
-            agent_config.update(self.load_static(agent["path"]))
+            agent_config = utils.update_dict(
+                copy.deepcopy(agent_base), self.load_static(agent["path"])
+            )
             self.agents[name] = Agent(agent_config, self.maze, self.logger)
+        self.user = None
 
     def agent_think(self, name, status):
         return self.agents[name].think(status, self.agents)
@@ -36,12 +38,22 @@ class Game:
     def get_agent(self, name):
         return self.agents[name]
 
+    def reset_user(self, name, keys, email=None):
+        self.user = User(name, keys, email=email)
+        for _, agent in self.agents.items():
+            agent.reset_user(self.user)
+
+    def remove_user(self):
+        for _, agent in self.agents.items():
+            agent.remove_user()
+        self.user = None
+
 
 def create_game(static_root, config, logger=None):
     """Create the game"""
 
     WounderMap.set(WounderKey.GAME, Game(static_root, config, logger=logger))
-    return {"start": True}
+    return WounderMap.get(WounderKey.GAME)
 
 
 def get_game():

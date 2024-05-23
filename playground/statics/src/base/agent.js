@@ -138,8 +138,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         return this.status;
     }
 
-    getDescribe() {
-        return this.config.describe;
+    getScratch() {
+        return this.config.scratch;
     }
 
     toString = () => {

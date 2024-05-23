@@ -5,7 +5,7 @@
     3936,
     1824
   ],
-  "describe": {
+  "scratch": {
     "age": 21,
     "innate": "energetic, enthusiastic, inquisitive",
     "daily_plan_req": "Maria Lopez spends at least 3 hours a day Twitch streaming or gaming.",
@@ -14,7 +14,7 @@
     "lifestyle": "Maria Lopez goes to bed around 2am, awakes up around 9am, eats dinner around 6pm. She likes to hang out at Hobbs Cafe if it's before 6pm.",
     "living_area": "the Ville:Dorm for Oak Hill College:Maria Lopez's room"
   },
-  "spatial_memory": {
+  "spatial": {
     "the Ville": {
       "Oak Hill College": {
         "hallway": [],

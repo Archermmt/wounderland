@@ -78,6 +78,8 @@ def update_dict(src_dict: dict, new_dict: dict, soft_update: bool = False) -> di
         The updated dict.
     """
 
+    if not src_dict:
+        return new_dict
     if not new_dict:
         return src_dict
     assert isinstance(src_dict, dict) and isinstance(

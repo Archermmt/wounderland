@@ -25,13 +25,41 @@ def village(request):
     return render(request, "village/home.html", {"ctx": context})
 
 
+def _get_user_config(user_name):
+    if not user_name:
+        return {}
+    user, _ = User.safe_get(user_name)
+    if not user:
+        return {}
+    return {
+        "name": user.name,
+        "keys": {k.key: k.value for k in user.llmkey_set.all()},
+        "email": user.email,
+    }
+
+
+def _reset_user(user_name):
+    game, config = get_game(), _get_user_config(user_name)
+    if game and config:
+        game.reset_user(**config)
+
+
+def _remove_user():
+    game = get_game()
+    if game:
+        game.remove_user()
+
+
 @csrf_exempt
 def start_game(request):
     if request.method == "POST":
-        info = create_game(
+        game = create_game(
             settings.STATICFILES_DIRS[0], json.loads(request.body), logger
         )
-        return JsonResponse({"success": True, "info": info})
+        _reset_user(request.session.get("user", ""))
+        if not game:
+            return JsonResponse({"success": False, "error": "failed to create game"})
+        return JsonResponse({"success": True, "info": {"start": True}})
     return JsonResponse({"success": False, "error": "not a valid request"})
 
 
@@ -54,6 +82,7 @@ def user_login(request):
         user, error = User.safe_get(data["name"], data["password"], data["email"])
         if not user:
             return JsonResponse({"success": False, "error": error})
+        _reset_user(data["name"])
         info = {"name": data["name"], "llm_keys": user.all_llm_keys()}
         return JsonResponse({"success": True, "info": info})
     return JsonResponse({"success": False, "error": "not a valid request"})
@@ -63,6 +92,7 @@ def user_login(request):
 def user_logout(request):
     user = request.session.get("user", "")
     request.session.pop("user")
+    _remove_user()
     return JsonResponse({"success": True, "info": {"name": user}})
 
 
@@ -77,5 +107,6 @@ def user_add_key(request):
         if not llm_key:
             return JsonResponse({"success": False, "error": error})
         info = {"user": user_name, "llm_keys": llm_key.user.all_llm_keys()}
+        _reset_user(user_name)
         return JsonResponse({"success": True, "info": info})
     return JsonResponse({"success": False, "error": "not a valid request"})

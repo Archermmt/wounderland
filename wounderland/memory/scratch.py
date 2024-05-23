@@ -1,8 +1,25 @@
 """wounderland.memory.scratch"""
 
+from datetime import datetime
+
 
 class Scratch:
-    def __init__(self, config):
+    def __init__(self, name, config):
+        self.name = name
+        self.config = config
+
+        self.importance_trigger_curr = config["importance_trigger_max"]
+        self.importance_ele_n = 0
+
+        # wake up time in hour
+        self.wake_up = None
+
+        # <chat> is a list of list that saves a conversation between two personas.
+        # It comes in the form of: [["Dolores Murphy", "Hi"],
+        #                           ["Maeve Jenson", "Hi"] ...]
+        self.chat = None
+
+        """
         # REFLECTION VARIABLES
         self.concept_forget = 100
         self.daily_reflection_time = 60 * 3
@@ -20,8 +37,8 @@ class Scratch:
         self.importance_trigger_curr = self.importance_trigger_max
         self.importance_ele_n = 0
         self.thought_count = 5
+        """
 
-        self.describe = config["describe"]
         """
         # PERSONA PLANNING
         # <daily_req> is a list of various goals the persona is aiming to achieve
@@ -118,3 +135,55 @@ class Scratch:
         # e.g., [(50, 10), (49, 10), (48, 10), ...]
         self.planned_path = []
         """
+
+    def importance_decrease(self, score):
+        self.importance_trigger_curr -= score
+        self.importance_ele_n += 1
+
+    def _base_prompt(self, date=None):
+        date = date or datetime.now()
+        return """Here is a brief description of {0}. 
+Name: {0}
+Age: {1}
+Innate traits: {2}
+Learned traits: {3}
+Currently: {4}
+Lifestyle: {5}
+Daily plan requirement: {6}
+Current Date: {7}\n""".format(
+            self.name,
+            self.config["age"],
+            self.config["innate"],
+            self.config["learned"],
+            self.config["currently"],
+            self.config["lifestyle"],
+            self.config["daily_plan_req"],
+            date.strftime("%A %B %d"),
+        )
+
+    def poignant_prompt(self, event, date=None):
+        prompt = self._base_prompt(date)
+        prompt += """\nOn the scale of 1 to 10, where 1 is purely mundane (e.g., brushing teeth, making bed) and 10 is extremely poignant (e.g., a break up, college acceptance), rate the likely poignancy of the following event for {}.
+
+Event: {}
+Rate (return a number between 1 to 10):""".format(
+            self.name, event.sub_desc
+        )
+        prompt = '"""\n' + prompt + '\n"""\n'
+        prompt += "Output the response to the prompt above in json. The output should ONLY contain ONE integer value on the scale of 1 to 10.\n"
+        prompt += "Example output json:\n"
+        prompt += '{"output": "5"}'
+        return {"prompt": prompt}
+
+    def wakeup_prompt(self, date=None):
+        prompt = self._base_prompt(date)
+        prompt += """\nIn general, {}
+{}'s wake up hour:""".format(
+            self.config["lifestyle"], self.name
+        )
+
+        def callback(response):
+            print("in callback " + str(response))
+            return response
+
+        return {"prompt": prompt, "callback": callback}

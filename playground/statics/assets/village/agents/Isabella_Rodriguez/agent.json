@@ -5,7 +5,13 @@
     2304,
     448
   ],
-  "describe": {
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  },
+  "scratch": {
     "age": 34,
     "daily_plan_req": "Isabella Rodriguez opens Hobbs Cafe at 8am everyday, and works at the counter until 8pm, at which point she closes the cafe.",
     "innate": "friendly, outgoing, hospitable",
@@ -14,7 +20,7 @@
     "lifestyle": "Isabella Rodriguez goes to bed around 11pm, awakes up around 6am.",
     "living_area": "the Ville:Isabella Rodriguez's apartment:main room"
   },
-  "spatial_memory": {
+  "spatial": {
     "the Ville": {
       "Hobbs Cafe": {
         "cafe": [

@@ -52,16 +52,6 @@
             }
         }
     },
-    "percept": {
-        "mode": "box",
-        "vision_r": 8,
-        "att_bandwidth": 8,
-        "retention": 8
-    },
-    "think": {
-        "mode": "random",
-        "interval": 1000
-    },
     "move": {
         "speed": 100,
         "left": {
@@ -80,5 +70,20 @@
             "anim": "down-walk",
             "texture": "down"
         }
+    },
+    "percept": {
+        "mode": "box",
+        "vision_r": 8,
+        "att_bandwidth": 8
+    },
+    "think": {
+        "mode": "random",
+        "interval": 1000
+    },
+    "associate": {
+        "retention": 8
+    },
+    "scratch": {
+        "importance_trigger_max": 150
     }
 }

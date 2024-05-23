@@ -31,7 +31,25 @@ export function textBlock(dict, space = 1) {
             lines.push(line);
         }
     }
-    return lines
+    return lines;
 }
 
-export default { jsonRequest, textBlock }
+export function recursiveUpdate(base_dict, new_dict) {
+    if (!base_dict) {
+        return new_dict;
+    }
+    for (const [key, info] of Object.entries(new_dict)) {
+        if (key in base_dict) {
+            if (base_dict[key].constructor == Object && info.constructor == Object) {
+                base_dict[key] = recursiveUpdate(base_dict[key], info);
+            } else {
+                base_dict[key] = info;
+            }
+        } else {
+            base_dict[key] = info
+        }
+    }
+    return base_dict;
+}
+
+export default { jsonRequest, textBlock, recursiveUpdate }

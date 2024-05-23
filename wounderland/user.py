@@ -1,30 +1,26 @@
 """wounderland.user"""
 
 from wounderland.utils import WounderMap, WounderKey
+from wounderland import utils
 
 
 class User:
     """The Game"""
 
     def __init__(self, name, keys, email=None):
-        self.name = name
-        self.keys = keys
-        self.email = email
+        self._name = name
+        self._keys = keys
+        self._email = email
 
+    def __str__(self):
+        des = {"name": self._name, "keys": list(self._keys.keys())}
+        if self._email:
+            des["email"] = self._email
+        return utils.dump_dict(des)
 
-def create_user(name, keys, email=None):
-    """Create the user"""
+    def update_keys(self, keys):
+        self._keys.update(keys)
 
-    WounderMap.set(WounderKey.USER, User(name, keys, email=email))
-
-
-def get_user():
-    """Get the gloabl user"""
-
-    return WounderMap.get(WounderKey.USER)
-
-
-def update_user_keys(keys):
-    """Update user keys"""
-
-    get_user().keys = keys
+    @property
+    def keys(self):
+        return self._keys

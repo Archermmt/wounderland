@@ -21,12 +21,36 @@ class LLMModel:
         self._model = model
         self._handle = self.setup(keys, config)
 
-    def embedding(self, text):
-        raise NotImplementedError("embedding is not support for " + str(self.__class__))
+    def embedding(self, text, retry=5):
+        for _ in range(retry):
+            try:
+                response = self._embedding(text)
+            except:
+                continue
+            if response:
+                break
+        return response
 
-    def completion(self, prompt):
+    def _embedding(self, text):
         raise NotImplementedError(
-            "completion is not support for " + str(self.__class__)
+            "_embedding is not support for " + str(self.__class__)
+        )
+
+    def completion(self, prompt, retry=5, callback=None, **kwargs):
+        for _ in range(retry):
+            try:
+                response = self._completion(prompt, **kwargs)
+            except:
+                continue
+            if response:
+                break
+        if callback:
+            response = callback(response)
+        return response
+
+    def _completion(self, prompt, **kwargs):
+        raise NotImplementedError(
+            "_completion is not support for " + str(self.__class__)
         )
 
     @classmethod
@@ -39,19 +63,16 @@ class OpenAILLMModel(LLMModel):
     def setup(self, keys, config):
         from openai import OpenAI
 
-        assert (
-            "OPENAI_API_KEY" in keys
-        ), "OPENAI_API_KEY is needed to create openai client"
         self._embedding_model = config.get("embedding_model", "text-embedding-3-small")
         return OpenAI(api_key=keys["OPENAI_API_KEY"])
 
-    def embedding(self, text):
+    def _embedding(self, text):
         response = self._handle.embeddings.create(
             input=text, model=self._embedding_model
         )
         return response.data[0].embedding
 
-    def completion(self, prompt, temperature=0):
+    def _completion(self, prompt, temperature=0.01):
         messages = [{"role": "user", "content": prompt}]
         response = self._handle.chat.completions.create(
             model=self._model, messages=messages, temperature=temperature
@@ -65,6 +86,10 @@ class OpenAILLMModel(LLMModel):
         return model in ("gpt-3.5-turbo", "text-embedding-3-small")
 
     @classmethod
+    def creatable(cls, keys, config):
+        return "OPENAI_API_KEY" in keys
+
+    @classmethod
     def model_style(cls):
         return ModelStyle.OPEN_AI
 
@@ -74,16 +99,13 @@ class ZhipuAILLMModel(LLMModel):
     def setup(self, keys, config):
         from zhipuai import ZhipuAI
 
-        assert (
-            "ZHIPUAI_API_KEY" in keys
-        ), "ZHIPUAI_API_KEY is needed to create zhipu client"
         return ZhipuAI(api_key=keys["ZHIPUAI_API_KEY"])
 
-    def embedding(self, text):
+    def _embedding(self, text):
         response = self._handle.embeddings.create(model="embedding-2", input=text)
         return response.data[0].embedding
 
-    def completion(self, prompt, temperature=0):
+    def _completion(self, prompt, temperature=0.01):
         messages = [{"role": "user", "content": prompt}]
         response = self._handle.chat.completions.create(
             model=self._model, messages=messages, temperature=temperature
@@ -97,6 +119,10 @@ class ZhipuAILLMModel(LLMModel):
         return model in ("glm-4")
 
     @classmethod
+    def creatable(cls, keys, config):
+        return "ZHIPUAI_API_KEY" in keys
+
+    @classmethod
     def model_style(cls):
         return ModelStyle.ZHIPU_AI
 
@@ -104,16 +130,12 @@ class ZhipuAILLMModel(LLMModel):
 @utils.register_model
 class QIANFANLLMModel(LLMModel):
     def setup(self, keys, config):
-        needed_keys = ["QIANFAN_AK", "QIANFAN_SK"]
-        assert all(k in keys for k in needed_keys), "Missing some keys " + str(
-            needed_keys
-        )
-        handle = {k: keys[k] for k in needed_keys}
+        handle = {k: keys[k] for k in ["QIANFAN_AK", "QIANFAN_SK"]}
         for k, v in handle.items():
             os.environ[k] = v
         return handle
 
-    def embedding(self, text):
+    def _embedding(self, text):
         url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={0}&client_secret={1}".format(
             self._handle["QIANFAN_AK"], self._handle["QIANFAN_SK"]
         )
@@ -133,7 +155,7 @@ class QIANFANLLMModel(LLMModel):
         response = json.loads(response.text)
         return response["data"][0]["embedding"]
 
-    def completion(self, prompt, temperature=0):
+    def _completion(self, prompt, temperature=0.01):
         import qianfan
 
         messages = [{"role": "user", "content": prompt}]
@@ -145,6 +167,10 @@ class QIANFANLLMModel(LLMModel):
     @classmethod
     def support_model(cls, model):
         return model in ("ERNIE-Bot", "Yi-34B-Chat")
+
+    @classmethod
+    def creatable(cls, keys, config):
+        return "QIANFAN_AK" in keys and "QIANFAN_SK" in keys
 
     @classmethod
     def model_style(cls):
@@ -177,13 +203,10 @@ class SparkAILLMModel(LLMModel):
                 "spark_url": spark_url_tpl.format("v3.5"),  # 云端环境的服务地址
             }
         needed_keys = ["SPARK_APPID", "SPARK_API_SECRET", "SPARK_API_KEY"]
-        assert all(k in keys for k in needed_keys), "Missing some keys in " + str(
-            needed_keys
-        )
         handle["keys"] = {k: keys[k] for k in needed_keys}
         return handle
 
-    def completion(self, prompt, temperature=0):
+    def _completion(self, prompt, temperature=0.01, streaming=False):
         from sparkai.llm.llm import ChatSparkLLM
         from sparkai.core.messages import ChatMessage
 
@@ -194,7 +217,7 @@ class SparkAILLMModel(LLMModel):
             spark_api_secret=self._handle["keys"]["SPARK_API_SECRET"],
             spark_llm_domain=self._handle["params"]["domain"],
             temperature=temperature,
-            streaming=False,
+            streaming=streaming,
         )
         messages = [ChatMessage(role="user", content=prompt)]
         resp = spark_llm.generate([messages])
@@ -205,14 +228,19 @@ class SparkAILLMModel(LLMModel):
         return model in ("spark_v1.5", "spark_v2.1", "spark_v3.1", "spark_v3.5")
 
     @classmethod
+    def creatable(cls, keys, config):
+        needed_keys = ["SPARK_APPID", "SPARK_API_SECRET", "SPARK_API_KEY"]
+        return all(k in keys for k in needed_keys)
+
+    @classmethod
     def model_style(cls):
         return ModelStyle.SPARK_AI
 
 
-def create_llm_model(model, keys, config):
+def create_llm_model(model, keys, config=None):
     """Create llm model"""
 
     for _, model_cls in utils.get_registered_model(ModelType.LLM).items():
-        if model_cls.support_model(model):
-            return model_cls(model, keys, config)
-    raise Exception("Unknown model " + str(model))
+        if model_cls.support_model(model) and model_cls.creatable(keys, config):
+            return model_cls(model, keys, config=config)
+    return None

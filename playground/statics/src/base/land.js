@@ -51,10 +51,7 @@ export default class Land extends Phaser.Scene {
         this.agents = {};
         const agent_base_config = this.cache.json.get("config.agent_base");
         for (const name of this.msg.agents) {
-            let agent_config = this.cache.json.get("config.agent." + name);
-            if (agent_base_config) {
-                agent_config = { ...agent_base_config, ...agent_config }
-            }
+            const agent_config = utils.recursiveUpdate(agent_base_config, this.cache.json.get("config.agent." + name));
             this.agents[name] = new Agent(this, agent_config, this.msg.urls);
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
@@ -83,7 +80,7 @@ export default class Land extends Phaser.Scene {
                 agent.update();
             }
         }
-        this.configAgent();
+        this.configPlayer();
         if (this.cursors.space.isDown && !this.on_config) {
             this.on_config = true;
         }
@@ -93,7 +90,7 @@ export default class Land extends Phaser.Scene {
         }
     }
 
-    configAgent() {
+    configPlayer() {
         var player = this.msg.player;
         if (Object.keys(player.update).length > 0) {
             if (player.update.player) {
@@ -123,7 +120,7 @@ export default class Land extends Phaser.Scene {
         if (this.player && agent.display.profile) {
             this.msg.player.portrait = this.player.portrait || "";
             agent.profile.status = utils.textBlock(this.player.getStatus());
-            agent.profile.describe = utils.textBlock(this.player.getDescribe());
+            agent.profile.scratch = utils.textBlock(this.player.getScratch());
         }
     }
 
