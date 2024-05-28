@@ -2,5 +2,5 @@
 
 from .associate import *
 from .event import *
-from .scratch import *
+from .schedule import *
 from .spatial import *

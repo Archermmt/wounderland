@@ -20,3 +20,17 @@ class Spatial:
                 _add_leaf(left_address[1:], tree.setdefault(left_address[0], {}))
 
         _add_leaf(address, self.tree)
+
+    def get_tree(self, root):
+        def _get_tree(root, tree):
+            if root in tree:
+                return tree[root]
+            if not isinstance(tree, dict):
+                return None
+            for subtree in tree.values():
+                c_tree = _get_tree(root, subtree)
+                if c_tree:
+                    return c_tree
+            return None
+
+        return _get_tree(root, self.tree)

@@ -1,5 +1,7 @@
 """wounderland.event"""
 
+from datetime import datetime
+
 
 class Event:
     def __init__(self, subject, predicate=None, object=None, describe=None):
@@ -65,3 +67,49 @@ class Event:
         if len(event) == 3:
             return cls(event[0], event[1], event[2])
         return cls(event[0], event[1], event[2], event[3])
+
+
+class ConceptNode:
+    def __init__(
+        self,
+        name,
+        node_type,
+        event,
+        embedding_key,
+        poignancy,
+        keywords,
+        filling=None,
+        created=None,
+        expiration=None,
+    ):
+        self.name = name
+        self.node_type = node_type  # thought / event / chat
+        self.filling = filling
+
+        self.event = event
+        self.embedding_key = embedding_key
+        self.poignancy = poignancy
+        self.keywords = keywords
+
+        self.created = created or datetime.now()
+        self.expiration = expiration
+        self.last_accessed = self.created
+
+    def __str__(self):
+        return "{}(poignancy {})".format(self.event.sub_desc, self.poignancy)
+
+    """
+    def add_parent(self, parent):
+        for idx, p in enumerate(self.parents):
+            if p.name == parent.name:
+                return idx
+        self.parents.append(parent)
+        return len(self.parents) - 1
+
+    def add_child(self, child):
+        for idx, c in enumerate(self.childern):
+            if c.name == child.name:
+                return idx
+        self.childern.append(child)
+        return len(self.childern) - 1
+    """

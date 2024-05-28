@@ -22,6 +22,7 @@ class LLMModel:
         self._handle = self.setup(keys, config)
 
     def embedding(self, text, retry=5):
+        response = None
         for _ in range(retry):
             try:
                 response = self._embedding(text)
@@ -37,15 +38,16 @@ class LLMModel:
         )
 
     def completion(self, prompt, retry=5, callback=None, **kwargs):
+        response = None
         for _ in range(retry):
             try:
                 response = self._completion(prompt, **kwargs)
+                if callback:
+                    response = callback(response)
             except:
                 continue
             if response:
                 break
-        if callback:
-            response = callback(response)
         return response
 
     def _completion(self, prompt, **kwargs):

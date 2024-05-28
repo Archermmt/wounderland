@@ -78,12 +78,16 @@
     },
     "think": {
         "mode": "random",
-        "interval": 1000
+        "interval": 1000,
+        "poignancy_max": 150
     },
+    "spatial": {},
     "associate": {
         "retention": 8
     },
-    "scratch": {
-        "importance_trigger_max": 150
-    }
+    "schedule": {
+        "schedule_max_try": 3,
+        "schedule_diversity": 5
+    },
+    "scratch": {}
 }
