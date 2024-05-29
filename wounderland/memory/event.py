@@ -1,6 +1,7 @@
 """wounderland.event"""
 
 from datetime import datetime
+from wounderland import utils
 
 
 class Event:
@@ -96,7 +97,18 @@ class ConceptNode:
         self.last_accessed = self.created
 
     def __str__(self):
-        return "{}(poignancy {})".format(self.event.sub_desc, self.poignancy)
+        des = {
+            "event": self.event,
+            "embedding_key": self.embedding_key,
+            "poignancy": self.poignancy,
+            "keywords": self.keywords,
+            "created": self.created.strftime("%m%d-%H:%M"),
+            "expiration": (
+                self.expiration.strftime("%m%d-%H:%M") if self.expiration else None
+            ),
+            "last_accessed": self.last_accessed.strftime("%m%d-%H:%M"),
+        }
+        return utils.dump_dict(des)
 
     """
     def add_parent(self, parent):

@@ -21,7 +21,7 @@ class LLMModel:
         self._model = model
         self._handle = self.setup(keys, config)
 
-    def embedding(self, text, retry=5):
+    def embedding(self, text, retry=1):
         response = None
         for _ in range(retry):
             try:

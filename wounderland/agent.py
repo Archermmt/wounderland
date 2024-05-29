@@ -3,7 +3,7 @@
 import re
 import math
 import random
-from datetime import datetime
+import datetime
 from wounderland import memory, utils
 from wounderland.model.llm_model import create_llm_model
 
@@ -136,7 +136,7 @@ class Scratch:
         """
 
     def _base_desc(self, date=None):
-        date = date or datetime.now()
+        date = date or datetime.datetime.now()
         return """Name: {0}
 Age: {1}
 Innate traits: {2}
@@ -185,8 +185,8 @@ Current Date: {7}\n""".format(
 
         return {"prompt": prompt, "callback": _callback}
 
-    def prompt_daily_schedule(self, wake_up, date=None):
-        date = date or datetime.now()
+    def prompt_daily_plan(self, wake_up, date=None):
+        date = date or datetime.datetime.now()
         prompt = self._base_desc(date)
         prompt += """\n\nIn general, {}""".format(self.config["lifestyle"])
         prompt += "\nToday is {}. Here is {}'s plan today in broad-strokes ".format(
@@ -201,18 +201,17 @@ Current Date: {7}\n""".format(
         )
 
         def _callback(response):
-            schedules = []
+            plan = []
             for sch in response.split("\n"):
                 if ")" in sch:
-                    schedules.append(sch.split(") ")[1].strip())
+                    plan.append(sch.split(") ")[1].strip().strip("."))
                 else:
-                    schedules.append(sch.strip())
-            return schedules
+                    plan.append(sch.strip().strip("."))
+            return plan
 
         return {"prompt": prompt, "callback": _callback}
 
     def prompt_hourly_schedule(self, wake_up, schedule, daily_schedule, date=None):
-        date = date or datetime.now()
         prompt = "Hourly schedule format:\n"
         for hour, _ in schedule:
             prompt += f"[{hour}] Activity: [Fill in]\n"
@@ -232,26 +231,28 @@ Current Date: {7}\n""".format(
         )
 
         def _callback(response):
-            left_schedule, prefix = {}, "{} is".format(self.name)
+            left_schedule = {}
 
             def _add_schedule(line, stamps):
                 if len(stamps) == 1:
+                    keywords = [
+                        "[{}]".format(stamps[0]),
+                        "{} is".format(self.name),
+                        self.name,
+                    ]
                     plan = line
-                    if "[{}]".format(stamps[0]) in line:
-                        plan = line.split("[{}]".format(stamps[0]))[1].strip()
-                    if prefix in line:
-                        plan = line.split(prefix)[1].strip()
+                    for key in keywords:
+                        if key in plan:
+                            plan = plan.split(key)[1].strip()
                     left_schedule[stamps[0]] = plan
                     return True
                 return False
 
             for line in response.split("\n"):
                 stamps = re.findall(r"\d{1,2}:00 AM", line)
-                if _add_schedule(line, stamps):
-                    continue
-                stamps = re.findall(r"\d{1,2}:00 PM", line)
-                if _add_schedule(line, stamps):
-                    continue
+                if not _add_schedule(line, stamps):
+                    stamps = re.findall(r"\d{1,2}:00 PM", line)
+                    _add_schedule(line, stamps)
             return left_schedule
 
         return {"prompt": prompt, "callback": _callback}
@@ -280,6 +281,44 @@ Rate (return a number between 1 to 10):""".format(
         return {"prompt": prompt, "callback": _callback}
 
 
+class Action:
+    def __init__(
+        self,
+        event,
+        act_type,
+        address=None,
+        start=None,
+        end=None,
+        duration=None,
+        describe=None,
+    ):
+        self.event = event
+        self.act_type = act_type
+        self.address = address or ""
+        self.start = start or datetime.datetime.now()
+        self.end = end
+        self.duration = duration
+        self.describe = describe
+
+    def __str__(self):
+        des = {
+            "event({})".format(self.act_type): self.event,
+            "address": self.address,
+            "duration": "{}({}->{})".format(self.duration, self.start, self.end),
+            "describe": self.describe,
+        }
+        return utils.dump_dict(des)
+
+    def finished(self):
+        if not self.address:
+            return True
+        if self.act_type == "chat":
+            end_time = self.end
+        else:
+            end_time = self.start + datetime.timedelta(minutes=self.duration)
+        return end_time >= datetime.datetime.now()
+
+
 class Agent:
     def __init__(self, config, maze, logger):
         self.name = config["name"]
@@ -300,19 +339,8 @@ class Agent:
         # status
         self.status = {"poignancy": {"current": 0, "num_event": 0}}
 
-        # CURR ACTION
-        # <address> is literally the string address of where the action is taking
-        # place.  It comes in the form of
-        # "{world}:{sector}:{arena}:{game_objects}". It is important that you
-        # access this without doing negative indexing (e.g., [-1]) because the
-        # latter address elements may not be present in some cases.
-        # e.g., "dolores double studio:double studio:bedroom 1:bed"
-        self.act_address = None
-        # <description> is a string description of the action.
-        self.act_description = None
-        # <event_form> represents the event triple that the persona is currently
-        # engaged in.
-        self.act_event = (self.name, None, None)
+        # action and events
+        self.action = Action(memory.Event(self.name), "event")
         self.idle_events = {}
 
         # plan
@@ -334,11 +362,63 @@ class Agent:
     def reset_user(self, user):
         if self.think_config["mode"] == "llm" and not self._llm:
             self._llm = create_llm_model(**self.think_config["llm"], keys=user.keys)
-            if self._llm:
+            if self._llm and not self.schedule.scheduled():
                 self.make_schedule()
 
     def remove_user(self):
         self._llm = None
+
+    def make_schedule(self):
+        # make daily plan
+        self.schedule.created_at = datetime.datetime.now()
+        prompt = self.scratch.prompt_wake_up()
+        wake_up = self._llm.completion(**prompt)
+        prompt = self.scratch.prompt_daily_plan(wake_up)
+        daily_plan = self._llm.completion(**prompt)
+        if self.associate.nodes:
+            print("should adjust daily schedule!!")
+            raise Exception("stop here!!")
+        # make hourly schedule
+        schedule_diversity = self.schedule.config["schedule_diversity"]
+        hours = [str(i) + ":00 AM" for i in range(12)]
+        hours += [str(i) + ":00 PM" for i in range(12)]
+        hourly_schedule = {}
+        for _ in range(self.schedule.config["schedule_max_try"]):
+            schedule = [(h, "sleeping") for h in hours[:wake_up]]
+            schedule += [(h, "") for h in hours[wake_up:]]
+            prompt = self.scratch.prompt_hourly_schedule(wake_up, schedule, daily_plan)
+            hourly_schedule = self._llm.completion(**prompt)
+            hourly_schedule.update({h: s for h, s in schedule[:wake_up]})
+            if len(set(hourly_schedule.values())) >= schedule_diversity:
+                break
+        hourly_schedule.update({k: "asleep" for k in hours if k not in hourly_schedule})
+        self.schedule.hourly_schedule, prev = [], None
+        for hour in hours:
+            if hourly_schedule[hour] == prev:
+                self.schedule.hourly_schedule[-1][1] += 60
+                continue
+            self.schedule.hourly_schedule.append([hourly_schedule[hour], 60])
+            prev = hourly_schedule[hour]
+        # make daily schedule
+        print("[TMINFO] get schedule " + str(self.schedule))
+        for schedule, duration in self.schedule.hourly_schedule:
+            if self.schedule.decompose(schedule, duration):
+                print("should decopm " + str(schedule))
+        raise Exception("stop here!!")
+
+        t_event = memory.Event(
+            self.name, "plan", self.schedule.created_at.strftime("%A %B %d")
+        )
+        thought = f"This is {self.name}'s plan for {t_event.object}: " + "; ".join(
+            daily_plan
+        )
+        self._add_concept(
+            t_event,
+            "thought",
+            desc=thought,
+            keywords={"plan"},
+            expiration=self.schedule.created_at + datetime.timedelta(days=30),
+        )
 
     def move(self, position):
         if self.coord:
@@ -376,48 +456,22 @@ class Agent:
             sorted(percept_events.keys(), key=lambda k: percept_events[k])
         )
 
-        # gather concept nodes
-        def _get_embedding(event, e_type="event"):
-            desc = event.sub_desc
-            if e_type == "event":
-                poignancy = self.evaluate_event(event)
-            elif e_type == "chat":
-                poignancy = self.evaluate_chat(event)
-            else:
-                raise Exception("Unexpected event type " + str(e_type))
-            if desc in self.associate.embeddings:
-                return (desc, self.associate.embeddings[desc]), poignancy
-            if self._llm:
-                return (desc, self._llm.embedding(desc)), poignancy
-            return (desc, None), poignancy
-
         # retention events
         ret_events = []
         for p_event in percept_events[: self.percept_config["att_bandwidth"]]:
             latest_events = self.associate.get_recent_events()
             if p_event not in latest_events:
-                event_embedding_pair, event_poignancy = _get_embedding(p_event)
                 chats = []
                 if p_event.fit(self.name, "chat with"):
-                    curr_event = self.get_curr_event()
-                    chat_embedding_pair, chat_poignancy = _get_embedding(curr_event)
-                    chat_node = self.associate.add_chat(
-                        curr_event,
-                        chat_embedding_pair,
-                        chat_poignancy,
-                        filling=self.scratch.chat,
+                    node = self._add_concept(
+                        self.get_curr_event(), "chat", filling=self.scratch.chat
                     )
-                    chats = [chat_node.name]
+                    chats = [node.name]
+                node = self._add_concept(p_event, "event", filling=chats)
+                self._increase_poignancy(node.poignancy)
+                ret_events.append(node)
 
-                # Finally, we add the current event to the agent's memory.
-                event_node = self.associate.add_event(
-                    p_event, event_embedding_pair, event_poignancy, filling=chats
-                )
-                ret_events.append(event_node)
-                self.increase_poignancy(event_poignancy)
-        return ret_events
-
-    def retrieve(self, events):
+        # retrieve events
         def _get_info(event):
             return {
                 "curr_event": event,
@@ -425,21 +479,20 @@ class Agent:
                 "thoughts": self.associate.retrieve_thoughts(event),
             }
 
-        return {e.event.sub_desc: _get_info(e) for e in events}
+        return {e.event.sub_desc: _get_info(e) for e in ret_events}
 
     def plan(self, agents, retrieved):
         plan = {"name": self.name, "direct": "stop"}
         if self.think_config["mode"] == "random":
             plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])
             return plan
-        if self.think_config["mode"] == "llm" and self._llm:
+        if self._llm and not self.schedule.scheduled():
             self.make_schedule()
         return plan
 
     def think(self, status, agents):
         self.move(status["position"])
-        events = self.percept()
-        retrieved = self.retrieve(events)
+        retrieved = self.percept()
         for k, info in retrieved.items():
             print("\n\nretrieved {}".format(k))
             print("events " + str([str(e) for e in info["events"]]))
@@ -452,7 +505,70 @@ class Agent:
         """
         return plan
 
-    def evaluate_event(self, event):
+    def _increase_poignancy(self, score):
+        self.status["poignancy"]["current"] += score
+        self.status["poignancy"]["num_event"] += 1
+
+    def _get_embedding(self, event, e_type="event", desc=None):
+        desc = desc or event.sub_desc
+        if e_type == "event":
+            poignancy = self._evaluate_event(event)
+        elif e_type == "chat":
+            poignancy = self._evaluate_chat(event)
+        elif e_type == "thought":
+            poignancy = 5
+        else:
+            raise Exception("Unexpected event type " + str(e_type))
+        if desc in self.associate.embeddings:
+            return (desc, self.associate.embeddings[desc]), poignancy
+        if self._llm:
+            return (desc, self._llm.embedding(desc)), poignancy
+        return (desc, None), poignancy
+
+    def _add_concept(
+        self,
+        event,
+        e_type,
+        desc=None,
+        keywords=None,
+        filling=None,
+        created=None,
+        expiration=None,
+    ):
+        embedding_pair, poignancy = self._get_embedding(event, e_type, desc)
+        if e_type == "event":
+            node = self.associate.add_event(
+                event,
+                embedding_pair,
+                poignancy,
+                keywords=keywords,
+                filling=filling,
+                created=created,
+                expiration=expiration,
+            )
+        elif e_type == "chat":
+            node = self.associate.add_chat(
+                event,
+                embedding_pair,
+                poignancy,
+                keywords=keywords,
+                filling=filling,
+                created=created,
+                expiration=expiration,
+            )
+        elif e_type == "thought":
+            node = self.associate.add_thought(
+                event,
+                embedding_pair,
+                poignancy,
+                keywords=keywords,
+                filling=filling,
+                created=created,
+                expiration=expiration,
+            )
+        return node
+
+    def _evaluate_event(self, event):
         if event.fit(None, "is", "idle") or not self._llm:
             return 1
         prompt = self.scratch.prompt_poignancy(event)
@@ -463,70 +579,18 @@ class Agent:
 
         return 1
 
-    def evaluate_chat(self, event):
+    def _evaluate_chat(self, event):
         if not self._llm:
             return 1
         return 1
-
-    def increase_poignancy(self, score):
-        self.status["poignancy"]["current"] += score
-        self.status["poignancy"]["num_event"] += 1
-
-    def make_schedule(self):
-        if self.schedule.hourly_schedule:
-            return
-        # make daily schedule
-        self.schedule.date = datetime.now()
-        prompt = self.scratch.prompt_wake_up()
-        wake_up = self._llm.completion(**prompt)
-        print("[TMINFO] wake_up " + str(wake_up))
-        prompt = self.scratch.prompt_daily_schedule(wake_up)
-        self.schedule.daily_schedule = self._llm.completion(**prompt)
-        print("self.schedule.daily_schedule " + str(self.schedule.daily_schedule))
-        if self.associate.nodes:
-            print("should adjust daily schedule!!")
-            raise Exception("stop here!!")
-        # make hourly schedule
-        schedule_diversity = self.schedule.config["schedule_diversity"]
-        hours = [str(i) + ":00 AM" for i in range(12)]
-        hours += [str(i) + ":00 PM" for i in range(12)]
-        hourly_schedule = {}
-        for _ in range(self.schedule.config["schedule_max_try"]):
-            schedule = [(h, "sleeping") for h in hours[:wake_up]]
-            schedule += [(h, "") for h in hours[wake_up:]]
-            prompt = self.scratch.prompt_hourly_schedule(
-                wake_up, schedule, self.schedule.daily_schedule
-            )
-            hourly_schedule = self._llm.completion(**prompt)
-            hourly_schedule.update({h: s for h, s in schedule[:wake_up]})
-            print("hourly_schedule " + str(hourly_schedule))
-            if len(set(hourly_schedule.values())) >= schedule_diversity:
-                break
-        hourly_schedule.update(
-            {k: "sleeping" for k in hours if k not in hourly_schedule}
-        )
-        print("hourly_schedule " + str(hourly_schedule))
-
-        hourly_compressed, prev = [], None
-        for hour in hours:
-            if hourly_schedule[hour] == prev:
-                hourly_compressed[-1][1] += 60
-                continue
-            hourly_compressed.append([hourly_schedule[hour], 60])
-            prev = hourly_schedule[hour]
-
-        print("hourly_compressed " + str(hourly_compressed))
-        raise Exception("sop here!!")
 
     def get_curr_tile(self):
         return self.maze.tile_at(self.coord)
 
     def get_curr_event(self, as_sub=True):
-        if not self.act_address:
-            return memory.Event(self.name if as_sub else "", None, None, None)
+        if as_sub:
+            return self.action.event
+        event = self.action.event
         return memory.Event(
-            self.act_event[0] if as_sub else self.act_address,
-            self.act_event[1],
-            self.act_event[2],
-            self.act_description,
+            self.action.address, event.predicate, event.object, event.describe
         )
