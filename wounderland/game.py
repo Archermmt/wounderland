@@ -26,6 +26,8 @@ class Game:
             agent_config = utils.update_dict(
                 copy.deepcopy(agent_base), self.load_static(agent["path"])
             )
+            if agent.get("update"):
+                agent_config = utils.update_dict(agent_config, agent["update"])
             self.agents[name] = Agent(agent_config, self.maze, self.logger)
         self.user = None
 

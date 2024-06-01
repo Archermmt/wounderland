@@ -72,8 +72,10 @@ class Tile:
     def has_address(self, key):
         return key in self.address_map
 
-    def get_address(self, level):
-        pos = self.address_keys.index(level)
+    def get_address(self, level, as_list=True):
+        pos = self.address_keys.index(level) + 1
+        if as_list:
+            return self.address[:pos]
         return ":".join(self.address[:pos])
 
     def get_addresses(self):

@@ -5,7 +5,8 @@ from wounderland import utils
 
 class Spatial:
     def __init__(self, config):
-        self.tree = config
+        self.tree = config["tree"]
+        self.address = config.get("address", {})
 
     def __str__(self):
         return utils.dump_dict(self.tree)
@@ -21,16 +22,24 @@ class Spatial:
 
         _add_leaf(address, self.tree)
 
-    def get_tree(self, root):
-        def _get_tree(root, tree):
-            if root in tree:
-                return tree[root]
-            if not isinstance(tree, dict):
-                return None
-            for subtree in tree.values():
-                c_tree = _get_tree(root, subtree)
-                if c_tree:
-                    return c_tree
-            return None
+    def find_address(self, hint, as_list=True):
+        address = []
+        for key, path in self.address.items():
+            if key in hint:
+                address = path
+                break
+        if as_list:
+            return address
+        return ":".join(address)
 
-        return _get_tree(root, self.tree)
+    def get_leaves(self, address):
+        def _get_tree(address, tree):
+            if not address:
+                if isinstance(tree, dict):
+                    return list(tree.keys())
+                return tree
+            if address[0] not in tree:
+                return []
+            return _get_tree(address[1:], tree[address[0]])
+
+        return _get_tree(address, self.tree)

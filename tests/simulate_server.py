@@ -5,10 +5,16 @@ from wounderland import utils
 
 
 class SimulateServer:
-    def __init__(self, static_root, config, env_file):
+    def __init__(self, static_root, config, ckpt_file):
         self.static_root = static_root
+        ckpt = utils.load_dict(ckpt_file)
+        if ckpt.get("agents"):
+            for name, a_config in ckpt["agents"].items():
+                if name not in config["agents"]:
+                    continue
+                config["agents"][name]["update"] = a_config
         game = create_game(static_root, config)
-        game.reset_user("test", keys=utils.load_dict(env_file)["keys"])
+        game.reset_user("test", keys=ckpt["keys"])
         self.game = get_game()
         self.tile_size = self.game.maze.tile_size
         self.agent_status = {}

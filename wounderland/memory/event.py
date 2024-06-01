@@ -12,7 +12,7 @@ class Event:
         self.describe = describe or "idle"
 
     def __str__(self):
-        return "[{}] |{}| <{}> ({})".format(
+        return "{} <{}> {} ({})".format(
             self.subject, self.predicate, self.object, self.describe
         )
 
@@ -102,11 +102,13 @@ class ConceptNode:
             "embedding_key": self.embedding_key,
             "poignancy": self.poignancy,
             "keywords": self.keywords,
-            "created": self.created.strftime("%m%d-%H:%M"),
+            "access": "{}(C:{})".format(
+                self.last_accessed.strftime("%m%d-%H:%M"),
+                self.created.strftime("%m%d-%H:%M"),
+            ),
             "expiration": (
                 self.expiration.strftime("%m%d-%H:%M") if self.expiration else None
             ),
-            "last_accessed": self.last_accessed.strftime("%m%d-%H:%M"),
         }
         return utils.dump_dict(des)
 
