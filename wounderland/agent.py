@@ -4,6 +4,7 @@ import re
 import math
 import random
 import datetime
+from jinja2 import Template
 from wounderland import memory, utils
 from wounderland.model.llm_model import create_llm_model
 
@@ -77,17 +78,17 @@ Rate (return a number between 1 to 10):""".format(
 
         def _callback(response):
             response = response.replace("\n", "").strip()
-            hours = re.findall(r"\d:00 am+", response)
+            hours = re.findall(r"(\d):00 am+", response)
             if len(hours) == 1:
-                return int(hours[0].split(":")[0])
-            hours = re.findall(r"\d am+", response)
+                return int(hours[0])
+            hours = re.findall(r"(\d) am+", response)
             if len(hours) == 1:
-                return int(hours[0].split(" am")[0])
+                return int(hours[0])
             raise Exception("Can not find single integer in " + str(response))
 
         return {"prompt": prompt, "callback": _callback}
 
-    def prompt_schedule_roughly(self, wake_up, date=None):
+    def prompt_schedule_init(self, wake_up, date=None):
         date = date or datetime.datetime.now()
         prompt = self._base_desc(date)
         prompt += """\n\nIn general, {}""".format(self.config["lifestyle"])
@@ -161,13 +162,12 @@ Rate (return a number between 1 to 10):""".format(
 
         return {"prompt": prompt, "callback": _callback}
 
-    def prompt_schedule_hourly(self, idx, schedule, date=None):
+    def prompt_schedule_decompose(self, plan, schedule, date=None):
         date = date or datetime.datetime.now()
 
-        def _get_plan(index):
-            start, end = schedule.get_period(index, hourly=False)
-            plan = schedule.get_plan(index, hourly=False)
-            return f"{start} ~ {end}, {self.name} is planning on {plan}"
+        def _plan_des(plan):
+            start, end = schedule.plan_stamps(plan, time_format="%H:%M%p")
+            return f'{start} ~ {end}, {self.name} is planning on {plan["describe"]}'
 
         prompt = """Describe subtasks in 5 min increments. 
 ---
@@ -179,198 +179,324 @@ Location: Kelly is in an older condo that has the following areas: {kitchen, bed
 Currently: Kelly is a teacher during the school year. She teaches at the school but works on lesson plans at home. She is currently living alone in a single bedroom condo.
 Daily plan requirement: Kelly is planning to teach during the morning and work from home in the afternoon.s
 
-Today is Saturday May 10. From 08:00am ~09:00am, Kelly is planning on having breakfast, from 09:00am ~ 12:00pm, Kelly is planning on working on the next day's kindergarten lesson plan, and from 12:00 ~ 13pm, Kelly is planning on taking a break. 
+Today is Saturday May 10. From 08:00AM ~ 09:00AM, Kelly is planning on having breakfast, from 09:00AM ~ 12:00PM, Kelly is planning on working on the next day's kindergarten lesson plan, and from 12:00AM ~ 13PM, Kelly is planning on taking a break. 
 In 5 min increments, list the subtasks Kelly does when Kelly is working on the next day's kindergarten lesson plan from 09:00am ~ 12:00pm (total duration in minutes: 180):
-1) Kelly is reviewing the kindergarten curriculum standards. (duration in minutes: 15, minutes left: 165)
-2) Kelly is brainstorming ideas for the lesson. (duration in minutes: 30, minutes left: 135)
-3) Kelly is creating the lesson plan. (duration in minutes: 30, minutes left: 105)
-4) Kelly is creating materials for the lesson. (duration in minutes: 30, minutes left: 75)
-5) Kelly is taking a break. (duration in minutes: 15, minutes left: 60)
-6) Kelly is reviewing the lesson plan. (duration in minutes: 30, minutes left: 30)
-7) Kelly is making final changes to the lesson plan. (duration in minutes: 15, minutes left: 15)
-8) Kelly is printing the lesson plan. (duration in minutes: 10, minutes left: 5)
-9) Kelly is putting the lesson plan in her bag. (duration in minutes: 5, minutes left: 0)
+1) Kelly is reviewing the kindergarten curriculum standards. (duration: 15, left: 165)
+2) Kelly is brainstorming ideas for the lesson. (duration: 30, left: 135)
+3) Kelly is creating the lesson plan. (duration: 30, left: 105)
+4) Kelly is creating materials for the lesson. (duration: 30, left: 75)
+5) Kelly is taking a break. (duration: 15, left: 60)
+6) Kelly is reviewing the lesson plan. (duration: 30, left: 30)
+7) Kelly is making final changes to the lesson plan. (duration: 15, left: 15)
+8) Kelly is printing the lesson plan. (duration: 10, left: 5)
+9) Kelly is putting the lesson plan in her bag. (duration: 5, left: 0)
 ---\n"""
         prompt += self._base_desc(date)
-        all_indices = range(max(idx - 1, 0), min(idx + 2, len(schedule.daily_schedule)))
-        prompt += f'\nToday is {date.strftime("%B %d, %Y")}. From ' + ", ".join(
-            [_get_plan(i) for i in all_indices]
+        indices = range(
+            max(plan["idx"] - 1, 0), min(plan["idx"] + 2, len(schedule.daily_schedule))
         )
-        start, end = schedule.get_period(idx, hourly=False)
-        duration = schedule.get_plan(idx, hourly=False)
-        plan = schedule.get_duration(idx, hourly=False)
-        prompt += f"\nIn 5 min increments, list the subtasks {self.name} does when {self.name} is {duration}"
-        prompt += f" from {start} ~ {end} (total duration in minutes {plan}):\n"
+        prompt += f'\nToday is {date.strftime("%A %B %d")}. From '
+        prompt += ", ".join([_plan_des(schedule.daily_schedule[i]) for i in indices])
+        start, end = schedule.plan_stamps(plan, time_format="%H:%M%p")
+        increment = max(int(plan["duration"] / 150) * 5, 5)
+        prompt += f'\nIn {increment} min increments, list the subtasks {self.name} does when {self.name} is {plan["describe"]}'
+        prompt += (
+            f' from {start} ~ {end} (total duration in minutes {plan["duration"]}):\n'
+        )
         prompt += f"1) {self.name} is"
 
         def _callback(response):
-            hourly_schedule, left = [], schedule.get_duration(idx, hourly=False)
-            keywords = [
-                "{} is".format(self.name),
-                "{} is".format(self.name.split(" ")[0]),
-                self.name,
-                self.name.split(" ")[0],
-            ]
+            decompose, left = [], plan["duration"]
+            pattern = self.name + " is (.+?) \(duration: (\d{1,2})"
             for line in response.split("\n"):
-                stamps = re.findall(r"\(duration in minutes: \d{1,2}", line)
-                if len(stamps) == 1:
-                    plan = line.split(stamps[0])[0]
-                    for key in keywords:
-                        if key in plan:
-                            plan = plan.split(key)[1]
-                    duration = int(stamps[0].split(":")[1].strip())
-                    hourly_schedule.append((plan.strip().strip("."), duration))
+                infos = re.findall(pattern, line)
+                if len(infos) == 1:
+                    describe, duration = infos[0][0], int(infos[0][1])
+                    decompose.append((describe.strip(".").strip(), duration))
                     left -= duration
             if left > 0:
-                hourly_schedule.append(("idle", left))
-            return hourly_schedule
+                decompose.append((plan["describe"], left))
+            return decompose
 
         return {"prompt": prompt, "callback": _callback}
 
-    def prompt_plan_sector(self, plan, spatial, tile, dst_address):
-        prompt = """Task -- choose an appropriate area from the area options for a task at hand.\n
-Sam Kim lives in {Sam Kim's house} that has Sam Kim's room, bathroom, kitchen.
-Sam Kim is currently in {Sam Kim's house} that has Sam Kim's room, bathroom, kitchen.
-Area options: {Sam Kim's house, The Rose and Crown Pub, Hobbs Cafe, Oak Hill College, Johnson Park, Harvey Oak Supply Store, The Willows Market and Pharmacy}.
+    def prompt_determine_sector(self, describes, spatial, address, tile):
+        template = Template(
+            """\n-----
+{{ name }} lives in <{{ live_sector }}> that has {{ live_arenas|join(', ') }}.
+{{ name }} is currently in <{{ curr_sector }}> that has {{ curr_arenas|join(', ') }}.
+{{ daily_plan }}
+Area options: <{{ areas|join(', ') }}>.
 * Stay in the current area if the activity can be done there. Only go out if the activity needs to take place in another place.
 * Must be one of the "Area options", verbatim.
-For taking a walk, Sam Kim should go to the following area: {Johnson Park}
----
-Jane Anderson lives in {Oak Hill College Student Dormatory} that has Jane Anderson's room.
-Jane Anderson is currently in {Oak Hill College} that has a classroom, library.
-Area options: {Oak Hill College Student Dormatory, The Rose and Crown Pub, Hobbs Cafe, Oak Hill College, Johnson Park, Harvey Oak Supply Store, The Willows Market and Pharmacy}.
-* Stay in the current area if the activity can be done there. Only go out if the activity needs to take place in another place.
-* Must be one of the "Area options", verbatim.
-For eating dinner, Jane Anderson should go to the following area: {Hobbs Cafe}
----
-"""
-        address = spatial.find_address("living_area", as_list=True)[:-1]
-        arenas = " ".join(spatial.get_leaves(address))
-        prompt += f"{self.name} lives in {{{address[-1]}}} that has {arenas}.\n"
-        curr_address = tile.get_address("sector", as_list=True)
-        curr_arenas = " ".join(spatial.get_leaves(curr_address))
-        prompt += f"{self.name} is currently in {{{curr_address[-1]}}} that has {curr_arenas}.\n"
-        prompt += f'{self.config["daily_plan"]}.\n'
-        curr_sectors = ", ".join(spatial.get_leaves(dst_address))
-        prompt += f"Area options: {{{curr_sectors}}}.\n"
-        prompt += """* Stay in the current area if the activity can be done there. Only go out if the activity needs to take place in another place.
-* Must be one of the "Area options", verbatim.\n"""
-        curr_plans = re.findall(r"\((.+?)\)", plan)
-        if len(curr_plans) == 1:
-            plan = plan.split("(" + curr_plans[0])[0].strip()
-        prompt += f"For {plan}, {self.name} should go to the following area: " + "{"
-        print("\n\n[TMINFO] sector prompt " + str(prompt))
-
-        def _callback(response):
-            print("\nsector response " + str(response))
-            key = f"{self.name} should go to the following area: " + "{"
-            sectors = spatial.get_leaves(dst_address)
-            default = spatial.find_address("living_area", as_list=True)[-2]
-            for line in response.split("\n"):
-                if key not in line:
-                    continue
-                sector = line.split(key)[1].strip("}")
-                if sector not in sectors:
-                    return default
-                return sector
-            raise Exception("Can not find sector for plan " + str(plan))
-
-        return {"prompt": prompt, "callback": _callback}
-
-    def prompt_plan_arena(self, plan, spatial, tile, dst_address):
-        prompt = """Jane Anderson is in kitchen in Jane Anderson's house.
-Jane Anderson is going to Jane Anderson's house that has the following areas: {kitchen,  bedroom, bathroom}.
-* Stay in the current area if the activity can be done there. Never go into other people's rooms unless necessary.
-* Must be one of the given areas, verbatim.
-Jane Anderson is making meal. For cooking, Jane Anderson should go to the area in Jane Anderson's house: {kitchen}
----
-Tom Watson is in common room in Tom Watson's apartment. 
-Tom Watson is going to Hobbs Cafe that has the following areas: {cafe}.
-* Stay in the current area if the activity can be done there. Never go into other people's rooms unless necessary.
-* Must be one of the given areas, verbatim.
-Tom Watson is eating breakfast. For getting coffee, Tom Watson should go to the area in Hobbs Cafe: {cafe}
----
-"""
-        curr_address = tile.get_address("arena", as_list=True)
-        prompt += f"{self.name} is in {curr_address[-1]} in {curr_address[-2]}\n"
-        arenas = ", ".join(spatial.get_leaves(dst_address))
-        prompt += f"{self.name} is going to {dst_address[-1]} that has the following areas: {{{arenas}}}\n"
-        prompt += "* Stay in the current area if the activity can be done there. Never go into other people's rooms unless necessary.\n"
-        prompt += "* Must be one of the given areas, verbatim.\n"
-        curr_plans = re.findall(r"\((.+?)\)", plan)
-        if len(curr_plans) == 1:
-            curr_plan = curr_plans[0]
-            plan = plan.split("(" + curr_plan)[0].strip()
-        else:
-            curr_plan = plan
-        prompt += (
-            f"{self.name} is {plan}. For {curr_plan}, {self.name} should go to the area in {dst_address[-1]}: "
-            + "{"
+{{ name }} is {{ describes[0] }}. For {{ describes[1] }}, {{ name }} should go to the following area: {% if answer %}<{{ answer }}>{% else %}<{% endif %}"""
         )
-        print("\n\n[TMINFO] arena prompt " + str(prompt))
+
+        prompt = "Task -- choose an appropriate area from the area options for a task at hand."
+        prompt += template.render(
+            name="Sam Kim",
+            live_sector="Sam Kim's house",
+            live_arenas=["Sam Kim's room", "bathroom", "kitchen"],
+            curr_sector="Sam Kim's house",
+            curr_arenas=["Sam Kim's room", "bathroom", "kitchen"],
+            daily_plan="Sam Kim enjoy walking around from 8am to 12am.",
+            areas=[
+                "Sam Kim's house",
+                "The Rose and Crown Pub",
+                "Hobbs Cafe",
+                "Oak Hill College",
+                "Johnson Park",
+                "Harvey Oak Supply Store",
+                "The Willows Market and Pharmacy",
+            ],
+            describes=["relax in park", "taking a walk"],
+            answer="Johnson Park",
+        )
+        prompt += template.render(
+            name="Jane Anderson",
+            live_sector="Oak Hill College Student Dormatory",
+            live_arenas=["Jane Anderson's room"],
+            curr_sector="Oak Hill College",
+            curr_arenas=["classroom", "library"],
+            daily_plan="Jane Anderson usually stays in dormitory and read books.",
+            areas=[
+                "Oak Hill College Student Dormatory",
+                "The Rose and Crown Pub",
+                "Hobbs Cafe",
+                "Oak Hill College",
+                "Johnson Park",
+                "Harvey Oak Supply Store",
+                "The Willows Market and Pharmacy",
+            ],
+            describes=["eating dinner", "eating dinner"],
+            answer="Hobbs Cafe",
+        )
+        live_address = spatial.find_address("living_area", as_list=True)[:-1]
+        curr_address = tile.get_address("sector", as_list=True)
+        prompt += template.render(
+            name=self.name,
+            live_sector=live_address[-1],
+            live_arenas=spatial.get_leaves(live_address),
+            curr_sector=curr_address[-1],
+            curr_arenas=spatial.get_leaves(curr_address),
+            daily_plan=self.config["daily_plan"],
+            areas=spatial.get_leaves(address),
+            describes=describes,
+        )
 
         def _callback(response):
-            print("\narena response " + str(response))
-            key = f"{self.name} should go to the area in {dst_address[-1]}: " + "{"
-
-            arenas = spatial.get_leaves(dst_address)
-            print("arenas " + str(arenas))
-            default = spatial.find_address("living_area", as_list=True)[-1]
-            print("default " + str(default))
+            pattern = self.name + " should go to the following area: <(.+?)>"
+            sectors, default = spatial.get_leaves(address), live_address[-1]
             for line in response.split("\n"):
-                print("get line " + str(line))
-                if key not in line:
-                    continue
-                arena = line.split(key)[1].strip("}")
-                print("get arena " + str(arena))
-                if arena not in arenas:
-                    return default
-                return arena
-            raise Exception("Can not find arena for plan " + str(plan))
+                infos = re.findall(pattern, line)
+                if len(infos) == 1:
+                    return infos[0] if infos[0] in sectors else default
+            raise Exception("Can not find sector for plan " + str(describes))
 
         return {"prompt": prompt, "callback": _callback}
 
+    def prompt_determine_arena(self, describes, spatial, address):
+        template = Template(
+            """\n-----
+{{ name }} is going to {{ dst_sector }} that has the following areas: <{{ dst_arenas|join(', ') }}>.
+{{ daily_plan }}
+* Stay in the current area if the activity can be done there. Never go into other people's rooms unless necessary.
+* Must be one of the given areas, verbatim.
+{{ name }} is {{ describes[0] }}. For {{ describes[1] }}, {{ name }} should go to the following area in {{ dst_sector }}: {% if answer %}<{{ answer }}>{% else %}<{% endif %}"""
+        )
 
-class Action:
-    def __init__(
-        self,
-        event,
-        act_type,
-        address=None,
-        describe=None,
-        start=None,
-        duration=None,
-    ):
-        self.event = event
-        self.act_type = act_type
-        self.address = address
-        self.describe = describe
-        self.start = start or datetime.datetime.now()
-        self.duration = duration
+        prompt = "Task -- choose an appropriate area from the areas for a task at hand."
+        prompt += template.render(
+            name="Jane Anderson",
+            dst_sector="Jane Anderson's house",
+            dst_arenas=["kitchen", "bedroom", "bathroom"],
+            daily_plan="Jane Anderson usually stays in dormitory and read books.",
+            describes=["making meal", "cooking"],
+            answer="kitchen",
+        )
+        prompt += template.render(
+            name="Tom Watson",
+            dst_sector="Hobbs Cafe",
+            dst_arenas=["cafe"],
+            daily_plan="Tom Watson visit cafe around 8am and go to campus for classes.",
+            describes=["eating breakfast", "getting coffee"],
+            answer="cafe",
+        )
+        prompt += template.render(
+            name=self.name,
+            dst_sector=address[-1],
+            dst_arenas=spatial.get_leaves(address),
+            daily_plan=self.config["daily_plan"],
+            describes=describes,
+        )
 
-    def __str__(self):
-        des = {
-            "finished": self.finished(),
-            "event({})".format(self.act_type): self.event,
-            "address": self.address,
-            "describe": self.describe,
-        }
-        if self.duration:
-            des["duration"] = "{}(from {})".format(
-                self.duration, self.start.strftime("%m%d-%H:%M")
+        def _callback(response):
+            pattern = (
+                self.name
+                + " should go to the following area in "
+                + address[-1]
+                + ": <(.+?)>"
             )
-        else:
-            des["start"] = self.start.strftime("%m%d-%H:%M")
-        return utils.dump_dict(des)
+            arenas = spatial.get_leaves(address)
+            default = spatial.find_address("living_area", as_list=True)[-1]
+            for line in response.split("\n"):
+                infos = re.findall(pattern, line)
+                if len(infos) == 1:
+                    return infos[0] if infos[0] in arenas else default
+            raise Exception("Can not find arena for plan " + str(describes))
 
-    def finished(self):
-        if not self.address:
-            return True
-        if self.act_type == "chat":
-            end_time = self.end
-        else:
-            end_time = self.start + datetime.timedelta(minutes=self.duration)
-        return end_time >= datetime.datetime.now()
+        return {"prompt": prompt, "callback": _callback}
+
+    def prompt_determine_object(self, describes, spatial, address):
+        template = Template(
+            """\n-----
+Current activity: {{ activity }}
+Objects available: <{{ objects|join(', ') }}>
+Pick ONE most relevant object from the Objects available: {% if answer %}<{{ answer }}>{% else %}<{% endif %}"""
+        )
+
+        prompt = "Task -- choose most relevant object from the Objects available for a task at hand."
+        prompt += template.render(
+            activity="sleep in bed",
+            objects=["bed", "easel", "closet", "painting"],
+            answer="bed",
+        )
+        prompt += template.render(
+            activity="painting",
+            objects=["easel", "closet", "sink", "microwave"],
+            answer="easel",
+        )
+        prompt += template.render(
+            activity="painting",
+            objects=["easel", "closet", "sink", "microwave"],
+            answer="easel",
+        )
+        prompt += template.render(
+            activity="cooking",
+            objects=["stove", "sink", "fridge", "counter"],
+            answer="stove",
+        )
+        prompt += template.render(
+            activity="watch TV",
+            objects=["couch", "TV", "remote", "coffee table"],
+            answer="TV",
+        )
+        prompt += template.render(
+            activity="study",
+            objects=["desk", "computer", "chair", "bookshelf"],
+            answer="desk",
+        )
+        prompt += template.render(
+            activity="talk on the phone",
+            objects=["phone", "charger", "bed", "nightstand"],
+            answer="phone",
+        )
+        prompt += template.render(
+            activity=describes[1], objects=spatial.get_leaves(address)
+        )
+
+        def _callback(response):
+            pattern = (
+                "Pick ONE most relevant object from the Objects available: <(.+?)>"
+            )
+            objects = spatial.get_leaves(address)
+            for line in response.split("\n"):
+                infos = re.findall(pattern, line)
+                if len(infos) == 1:
+                    return infos[0] if infos[0] in objects else random.choice(objects)
+            raise Exception("Can not find object for plan " + str(describes[1]))
+
+        return {"prompt": prompt, "callback": _callback}
+
+    def prompt_describe_emoji(self, describe):
+        prompt = f"""Convert an action description to an emoji (important: use three or less emojis).\n
+Action description: waking up and starting her morning routine (taking a shower)
+Emoji: <🛁🧖‍♀️>
+Action description: having breakfast (making coffee)
+Emoji: <☕️🥐>
+Action description: painting (turning on classical music to listen to as she paints)
+Emoji: <🎨🎵>
+Action description: exercising (going for a run)
+Emoji: <🏃‍♀️>
+Action description: having breakfast (putting butter on her toast)
+Emoji: <🧈🍞>
+Action description: {describe}
+Emoji: <"""
+
+        def _callback(response):
+            pattern = "Emoji: <(.+?)>"
+            for line in response.split("\n"):
+                infos = re.findall(pattern, line)
+                if len(infos) == 1:
+                    return infos[0]
+            raise Exception("Can not make emoji for " + str(describe))
+
+        return {"prompt": prompt, "callback": _callback}
+
+    def prompt_describe_event(self, subject, describe, emoji):
+        prompt = f"""Task: Turn the input into (~subject~, =predicate=, -object-).\n
+Input: Sam Johnson is eating breakfast. 
+Output: (~Dolores Murphy~, =eat=, -breakfast-) 
+--- 
+Input: Joon Park is brewing coffee.
+Output: (~Joon Park~, =brew=, -coffee-)
+---
+Input: Jane Cook is sleeping. 
+Output: (~Jane Cook~, =is=, -sleep-)
+---
+Input: Michael Bernstein is writing email on a computer. 
+Output: (~Michael Bernstein~, =write=, -email-)
+---
+Input: Percy Liang is teaching students in a classroom. 
+Output: (~Percy Liang~, =teach=, -students-)
+---
+Input: Merrie Morris is running on a treadmill. 
+Output: (~Merrie Morris~, =run=, -treadmill-)
+---
+Input: {subject} is {describe}. 
+Output: (~{subject}~,"""
+
+        def _callback(response):
+            pattern = "\(~(.+?)~, =(.+?)=, -(.+?)-\)"
+            for line in response.split("\n"):
+                infos = re.findall(pattern, line)
+                if len(infos) == 1 and infos[0][0] == subject:
+                    return memory.Event(*infos[0], describe=describe, emoji=emoji)
+            raise Exception("Can not make event for " + str(describe))
+
+        return {"prompt": prompt, "callback": _callback}
+
+    def promt_describe_object(self, obj, describe):
+        prompt = f"""Task: We want to understand the state of an object that is being used by someone.\n
+Let's think step by step. 
+We want to know about oven's state. 
+Step 1. Sam Johnson is eating breakfast at/using the oven. 
+Step 2. Describe the cooking utensils's state: oven is <being heated to cook breakfast>
+---
+Let's think step by step. 
+We want to know about computer's state. 
+Step 1. Michael Bernstein is writing email at/using the computer. 
+Step 2. Describe the computer's state: computer is <being used to write email>
+---
+Let's think step by step. 
+We want to know about sink's state. 
+Step 1. Tom Kane is washing his face at/using the sink.
+Step 2. Describe the sink's state: sink is <running with water>
+---
+Let's think step by step. 
+We want to know about {obj}'s state. 
+Step 1. {self.name} is {describe} at/using the {obj}.
+Step 2. Describe the {obj}'s state: {obj} is <"""
+
+        def _callback(response):
+            pattern = "Describe the " + obj + "'s state: " + obj + " is <(.+?)>"
+            for line in response.split("\n"):
+                infos = re.findall(pattern, line)
+                if len(infos) == 1:
+                    return infos[0]
+            raise Exception("Can not describe object {}: {}".format(obj, describe))
+
+        return {"prompt": prompt, "callback": _callback}
 
 
 class Agent:
@@ -394,7 +520,7 @@ class Agent:
         self.status = {"poignancy": {"current": 0, "num_event": 0}}
 
         # action and events
-        self.actions = [Action(memory.Event(self.name), "event")]
+        self.actions = [memory.Action(memory.Event(self.name), "event")]
         self.idle_events = {}
 
         # plan
@@ -423,16 +549,16 @@ class Agent:
         self._llm = None
 
     def make_schedule(self):
-        # make daily plan
+        # make init schedule
         self.schedule.created_at = datetime.datetime.now()
         prompt = self.scratch.prompt_wake_up()
         wake_up = self._llm.completion(**prompt)
-        prompt = self.scratch.prompt_schedule_roughly(wake_up)
-        roughly_schedule = self._llm.completion(**prompt)
+        prompt = self.scratch.prompt_schedule_init(wake_up)
+        init_schedule = self._llm.completion(**prompt)
         if self.associate.nodes:
             print("should adjust daily schedule!!")
             raise Exception("stop here!!")
-        # make hourly schedule
+        # make daily schedule
         hours = [str(i) + ":00 AM" for i in range(12)]
         hours += [str(i) + ":00 PM" for i in range(12)]
         daily_schedule = {}
@@ -440,7 +566,7 @@ class Agent:
             schedule = [(h, "sleeping") for h in hours[:wake_up]]
             schedule += [(h, "") for h in hours[wake_up:]]
             prompt = self.scratch.prompt_schedule_daily(
-                wake_up, schedule, roughly_schedule
+                wake_up, schedule, init_schedule
             )
             daily_schedule = self._llm.completion(**prompt)
             daily_schedule.update({h: s for h, s in schedule[:wake_up]})
@@ -450,35 +576,17 @@ class Agent:
         prev = None
         for hour in hours:
             if daily_schedule[hour] == prev:
-                self.schedule.extend_duration(-1, 60, hourly=False)
+                self.schedule.daily_schedule[-1]["duration"] += 60
                 continue
-            self.schedule.add_schedule(daily_schedule[hour], 60, hourly=False)
+            self.schedule.add_plan(daily_schedule[hour], 60)
             prev = daily_schedule[hour]
-        # make daily schedule
-        for idx, (plan, duration) in enumerate(self.schedule.daily_schedule):
-            if self.schedule.decompose(plan, duration):
-                prompt = self.scratch.prompt_schedule_hourly(idx, self.schedule)
-                hourly_schedules = self._llm.completion(**prompt)
-                hourly_schedules = [
-                    ("{} ({})".format(plan, p), d) for p, d in hourly_schedules
-                ]
-                self.schedule.extend_schedules(hourly_schedules)
-            else:
-                self.schedule.add_schedule(plan, duration)
-        duration = self.schedule.get_duration(-1, 0)
-        if duration < 24 * 60:
-            if self.schedule.get_plan(-1) == "sleeping":
-                self.schedule.extend_duration(-1, 24 * 60 - duration)
-            else:
-                self.schedule.add_schedule("sleeping", 24 * 60 - duration)
-        t_event = memory.Event(
+        event = memory.Event(
             self.name, "plan", self.schedule.created_at.strftime("%A %B %d")
         )
-        thought = f"This is {self.name}'s plan for {t_event.object}: " + "; ".join(
-            roughly_schedule
-        )
+        thought = f"This is {self.name}'s plan for {event.object}: "
+        thought += "; ".join(init_schedule)
         self._add_concept(
-            t_event,
+            event,
             "thought",
             desc=thought,
             keywords={"plan"},
@@ -500,6 +608,13 @@ class Agent:
             self.maze.add_event(self.coord, obj_event)
             blank = memory.Event(obj_event.subject, None, None, None)
             self.maze.remove_events(self.coord, event=blank)
+
+    def think(self, status, agents):
+        self.move(status["position"])
+        retrieved = self.percept()
+        plan = self.plan(agents, retrieved)
+        self.reflect()
+        return plan
 
     def percept(self):
         curr_tile = self.get_curr_tile()
@@ -554,7 +669,11 @@ class Agent:
             return plan
         if self._llm and not self.schedule.scheduled():
             self.make_schedule()
-
+        # get last action
+        self.actions = [a for a in self.actions if not a.finished()]
+        if not self.actions:
+            self.actions.append(self._determine_action())
+        print("get action " + str(self.actions[-1]))
         """
         for k, info in retrieved.items():
             print("\n\nretrieved {}".format(k))
@@ -566,55 +685,76 @@ class Agent:
                 print(e)
         """
 
-        # clean action
-        self.actions = [a for a in self.actions if not a.finished()]
-        print("plan with schedule:\n" + str(self.schedule))
-        # create action
-        plan, duration = self.schedule.schedule_at()
-        address = self.spatial.find_address(plan, as_list=False)
-        print("current plan {}:{}".format(plan, duration))
-        if self.actions:
-            address = self.actions[-1].address
-        elif not address:
-            tile = self.get_curr_tile()
-            address = tile.get_address("world", as_list=True)
-            prompt = self.scratch.prompt_plan_sector(plan, self.spatial, tile, address)
-            address.append(self._llm.completion(**prompt))
-            print("address " + str(address))
-            arenas = self.spatial.get_leaves(address)
-            print("arenas " + str(arenas))
-
-            prompt = self.scratch.prompt_plan_arena(plan, self.spatial, tile, address)
-            address.append(self._llm.completion(**prompt))
-            print("address " + str(address))
-
-            objs = self.spatial.get_leaves(address)
-            print("objs " + str(objs))
-
-            raise Exception("stop here!!")
-            """
-            act_arena = generate_action_arena(
-                act_desp, persona, maze, act_world, act_sector
-            )
-            address = self.spatial.find_address("act_arena")
-            act_game_object = generate_action_game_object(
-                act_desp, act_address, persona, maze
-            )
-            """
-
         raise Exception("stop here!!")
         return plan
 
-    def think(self, status, agents):
-        self.move(status["position"])
-        retrieved = self.percept()
-        plan = self.plan(agents, retrieved)
+    def _determine_action(self):
+        # make current plan
+        plan, describe = self.schedule.plan_at()
+        if self.schedule.decompose(plan):
+            prompt = self.scratch.prompt_schedule_decompose(plan, self.schedule)
+            decompose, start = [], plan["start"]
+            for describe, duration in self._llm.completion(**prompt):
+                decompose.append(
+                    {
+                        "idx": len(decompose),
+                        "describe": describe,
+                        "start": start,
+                        "duration": duration,
+                    }
+                )
+                start += duration
+            plan["decompose"] = decompose
+            plan, describe = self.schedule.plan_at()
+        describes = [plan["describe"], describe]
+        print("[TMINFO] scheudle " + str(self.schedule))
+        print("[TMINFO] current describes " + str(describes))
 
-        """
-        plan = self.plan(maze, personas, new_day, retrieved)
-        self.reflect()
-        """
-        return plan
+        # get address
+        address = self.spatial.find_address(describes[0], as_list=True)
+        if not address:
+            tile = self.get_curr_tile()
+            kwargs = {
+                "describes": describes,
+                "spatial": self.spatial,
+                "address": tile.get_address("world", as_list=True),
+            }
+            prompt = self.scratch.prompt_determine_sector(**kwargs, tile=tile)
+            kwargs["address"].append(self._llm.completion(**prompt))
+            arenas = self.spatial.get_leaves(kwargs["address"])
+            if len(arenas) == 1:
+                kwargs["address"].append(arenas[0])
+            else:
+                prompt = self.scratch.prompt_determine_arena(**kwargs)
+                kwargs["address"].append(self._llm.completion(**prompt))
+            objs = self.spatial.get_leaves(kwargs["address"])
+            if len(objs) == 0:
+                kwargs["address"].append("random")
+            elif len(objs) == 1:
+                kwargs["address"].append(objs[0])
+            else:
+                prompt = self.scratch.prompt_determine_object(**kwargs)
+                kwargs["address"].append(self._llm.completion(**prompt))
+            address = kwargs["address"]
+        print("[TMINFO] final address " + str(address))
+        # create action event
+        prompt = self.scratch.prompt_describe_emoji(describes[-1])
+        act_emoji = self._llm.completion(**prompt)
+        prompt = self.scratch.prompt_describe_event(self.name, describes[-1], act_emoji)
+        act_event = self._llm.completion(**prompt)
+        # create object event
+        prompt = self.scratch.promt_describe_object(address[-1], describes[-1])
+        obj_describe = self._llm.completion(**prompt)
+        prompt = self.scratch.prompt_describe_emoji(obj_describe)
+        obj_emoji = self._llm.completion(**prompt)
+        prompt = self.scratch.prompt_describe_event(
+            address[-1], obj_describe, obj_emoji
+        )
+        obj_event = self._llm.completion(**prompt)
+        print("[TMINFO] final address " + str(address))
+        print("[TMINFO] act_event " + str(act_event))
+        print("[TMINFO] obj_event " + str(obj_event))
+        raise Exception("stop here!!")
 
     def _increase_poignancy(self, score):
         self.status["poignancy"]["current"] += score

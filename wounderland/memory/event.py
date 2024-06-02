@@ -1,19 +1,20 @@
-"""wounderland.event"""
+"""wounderland.memory.event"""
 
 from datetime import datetime
 from wounderland import utils
 
 
 class Event:
-    def __init__(self, subject, predicate=None, object=None, describe=None):
+    def __init__(self, subject, predicate=None, object=None, describe=None, emoji=None):
         self.subject = subject
         self.predicate = predicate or "is"
         self.object = object or "idle"
         self.describe = describe or "idle"
+        self.emoji = emoji or ""
 
     def __str__(self):
-        return "{} <{}> {} ({})".format(
-            self.subject, self.predicate, self.object, self.describe
+        return "{} <{}> {} ({}{})".format(
+            self.subject, self.predicate, self.object, self.describe, self.emoji
         )
 
     def __hash__(self):
