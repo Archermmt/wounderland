@@ -214,6 +214,8 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
                     describe, duration = infos[0][0], int(infos[0][1])
                     decompose.append((describe.strip(".").strip(), duration))
                     left -= duration
+                if left <= 0:
+                    break
             if left > 0:
                 decompose.append((plan["describe"], left))
             return decompose
@@ -433,7 +435,7 @@ Emoji: <"""
 
         return {"prompt": prompt, "callback": _callback}
 
-    def prompt_describe_event(self, subject, describe, emoji):
+    def prompt_describe_event(self, subject, describe):
         prompt = f"""Task: Turn the input into (~subject~, =predicate=, -object-).\n
 Input: Sam Johnson is eating breakfast. 
 Output: (~Dolores Murphy~, =eat=, -breakfast-) 
@@ -458,10 +460,14 @@ Output: (~{subject}~,"""
 
         def _callback(response):
             pattern = "\(~(.+?)~, =(.+?)=, -(.+?)-\)"
+            no_obj_pattern = "\(~(.+?)~, =(.+?)="
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1 and infos[0][0] == subject:
-                    return memory.Event(*infos[0], describe=describe, emoji=emoji)
+                    return infos[0]
+                infos = re.findall(no_obj_pattern, line)
+                if len(infos) == 1 and infos[0][0] == subject:
+                    return infos[0]
             raise Exception("Can not make event for " + str(describe))
 
         return {"prompt": prompt, "callback": _callback}
@@ -498,6 +504,48 @@ Step 2. Describe the {obj}'s state: {obj} is <"""
 
         return {"prompt": prompt, "callback": _callback}
 
+    def prompt_decide_talk(self, agent, other, focus, date=None):
+        def _status_des(agent):
+            act_desc = agent.actions[-1].act_event.sub_desc
+            if not agent.status["planned_path"] and "waiting" not in act_desc:
+                return f"{agent.name} is already {act_desc}"
+            if "waiting" in act_desc:
+                return f"{agent.name} is {act_desc}"
+            return f"{agent.name} is on the way to {act_desc}"
+
+        context = ""
+        for c_node in focus["events"]:
+            if c_node.event.predicate == "was":
+                context += c_node.describe
+        context += "\n" + " ".join([c.describe for c in focus["thoughts"]])
+        date = date or datetime.datetime.now()
+        date_str = date.curr_time.strftime("%B %d, %Y, %H:%M:%S %p")
+        chat_history = ""
+        last_chats = agent.associate.retrieve_chats(other.name)
+        if last_chats:
+            chat_history = f" {self.name} and {other.name} last chatted at {last_chats[0].created} about {last_chats[0].describe}"
+        a_des, o_des = _status_des(agent), _status_des(other)
+        prompt = f"""Task -- given context, determine whether the subject will initiate a conversation with another. 
+Format: 
+Context: []
+Question: []
+Reasoning: []
+Answer in "yes" or "no": []
+---
+Context: {context}
+Right now, it is {date_str}.{chat_history}
+{a_des}\n{o_des}\n
+Question: Would {self.name} initiate a conversation with {other.name}? \n
+Reasoning: Let's think step by step.
+"""
+        print("\n[TMINFO] prompt_decide_talk prompt " + str(prompt))
+
+        def _callback(response):
+            print("\n[TMINFO] prompt_decide_talk response " + str(response))
+            return response
+
+        return {"prompt": prompt, "callback": _callback}
+
 
 class Agent:
     def __init__(self, config, maze, logger):
@@ -517,14 +565,21 @@ class Agent:
         self.scratch = Scratch(self.name, config["scratch"])
 
         # status
-        self.status = {"poignancy": {"current": 0, "num_event": 0}}
+        self.status = {
+            "poignancy": {"current": 0, "num_event": 0},
+            "planned_path": [],
+            "chat_with": {},
+        }
 
         # action and events
-        self.actions = [memory.Action(memory.Event(self.name), "event")]
+        tile = self.maze.tile_at(
+            [int(p / self.maze.tile_size) for p in config["position"]]
+        )
+        address = tile.get_address("game_object", as_list=True)
+        self.actions = [
+            memory.Action(memory.Event(self.name), memory.Event(address[-1]))
+        ]
         self.idle_events = {}
-
-        # plan
-        self.planned_path = []
 
         # update maze
         self.coord = None
@@ -542,56 +597,76 @@ class Agent:
     def reset_user(self, user):
         if self.think_config["mode"] == "llm" and not self._llm:
             self._llm = create_llm_model(**self.think_config["llm"], keys=user.keys)
-            if self._llm and not self.schedule.scheduled():
+            if self._llm:
                 self.make_schedule()
 
     def remove_user(self):
         self._llm = None
 
     def make_schedule(self):
-        # make init schedule
-        self.schedule.created_at = datetime.datetime.now()
-        prompt = self.scratch.prompt_wake_up()
-        wake_up = self._llm.completion(**prompt)
-        prompt = self.scratch.prompt_schedule_init(wake_up)
-        init_schedule = self._llm.completion(**prompt)
-        if self.associate.nodes:
-            print("should adjust daily schedule!!")
-            raise Exception("stop here!!")
-        # make daily schedule
-        hours = [str(i) + ":00 AM" for i in range(12)]
-        hours += [str(i) + ":00 PM" for i in range(12)]
-        daily_schedule = {}
-        for _ in range(self.schedule.max_try):
-            schedule = [(h, "sleeping") for h in hours[:wake_up]]
-            schedule += [(h, "") for h in hours[wake_up:]]
-            prompt = self.scratch.prompt_schedule_daily(
-                wake_up, schedule, init_schedule
+        if not self.schedule.scheduled():
+            # make init schedule
+            self.schedule.created_at = datetime.datetime.now()
+            prompt = self.scratch.prompt_wake_up()
+            wake_up = self._llm.completion(**prompt)
+            prompt = self.scratch.prompt_schedule_init(wake_up)
+            init_schedule = self._llm.completion(**prompt)
+            if self.associate.nodes:
+                print("should adjust daily schedule!!")
+                raise Exception("stop here!!")
+            # make daily schedule
+            hours = [str(i) + ":00 AM" for i in range(12)]
+            hours += [str(i) + ":00 PM" for i in range(12)]
+            daily_schedule = {}
+            for _ in range(self.schedule.max_try):
+                schedule = [(h, "sleeping") for h in hours[:wake_up]]
+                schedule += [(h, "") for h in hours[wake_up:]]
+                prompt = self.scratch.prompt_schedule_daily(
+                    wake_up, schedule, init_schedule
+                )
+                daily_schedule = self._llm.completion(**prompt)
+                daily_schedule.update({h: s for h, s in schedule[:wake_up]})
+                if len(set(daily_schedule.values())) >= self.schedule.diversity:
+                    break
+            daily_schedule.update(
+                {k: "asleep" for k in hours if k not in daily_schedule}
             )
-            daily_schedule = self._llm.completion(**prompt)
-            daily_schedule.update({h: s for h, s in schedule[:wake_up]})
-            if len(set(daily_schedule.values())) >= self.schedule.diversity:
-                break
-        daily_schedule.update({k: "asleep" for k in hours if k not in daily_schedule})
-        prev = None
-        for hour in hours:
-            if daily_schedule[hour] == prev:
-                self.schedule.daily_schedule[-1]["duration"] += 60
-                continue
-            self.schedule.add_plan(daily_schedule[hour], 60)
-            prev = daily_schedule[hour]
-        event = memory.Event(
-            self.name, "plan", self.schedule.created_at.strftime("%A %B %d")
-        )
-        thought = f"This is {self.name}'s plan for {event.object}: "
-        thought += "; ".join(init_schedule)
-        self._add_concept(
-            event,
-            "thought",
-            desc=thought,
-            keywords={"plan"},
-            expiration=self.schedule.created_at + datetime.timedelta(days=30),
-        )
+            prev = None
+            for hour in hours:
+                if daily_schedule[hour] == prev:
+                    self.schedule.daily_schedule[-1]["duration"] += 60
+                    continue
+                self.schedule.add_plan(daily_schedule[hour], 60)
+                prev = daily_schedule[hour]
+            event = memory.Event(
+                self.name, "plan", self.schedule.created_at.strftime("%A %B %d")
+            )
+            thought = f"This is {self.name}'s plan for {event.object}: "
+            thought += "; ".join(init_schedule)
+            self._add_concept(
+                event,
+                "thought",
+                desc=thought,
+                keywords={"plan"},
+                expiration=self.schedule.created_at + datetime.timedelta(days=30),
+            )
+        # decompose current plan
+        plan, _ = self.schedule.plan_at()
+        if self.schedule.decompose(plan):
+            prompt = self.scratch.prompt_schedule_decompose(plan, self.schedule)
+            decompose, start = [], plan["start"]
+            for describe, duration in self._llm.completion(**prompt):
+                decompose.append(
+                    {
+                        "idx": len(decompose),
+                        "describe": describe,
+                        "start": start,
+                        "duration": duration,
+                    }
+                )
+                start += duration
+            plan["decompose"] = decompose
+            plan, de_plan = self.schedule.plan_at()
 
     def move(self, position):
         if self.coord:
@@ -602,7 +677,7 @@ class Agent:
         self.idle_events = {}
         self.maze.add_event(self.coord, self.get_curr_event())
         self.maze.persona_tiles[self.name] = self.coord
-        if not self.planned_path:
+        if not self.status["planned_path"]:
             obj_event = self.get_curr_event(False)
             self.idle_events[obj_event] = self.coord
             self.maze.add_event(self.coord, obj_event)
@@ -611,8 +686,8 @@ class Agent:
 
     def think(self, status, agents):
         self.move(status["position"])
-        retrieved = self.percept()
-        plan = self.plan(agents, retrieved)
+        concepts = self.percept()
+        plan = self.plan(agents, concepts)
         self.reflect()
         return plan
 
@@ -638,7 +713,7 @@ class Agent:
         )
 
         # retention events
-        ret_events = []
+        concepts = []
         for p_event in percept_events[: self.percept_config["att_bandwidth"]]:
             latest_events = self.associate.get_recent_events()
             if p_event not in latest_events:
@@ -650,67 +725,39 @@ class Agent:
                     chats = [node.name]
                 node = self._add_concept(p_event, "event", filling=chats)
                 self._increase_poignancy(node.poignancy)
-                ret_events.append(node)
+                concepts.append(node)
 
         # retrieve events
-        def _get_info(event):
+        def _get_info(concept):
             return {
-                "curr_event": event,
-                "events": self.associate.retrieve_events(event),
-                "thoughts": self.associate.retrieve_thoughts(event),
+                "concept": concept,
+                "events": self.associate.retrieve_events(concept),
+                "thoughts": self.associate.retrieve_thoughts(concept),
             }
 
-        return {e.event.sub_desc: _get_info(e) for e in ret_events}
+        return {
+            c.describe: _get_info(c) for c in concepts if c.event.subject != self.name
+        }
 
-    def plan(self, agents, retrieved):
+    def plan(self, agents, concepts):
         plan = {"name": self.name, "direct": "stop"}
         if self.think_config["mode"] == "random":
             plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])
             return plan
-        if self._llm and not self.schedule.scheduled():
+        if self._llm:
             self.make_schedule()
         # get last action
         self.actions = [a for a in self.actions if not a.finished()]
         if not self.actions:
             self.actions.append(self._determine_action())
         print("get action " + str(self.actions[-1]))
-        """
-        for k, info in retrieved.items():
-            print("\n\nretrieved {}".format(k))
-            print("has events:")
-            for e in info["events"]:
-                print(e)
-            print("has thoughts:")
-            for e in info["thoughts"]:
-                print(e)
-        """
-
-        raise Exception("stop here!!")
+        print("schedule " + str(self.schedule))
+        self._react_concepts(concepts, agents)
         return plan
 
     def _determine_action(self):
-        # make current plan
-        plan, describe = self.schedule.plan_at()
-        if self.schedule.decompose(plan):
-            prompt = self.scratch.prompt_schedule_decompose(plan, self.schedule)
-            decompose, start = [], plan["start"]
-            for describe, duration in self._llm.completion(**prompt):
-                decompose.append(
-                    {
-                        "idx": len(decompose),
-                        "describe": describe,
-                        "start": start,
-                        "duration": duration,
-                    }
-                )
-                start += duration
-            plan["decompose"] = decompose
-            plan, describe = self.schedule.plan_at()
-        describes = [plan["describe"], describe]
-        print("[TMINFO] scheudle " + str(self.schedule))
-        print("[TMINFO] current describes " + str(describes))
-
-        # get address
+        plan, de_plan = self.schedule.plan_at()
+        describes = [plan["describe"], de_plan["describe"]]
         address = self.spatial.find_address(describes[0], as_list=True)
         if not address:
             tile = self.get_curr_tile()
@@ -736,46 +783,105 @@ class Agent:
                 prompt = self.scratch.prompt_determine_object(**kwargs)
                 kwargs["address"].append(self._llm.completion(**prompt))
             address = kwargs["address"]
-        print("[TMINFO] final address " + str(address))
-        # create action event
-        prompt = self.scratch.prompt_describe_emoji(describes[-1])
-        act_emoji = self._llm.completion(**prompt)
-        prompt = self.scratch.prompt_describe_event(self.name, describes[-1], act_emoji)
-        act_event = self._llm.completion(**prompt)
-        # create object event
+
+        # create action && object events
+        def _make_event(subject, describe, e_describe=None):
+            prompt = self.scratch.prompt_describe_emoji(describe)
+            emoji = self._llm.completion(**prompt)
+            prompt = self.scratch.prompt_describe_event(subject, describe)
+            args = self._llm.completion(**prompt)
+            return memory.Event(*args, describe=e_describe or describe, emoji=emoji)
+
+        act_event = _make_event(self.name, describes[-1], ":".join(describes))
         prompt = self.scratch.promt_describe_object(address[-1], describes[-1])
-        obj_describe = self._llm.completion(**prompt)
-        prompt = self.scratch.prompt_describe_emoji(obj_describe)
-        obj_emoji = self._llm.completion(**prompt)
-        prompt = self.scratch.prompt_describe_event(
-            address[-1], obj_describe, obj_emoji
+        obj_event = _make_event(address[-1], self._llm.completion(**prompt))
+        return memory.Action(
+            act_event,
+            obj_event,
+            address=address,
+            duration=de_plan["duration"],
+            start=de_plan["start"],
         )
-        obj_event = self._llm.completion(**prompt)
-        print("[TMINFO] final address " + str(address))
-        print("[TMINFO] act_event " + str(act_event))
-        print("[TMINFO] obj_event " + str(obj_event))
+
+    def _react_concepts(self, concepts, agents=None, ignore_words=None):
+        focus = None
+        ignore_words = ignore_words or ["is idle"]
+        for k, info in concepts.items():
+            print("\n\concept {}".format(k))
+            print("has events:")
+            for e in info["events"]:
+                print(e)
+            print("has thoughts:")
+            for e in info["thoughts"]:
+                print(e)
+
+        def _focus(concept):
+            return concept.event.subject in agents
+
+        def _ignore(concept):
+            return any(i in concept.describe for i in ignore_words)
+
+        if agents:
+            priority = [i for i in concepts.values() if _focus(i["concept"])]
+            if priority:
+                focus = random.choice(priority)
+        if not focus:
+            priority = [i for i in concepts.values() if not _ignore(i["concept"])]
+            if priority:
+                focus = random.choice(priority)
+        if not focus or focus.event.subject not in agents:
+            return
+        other = agents[focus.event.subject]
+        if self._chat_with(other, focus, agents):
+            self.status["chat_with"][other.name] = datetime.datetime.now()
+            return
+        self._react_to(other, focus)
         raise Exception("stop here!!")
 
-    def _increase_poignancy(self, score):
-        self.status["poignancy"]["current"] += score
-        self.status["poignancy"]["num_event"] += 1
+    def _skip_react(self, other):
+        def _skip(action):
+            if (
+                not action.address
+                or not action.act_event
+                or "sleeping" in action.act_event.describe
+            ):
+                return False
+            return True
 
-    def _evaluate_concept(self, event, e_type="event", desc=None):
-        desc = desc or event.sub_desc
-        if e_type == "event":
-            poignancy = self._evaluate_event(event)
-        elif e_type == "chat":
-            poignancy = self._evaluate_chat(event)
-        elif e_type == "thought":
-            poignancy = 5
-        else:
-            raise Exception("Unexpected event type " + str(e_type))
-        if desc in self.associate.embeddings:
-            return (desc, self.associate.embeddings[desc]), poignancy
-        # TMINFO debug only
-        # if self._llm:
-        #    return (desc, self._llm.embedding(desc)), poignancy
-        return (desc, None), poignancy
+        if _skip(self.actions[-1]) or _skip(other.actions[-1]):
+            return True
+        if datetime.datetime.now().hour >= 23:
+            return True
+        return False
+
+    def _chat_with(self, other, focus, agents):
+        if self._skip_react(other):
+            return False
+        act, o_act = self.actions[-1], other.actions[-1]
+        if "<waiting>" in o_act.address:
+            return False
+        if o_act.act_type == "chat" or act.act_type == "chat":
+            return False
+        if other.name in self.status["chat_with"]:
+            diff = datetime.datetime.now() - self.status["chat_with"][other.name]
+            if diff.total_seconds() / 60 < 60:
+                return False
+        prompt = self.scratch.prompt_decide_talk(self, other, focus)
+        if "yes" in self._llm.completion(**prompt):
+            print("should chat with " + str(other))
+
+    def _react_to(self, other, concepts):
+        if self._skip_react(other):
+            return False
+        act, o_act = self.actions[-1], other.actions[-1]
+        if "waiting" in o_act.description:
+            return False
+        if not self.status["planned_path"]:
+            return False
+        if act.address != o_act.address:
+            return False
+        prompt = self.scratch.prompt_decide_react(self, other, concepts)
+        return self._llm.completion(**prompt)
 
     def _add_concept(
         self,
@@ -820,6 +926,23 @@ class Agent:
             )
         return node
 
+    def _evaluate_concept(self, event, e_type="event", desc=None):
+        desc = desc or event.sub_desc
+        if e_type == "event":
+            poignancy = self._evaluate_event(event)
+        elif e_type == "chat":
+            poignancy = self._evaluate_chat(event)
+        elif e_type == "thought":
+            poignancy = 5
+        else:
+            raise Exception("Unexpected event type " + str(e_type))
+        if desc in self.associate.embeddings:
+            return (desc, self.associate.embeddings[desc]), poignancy
+        # TMINFO debug only
+        # if self._llm:
+        #    return (desc, self._llm.embedding(desc)), poignancy
+        return (desc, None), poignancy
+
     def _evaluate_event(self, event):
         if event.fit(None, "is", "idle") or not self._llm:
             return 1
@@ -836,14 +959,13 @@ class Agent:
             return 1
         return 1
 
+    def _increase_poignancy(self, score):
+        self.status["poignancy"]["current"] += score
+        self.status["poignancy"]["num_event"] += 1
+
     def get_curr_tile(self):
         return self.maze.tile_at(self.coord)
 
-    def get_curr_event(self, as_sub=True):
+    def get_curr_event(self, as_act=True):
         action = self.actions[-1]
-        if as_sub:
-            return action.event
-        event = action.event
-        return memory.Event(
-            action.address, event.predicate, event.object, event.describe
-        )
+        return action.act_event if as_act else action.obj_event

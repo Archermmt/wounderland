@@ -1,7 +1,7 @@
 """wounderland.memory.associate"""
 
 from wounderland import utils
-from .event import ConceptNode
+from .concept import Concept
 
 
 class Associate:
@@ -43,7 +43,7 @@ class Associate:
         expiration=None,
     ):
         name = "node_" + str(len(self.nodes))
-        node = ConceptNode(
+        node = Concept(
             name,
             node_type,
             event,
@@ -172,3 +172,6 @@ class Associate:
             node.event.local_object,
         ]
         return self._retrieve_nodes("thought", keywords)
+
+    def retrieve_chats(self, name):
+        return self._retrieve_nodes("chat", keywords=[name.lower()])

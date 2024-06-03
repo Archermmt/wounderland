@@ -58,10 +58,10 @@ class Schedule:
             for de_plan in plan.get("decompose", []):
                 if self.plan_stamps(de_plan)[1] <= total_minute:
                     continue
-                return plan, de_plan["describe"]
-            return plan, plan["describe"]
+                return plan, de_plan
+            return plan, plan
         last_plan = self.daily_schedule[-1]
-        return last_plan, last_plan["describe"]
+        return last_plan, last_plan
 
     def plan_stamps(self, plan, time_format=None):
         def _to_date(minutes):

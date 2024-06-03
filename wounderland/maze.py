@@ -16,7 +16,7 @@ class Tile:
         collision=False,
         events=None,
     ):
-        # in order: world, sector, arena, gameobject
+        # in order: world, sector, arena, game_object
         self.coord = coord
         self.address = [world]
         if address:
@@ -73,6 +73,9 @@ class Tile:
         return key in self.address_map
 
     def get_address(self, level, as_list=True):
+        assert level in self.address_keys, "Can not find {} from {}".format(
+            level, self.address_keys
+        )
         pos = self.address_keys.index(level) + 1
         if as_list:
             return self.address[:pos]
