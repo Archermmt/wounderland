@@ -79,7 +79,7 @@ class Associate:
         created=None,
         expiration=None,
     ):
-        keywords = keywords or {event.local_subject, event.local_object}
+        keywords = keywords or {event.subject, event.object}
         node = self._add_node(
             "event",
             event,
@@ -103,11 +103,7 @@ class Associate:
         created=None,
         expiration=None,
     ):
-        keywords = keywords or {
-            event.local_subject,
-            event.predicate,
-            event.local_object,
-        }
+        keywords = keywords or {event.subject, event.predicate, event.object}
         node = self._add_node(
             "thought",
             event,
@@ -131,7 +127,7 @@ class Associate:
         created=None,
         expiration=None,
     ):
-        keywords = keywords or {event.local_subject, event.local_object}
+        keywords = keywords or {event.subject, event.object}
         node = self._add_node(
             "chat",
             event,
@@ -158,19 +154,11 @@ class Associate:
         return set(nodes)
 
     def retrieve_events(self, node):
-        keywords = [
-            node.event.local_subject,
-            node.event.predicate,
-            node.event.local_object,
-        ]
+        keywords = [node.event.subject, node.event.object]
         return self._retrieve_nodes("event", keywords)
 
     def retrieve_thoughts(self, node):
-        keywords = [
-            node.event.local_subject,
-            node.event.predicate,
-            node.event.local_object,
-        ]
+        keywords = [node.event.subject, node.event.predicate, node.event.object]
         return self._retrieve_nodes("thought", keywords)
 
     def retrieve_chats(self, name):

@@ -1,5 +1,6 @@
 """wounderland.maze"""
 
+import random
 from itertools import product
 from wounderland import utils
 from wounderland.memory import Event
@@ -12,9 +13,7 @@ class Tile:
         world,
         address_keys,
         address=None,
-        spawning_location=None,
         collision=False,
-        events=None,
     ):
         # in order: world, sector, arena, game_object
         self.coord = coord
@@ -23,12 +22,11 @@ class Tile:
             self.address += address
         self.address_keys = address_keys
         self.address_map = dict(zip(address_keys[: len(self.address)], self.address))
-        self.spawning_location = spawning_location
         self.collision = collision
         self.event_cnt = 0
         self._events = set()
-        for eve in events or []:
-            self.add_event(eve)
+        if len(self.address) == 4:
+            self.add_event(Event(self.address[-1], address=self.address))
 
     def __str__(self):
         return utils.dump_dict(self.to_dict())
@@ -40,8 +38,6 @@ class Tile:
 
     def to_dict(self):
         address = ":".join(self.address)
-        if self.spawning_location:
-            address += "<{}>".format(self.spawning_location)
         if self.collision:
             address += "(collision)"
         return {
@@ -87,8 +83,6 @@ class Tile:
             addresses = [
                 ":".join(self.address[:i]) for i in range(2, len(self.address) + 1)
             ]
-        if self.spawning_location:
-            addresses += [f"<spawn_loc>{self.spawning_location}"]
         return addresses
 
     @property
@@ -97,9 +91,7 @@ class Tile:
 
     @property
     def is_empty(self):
-        return (
-            len(self.address) == 1 and not self._events and not self.spawning_location
-        )
+        return len(self.address) == 1 and not self._events
 
 
 class Maze:
@@ -130,6 +122,44 @@ class Maze:
         self.persona_tiles = {}
         self.logger = logger
 
+    def find_path(self, src_coord, dst_coord):
+        map = [[0 for _ in range(self.maze_width)] for _ in range(self.maze_height)]
+        frontier = [src_coord]
+        map[src_coord[1]][src_coord[0]] = 1
+        while map[dst_coord[1]][dst_coord[0]] == 0:
+            new_frontier = []
+            for f in frontier:
+                for c in [
+                    (f[0] - 1, f[1]),
+                    (f[0] + 1, f[1]),
+                    (f[0], f[1] - 1),
+                    (f[0], f[1] + 1),
+                ]:
+                    if (
+                        0 < c[0] < self.maze_width - 1
+                        and 0 < c[1] < self.maze_height - 1
+                        and map[c[1]][c[0]] == 0
+                        and not self.tile_at(c).collision
+                    ):
+                        map[c[1]][c[0]] = map[f[1]][f[0]] + 1
+                        new_frontier.append(c)
+            frontier = new_frontier
+        step = map[dst_coord[1]][dst_coord[0]]
+        path = [dst_coord]
+        while step > 1:
+            f = path[-1]
+            for c in [
+                (f[0] - 1, f[1]),
+                (f[0] + 1, f[1]),
+                (f[0], f[1] - 1),
+                (f[0], f[1] + 1),
+            ]:
+                if map[c[1]][c[0]] == step - 1:
+                    path.append(c)
+                    break
+            step -= 1
+        return path[::-1]
+
     def tile_at(self, coord):
         return self.tiles[coord[1]][coord[0]]
 
@@ -159,3 +189,9 @@ class Maze:
             ]
             coords = list(product(list(range(*x_range)), list(range(*y_range))))
         return [self.tile_at(c) for c in coords]
+
+    def get_address_tiles(self, address):
+        addr = ":".join(address)
+        if addr in self.address_tiles:
+            return self.address_tiles[addr]
+        return random.choice(self.maze.address_tiles.values())

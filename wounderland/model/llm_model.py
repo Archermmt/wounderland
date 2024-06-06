@@ -37,7 +37,7 @@ class LLMModel:
             "_embedding is not support for " + str(self.__class__)
         )
 
-    def completion(self, prompt, retry=5, callback=None, **kwargs):
+    def completion(self, prompt, retry=5, callback=None, failsafe=None, **kwargs):
         response = None
         for _ in range(retry):
             try:
@@ -45,10 +45,11 @@ class LLMModel:
                 if callback:
                     response = callback(response)
             except:
+                response = None
                 continue
             if response:
                 break
-        return response
+        return response or failsafe
 
     def _completion(self, prompt, **kwargs):
         raise NotImplementedError(

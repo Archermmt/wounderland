@@ -54,6 +54,7 @@ class Game:
 def create_game(static_root, config, logger=None):
     """Create the game"""
 
+    utils.set_timer(**config.get("time", {}))
     WounderMap.set(WounderKey.GAME, Game(static_root, config, logger=logger))
     return WounderMap.get(WounderKey.GAME)
 

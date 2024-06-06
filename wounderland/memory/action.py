@@ -7,17 +7,15 @@ from wounderland import utils
 class Action:
     def __init__(
         self,
-        act_event,
+        event,
         obj_event,
         act_type="action",
-        address=None,
         duration=None,
         start=None,
     ):
-        self.act_event = act_event
+        self.event = event
         self.obj_event = obj_event
         self.act_type = act_type
-        self.address = address
         self.duration = duration
         self.start = start
         if not self.start:
@@ -27,9 +25,8 @@ class Action:
     def __str__(self):
         des = {
             "finished": self.finished(),
-            "act_event({})".format(self.act_type): self.act_event,
+            "event({})".format(self.act_type): self.event,
             "obj_event": self.obj_event,
-            "address": ":".join(self.address),
         }
         start = datetime.datetime.strptime("00:00:00", "%H:%M:%S") + datetime.timedelta(
             minutes=self.start
@@ -44,7 +41,7 @@ class Action:
         return utils.dump_dict(des)
 
     def finished(self):
-        if not self.address:
+        if not self.event.address:
             return True
         date = datetime.datetime.now()
         total = date.hour * 60 + date.minute

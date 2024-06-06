@@ -41,6 +41,7 @@ class WounderKey:
 
     GAME = "game"
     USER = "user"
+    TIMER = "timer"
     MODELS = "models"
 
 

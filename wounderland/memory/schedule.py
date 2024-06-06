@@ -12,7 +12,6 @@ class Schedule:
             )
         else:
             self.created_at = None
-        # self.rough_schedule = config.get("rough_schedule", [])
         self.daily_schedule = config.get("daily_schedule", [])
         self.diversity = config.get("schedule_diversity", 5)
         self.max_try = config.get("schedule_max_try", 3)
@@ -50,8 +49,7 @@ class Schedule:
         return self.daily_schedule[-1]
 
     def plan_at(self, date=None):
-        date = date or datetime.datetime.now()
-        total_minute = date.hour * 60 + date.minute
+        total_minute = utils.get_timer().daily_duration(date)
         for plan in self.daily_schedule:
             if self.plan_stamps(plan)[1] <= total_minute:
                 continue
@@ -90,8 +88,9 @@ class Schedule:
     def scheduled(self, date=None):
         if not self.daily_schedule:
             return False
-        date = date or datetime.datetime.now()
-        return date.strftime("%A %B %d") == self.created_at.strftime("%A %B %d")
+        return utils.get_timer().daily_format(date) == self.created_at.strftime(
+            "%A %B %d"
+        )
 
     def to_dict(self):
         return {

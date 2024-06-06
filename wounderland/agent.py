@@ -16,7 +16,6 @@ class Scratch:
         self.chat = None
 
     def _base_desc(self, date=None):
-        date = date or datetime.datetime.now()
         return """Name: {0}
 Age: {1}
 Innate traits: {2}
@@ -32,7 +31,7 @@ Current Date: {7}\n""".format(
             self.config["currently"],
             self.config["lifestyle"],
             self.config["daily_plan"],
-            date.strftime("%A %B %d"),
+            utils.get_timer().daily_format(date),
         )
 
     def _format_output(self, prompt, style, example="", instruction=""):
@@ -50,7 +49,7 @@ Current Date: {7}\n""".format(
 
 Event: {}
 Rate (return a number between 1 to 10):""".format(
-            self.name, event.sub_desc
+            self.name, event.describe
         )
         prompt = '"""\n' + prompt + '\n"""\n'
         prompt += "Output the response to the prompt above in number. The output should ONLY contain ONE number value on the scale of 1 to 10.\n"
@@ -89,11 +88,10 @@ Rate (return a number between 1 to 10):""".format(
         return {"prompt": prompt, "callback": _callback}
 
     def prompt_schedule_init(self, wake_up, date=None):
-        date = date or datetime.datetime.now()
         prompt = self._base_desc(date)
         prompt += """\n\nIn general, {}""".format(self.config["lifestyle"])
         prompt += "\nToday is {}. Here is {}'s plan today in broad-strokes ".format(
-            date.strftime("%A %B %d"), self.name
+            utils.get_timer().daily_format(date), self.name
         )
         prompt += "(with the time of the day. e.g., have a lunch at 12:00 pm, watch TV from 7 to 8 pm):"
         prompt += "1) wake up and complete the morning routine at {}:00 am. 2)".format(
@@ -163,8 +161,6 @@ Rate (return a number between 1 to 10):""".format(
         return {"prompt": prompt, "callback": _callback}
 
     def prompt_schedule_decompose(self, plan, schedule, date=None):
-        date = date or datetime.datetime.now()
-
         def _plan_des(plan):
             start, end = schedule.plan_stamps(plan, time_format="%H:%M%p")
             return f'{start} ~ {end}, {self.name} is planning on {plan["describe"]}'
@@ -195,7 +191,7 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
         indices = range(
             max(plan["idx"] - 1, 0), min(plan["idx"] + 2, len(schedule.daily_schedule))
         )
-        prompt += f'\nToday is {date.strftime("%A %B %d")}. From '
+        prompt += f"\nToday is {utils.get_timer().daily_format(date)}. From "
         prompt += ", ".join([_plan_des(schedule.daily_schedule[i]) for i in indices])
         start, end = schedule.plan_stamps(plan, time_format="%H:%M%p")
         increment = max(int(plan["duration"] / 150) * 5, 5)
@@ -286,16 +282,17 @@ Area options: <{{ areas|join(', ') }}>.
             describes=describes,
         )
 
+        sectors, default = spatial.get_leaves(address), live_address[-1]
+
         def _callback(response):
             pattern = self.name + " should go to the following area: <(.+?)>"
-            sectors, default = spatial.get_leaves(address), live_address[-1]
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1:
                     return infos[0] if infos[0] in sectors else default
             raise Exception("Can not find sector for plan " + str(describes))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": default}
 
     def prompt_determine_arena(self, describes, spatial, address):
         template = Template(
@@ -332,6 +329,9 @@ Area options: <{{ areas|join(', ') }}>.
             describes=describes,
         )
 
+        arenas = spatial.get_leaves(address)
+        default = spatial.find_address("living_area", as_list=True)[-1]
+
         def _callback(response):
             pattern = (
                 self.name
@@ -339,15 +339,13 @@ Area options: <{{ areas|join(', ') }}>.
                 + address[-1]
                 + ": <(.+?)>"
             )
-            arenas = spatial.get_leaves(address)
-            default = spatial.find_address("living_area", as_list=True)[-1]
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1:
                     return infos[0] if infos[0] in arenas else default
             raise Exception("Can not find arena for plan " + str(describes))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": default}
 
     def prompt_determine_object(self, describes, spatial, address):
         template = Template(
@@ -397,18 +395,20 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
             activity=describes[1], objects=spatial.get_leaves(address)
         )
 
+        objects = spatial.get_leaves(address)
+        default = random.choice(objects)
+
         def _callback(response):
             pattern = (
                 "Pick ONE most relevant object from the Objects available: <(.+?)>"
             )
-            objects = spatial.get_leaves(address)
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1:
-                    return infos[0] if infos[0] in objects else random.choice(objects)
+                    return infos[0] if infos[0] in objects else default
             raise Exception("Can not find object for plan " + str(describes[1]))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": default}
 
     def prompt_describe_emoji(self, describe):
         prompt = f"""Convert an action description to an emoji (important: use three or less emojis).\n
@@ -430,7 +430,7 @@ Emoji: <"""
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1:
-                    return infos[0]
+                    return infos[0][:3]
             raise Exception("Can not make emoji for " + str(describe))
 
         return {"prompt": prompt, "callback": _callback}
@@ -459,18 +459,19 @@ Input: {subject} is {describe}.
 Output: (~{subject}~,"""
 
         def _callback(response):
-            pattern = "\(~(.+?)~, =(.+?)=, -(.+?)-\)"
-            no_obj_pattern = "\(~(.+?)~, =(.+?)="
+            patterns = ["\(~(.+?)~, =(.+?)=, -(.+?)-\)", "\(~(.+?)~, =(.+?)="]
             for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                if len(infos) == 1 and infos[0][0] == subject:
-                    return infos[0]
-                infos = re.findall(no_obj_pattern, line)
-                if len(infos) == 1 and infos[0][0] == subject:
-                    return infos[0]
+                for p in patterns:
+                    infos = re.findall(p, line)
+                    if len(infos) == 1 and infos[0][0] == subject:
+                        return infos[0]
             raise Exception("Can not make event for " + str(describe))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": (subject, "is", describe),
+        }
 
     def promt_describe_object(self, obj, describe):
         prompt = f"""Task: We want to understand the state of an object that is being used by someone.\n
@@ -506,20 +507,18 @@ Step 2. Describe the {obj}'s state: {obj} is <"""
 
     def prompt_decide_talk(self, agent, other, focus, date=None):
         def _status_des(agent):
-            act_desc = agent.actions[-1].act_event.sub_desc
+            act_desc = agent.get_curr_event().describe
             if not agent.status["planned_path"] and "waiting" not in act_desc:
                 return f"{agent.name} is already {act_desc}"
             if "waiting" in act_desc:
                 return f"{agent.name} is {act_desc}"
             return f"{agent.name} is on the way to {act_desc}"
 
-        context = ""
-        for c_node in focus["events"]:
-            if c_node.event.predicate == "was":
-                context += c_node.describe
-        context += "\n" + " ".join([c.describe for c in focus["thoughts"]])
-        date = date or datetime.datetime.now()
-        date_str = date.curr_time.strftime("%B %d, %Y, %H:%M:%S %p")
+        context = ". ".join(
+            [c.describe for c in focus["events"] if c.event.predicate == "was"]
+        )
+        context += "\n" + ". ".join([c.describe for c in focus["thoughts"]])
+        date_str = utils.get_timer().format_date("%B %d, %Y, %H:%M:%S %p", date)
         chat_history = ""
         last_chats = agent.associate.retrieve_chats(other.name)
         if last_chats:
@@ -542,6 +541,85 @@ Reasoning: Let's think step by step.
 
         def _callback(response):
             print("\n[TMINFO] prompt_decide_talk response " + str(response))
+            return response
+
+        return {"prompt": prompt, "callback": _callback}
+
+    def prompt_decide_react(self, agent, other, focus, date=None):
+        template = Template(
+            """\n-----
+Context: {{ context }}. 
+Right now, it is {{ date }}. 
+{{ status }}.
+{{ name }} sees {{ o_status }}.
+My question: Let's think step by step. Of the following three options, what should {{ name }} do?
+Option 1: Wait on {{ action }} until {{ o_name }} is done {{ o_action }}
+Option 2: Continue on to {{ action }} now
+Reasoning: {{ reason }}
+{% if answer %}Answer: <{{ answer }}>{% else %}{% endif %}
+"""
+        )
+
+        prompt = "Task -- given context and three options that a subject can take, determine which option is the most acceptable."
+        reason = """Both Jane and Liz want to use the bathroom. 
+It would be strange for both Jane and Liz to use the bathroom at the same time. 
+So, since Liz is already using the bathroom, the best option for Jane is to wait on using the bathroom."""
+        prompt += template.render(
+            context="Jane is Liz's house mate. Jane and Liz exchanged a conversation about saying good morning at 07:05am, October 25, 2022",
+            date="07:09 am, October 25, 2022",
+            name="Jane",
+            o_name="Liz",
+            status="Jane was on her way to using the bathroom right now",
+            o_status="Liz already using the bathroom",
+            action="using the bathroom",
+            o_action="using the bathroom",
+            reason=reason,
+            answer="Option 1",
+        )
+        reason = """Sam is likely going to be in his room studying. Sarah, on the other hand, is likely headed to the laundry room for doing the laundry.
+Since Sam and Sarah need to use different areas, their actions do not conflict. 
+So, since Sam and Sarah are going to be in different areas, Sam mcan continue on to eating his lunch now."""
+        prompt += template.render(
+            context="Sam is Sarah's friend. Sam and Sarah exchanged a conversation about favorite movies at 11pm, October 24, 2022",
+            date="12:40 pm, October 25, 2022",
+            name="Sam",
+            o_name="Sarah",
+            status="Sam is on the way to study for his test",
+            o_status="Sarah heading to do her laundry",
+            action="eating his lunch",
+            o_action="doing her laundry",
+            reason=reason,
+            answer="Option 2",
+        )
+
+        def _status_des(agent):
+            event, loc = agent.get_curr_event(), ""
+            if event.address:
+                loc = " at {} in {}".format(event.address[-1], event.address[-2])
+            if not agent.status["planned_path"]:
+                return f"{agent.name} is already {event.describe}{loc}"
+            return f"{agent.name} is on the way to {event.describe}{loc}"
+
+        context = ". ".join(
+            [c.describe for c in focus["events"] if c.event.predicate == "was"]
+        )
+        context += "\n" + ". ".join([c.describe for c in focus["thoughts"]])
+
+        prompt += template.render(
+            context=context,
+            date=utils.get_timer().format_date("%B %d, %Y, %H:%M:%S %p", date),
+            name=self.name,
+            o_name=other.name,
+            status=_status_des(agent),
+            o_status=_status_des(other),
+            action=agent.get_curr_event().describe,
+            o_action=other.get_curr_event().describe,
+        )
+
+        print("\n[TMINFO] prompt_decide_react prompt " + str(prompt))
+
+        def _callback(response):
+            print("\n[TMINFO] prompt_decide_react response " + str(response))
             return response
 
         return {"prompt": prompt, "callback": _callback}
@@ -666,7 +744,6 @@ class Agent:
                 )
                 start += duration
             plan["decompose"] = decompose
-            plan, de_plan = self.schedule.plan_at()
 
     def move(self, position):
         if self.coord:
@@ -681,15 +758,18 @@ class Agent:
             obj_event = self.get_curr_event(False)
             self.idle_events[obj_event] = self.coord
             self.maze.add_event(self.coord, obj_event)
-            blank = memory.Event(obj_event.subject, None, None, None)
+            blank = memory.Event(obj_event.subject)
             self.maze.remove_events(self.coord, event=blank)
 
     def think(self, status, agents):
         self.move(status["position"])
         concepts = self.percept()
-        plan = self.plan(agents, concepts)
+        if self.think_config["mode"] == "random" or not self._llm:
+            direct = random.choice(["left", "right", "up", "down", "stop"])
+            return {"name": self.name, "direct": direct}
+        self.plan(agents, concepts)
         self.reflect()
-        return plan
+        return {"name": self.name, "path": self.find_path(agents)}
 
     def percept(self):
         curr_tile = self.get_curr_tile()
@@ -736,24 +816,66 @@ class Agent:
             }
 
         return {
-            c.describe: _get_info(c) for c in concepts if c.event.subject != self.name
+            c.event.describe: _get_info(c)
+            for c in concepts
+            if c.event.subject != self.name
         }
 
     def plan(self, agents, concepts):
-        plan = {"name": self.name, "direct": "stop"}
-        if self.think_config["mode"] == "random":
-            plan["direct"] = random.choice(["left", "right", "up", "down", "stop"])
-            return plan
-        if self._llm:
-            self.make_schedule()
+        self.make_schedule()
         # get last action
         self.actions = [a for a in self.actions if not a.finished()]
         if not self.actions:
             self.actions.append(self._determine_action())
         print("get action " + str(self.actions[-1]))
         print("schedule " + str(self.schedule))
-        self._react_concepts(concepts, agents)
-        return plan
+        self._reaction(concepts, agents)
+
+    def reflect(self):
+        if self.status["poignancy"]["current"] >= self.think_config["poignancy_max"]:
+            self.status["poignancy"]["current"] = 0
+            self.status["poignancy"]["num_event"] = 0
+            raise Exception("should reflect!!")
+        return None
+
+    def find_path(self, agents):
+        address = self.get_curr_event().address
+        if address[0] == "<persona>":
+            other = agents[address[1]]
+            path = self.maze.find_path(self.coord, other.coord)
+            if len(path) <= 2:
+                target_tiles = [path[0]]
+            else:
+                targets = [path[len(path) // 2], path[len(path) // 2 + 1]]
+                if len(self.maze.find_path(self.coord, targets[0])) <= len(
+                    self.maze.find_path(self.coord, targets[1])
+                ):
+                    target_tiles = [targets[0]]
+                else:
+                    target_tiles = [targets[1]]
+        elif address[0] == "<waiting>":
+            target_tiles = [address[1]]
+        elif address[-1] == "<random>":
+            obj = random.choice(self.spatial.get_leaves(address[:-1]))
+            target_tiles = self.maze.get_address_tiles(address[:-1] + [obj])
+        else:
+            target_tiles = self.maze.get_address_tiles(address)
+
+        # filter tile with self event
+        def _ignore_target(t_coord):
+            events = self.maze.events_at(t_coord)
+            for e in events:
+                print("event @ {}:{}".format(t_coord, e))
+            if any(e.subject in agents for e in events):
+                return True
+            return False
+
+        target_tiles = [t for t in target_tiles if not _ignore_target(t)]
+        if len(target_tiles) >= 4:
+            target_tiles = random.sample(target_tiles, 4)
+        pathes = {t: self.maze.find_path(self.coord, t) for t in target_tiles}
+        target = min(pathes, key=lambda p: len(pathes[p]))
+        return pathes[target][1:]
 
     def _determine_action(self):
         plan, de_plan = self.schedule.plan_at()
@@ -785,41 +907,44 @@ class Agent:
             address = kwargs["address"]
 
         # create action && object events
-        def _make_event(subject, describe, e_describe=None):
+        def _make_event(subject, describe):
             prompt = self.scratch.prompt_describe_emoji(describe)
             emoji = self._llm.completion(**prompt)
-            prompt = self.scratch.prompt_describe_event(subject, describe)
-            args = self._llm.completion(**prompt)
-            return memory.Event(*args, describe=e_describe or describe, emoji=emoji)
+            if subject == self.name:
+                prompt = self.scratch.prompt_describe_event(subject, describe)
+                args = self._llm.completion(**prompt)
+                return memory.Event(*args, address=address, emoji=emoji)
+            return memory.Event(subject, "is", describe, address=address, emoji=emoji)
 
-        act_event = _make_event(self.name, describes[-1], ":".join(describes))
+        event = _make_event(self.name, describes[-1])
         prompt = self.scratch.promt_describe_object(address[-1], describes[-1])
         obj_event = _make_event(address[-1], self._llm.completion(**prompt))
         return memory.Action(
-            act_event,
+            event,
             obj_event,
-            address=address,
             duration=de_plan["duration"],
             start=de_plan["start"],
         )
 
-    def _react_concepts(self, concepts, agents=None, ignore_words=None):
+    def _reaction(self, concepts, agents=None, ignore_words=None):
         focus = None
         ignore_words = ignore_words or ["is idle"]
+        """
         for k, info in concepts.items():
-            print("\n\concept {}".format(k))
+            print("\nconcept {}".format(k))
             print("has events:")
             for e in info["events"]:
                 print(e)
             print("has thoughts:")
             for e in info["thoughts"]:
                 print(e)
+        """
 
         def _focus(concept):
             return concept.event.subject in agents
 
         def _ignore(concept):
-            return any(i in concept.describe for i in ignore_words)
+            return any(i in concept.event.describe for i in ignore_words)
 
         if agents:
             priority = [i for i in concepts.values() if _focus(i["concept"])]
@@ -832,25 +957,26 @@ class Agent:
         if not focus or focus.event.subject not in agents:
             return
         other = agents[focus.event.subject]
-        if self._chat_with(other, focus, agents):
-            self.status["chat_with"][other.name] = datetime.datetime.now()
-            return
-        self._react_to(other, focus)
-        raise Exception("stop here!!")
+        if not self._chat_with(other, focus, agents):
+            self._react_to(other, focus)
 
     def _skip_react(self, other):
         def _skip(action):
             if (
                 not action.address
-                or not action.act_event
-                or "sleeping" in action.act_event.describe
+                or not action.event
+                or "sleeping" in action.event.describe
             ):
                 return False
             return True
 
+        if self.actions[-1].act_type == "chat":
+            return True
+        if "<waiting>" in self.actions[-1].address:
+            return True
         if _skip(self.actions[-1]) or _skip(other.actions[-1]):
             return True
-        if datetime.datetime.now().hour >= 23:
+        if utils.get_timer().daily_duration(mode="hour") >= 23:
             return True
         return False
 
@@ -863,14 +989,18 @@ class Agent:
         if o_act.act_type == "chat" or act.act_type == "chat":
             return False
         if other.name in self.status["chat_with"]:
-            diff = datetime.datetime.now() - self.status["chat_with"][other.name]
-            if diff.total_seconds() / 60 < 60:
+            if utils.get_timer().get_delta(self.status["chat_with"][other.name]) < 60:
                 return False
         prompt = self.scratch.prompt_decide_talk(self, other, focus)
-        if "yes" in self._llm.completion(**prompt):
-            print("should chat with " + str(other))
+        if "yes" not in self._llm.completion(**prompt):
+            return False
+        print("should chat with " + str(other))
+        convo, duration_min = generate_convo(maze, init_persona, target_persona)
+        convo_summary = generate_convo_summary(init_persona, convo)
+        inserted_act = convo_summary
+        inserted_act_dur = duration_min
 
-    def _react_to(self, other, concepts):
+    def _react_to(self, other, focus):
         if self._skip_react(other):
             return False
         act, o_act = self.actions[-1], other.actions[-1]
@@ -880,7 +1010,7 @@ class Agent:
             return False
         if act.address != o_act.address:
             return False
-        prompt = self.scratch.prompt_decide_react(self, other, concepts)
+        prompt = self.scratch.prompt_decide_react(self, other, focus)
         return self._llm.completion(**prompt)
 
     def _add_concept(
@@ -927,7 +1057,7 @@ class Agent:
         return node
 
     def _evaluate_concept(self, event, e_type="event", desc=None):
-        desc = desc or event.sub_desc
+        desc = desc or event.describe
         if e_type == "event":
             poignancy = self._evaluate_event(event)
         elif e_type == "chat":
@@ -968,4 +1098,4 @@ class Agent:
 
     def get_curr_event(self, as_act=True):
         action = self.actions[-1]
-        return action.act_event if as_act else action.obj_event
+        return action.event if as_act else action.obj_event

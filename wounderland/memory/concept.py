@@ -13,7 +13,6 @@ class Concept:
         embedding_key,
         poignancy,
         keywords,
-        describe=None,
         filling=None,
         created=None,
         expiration=None,
@@ -21,13 +20,10 @@ class Concept:
         self.name = name
         self.node_type = node_type  # thought / event / chat
         self.filling = filling
-
         self.event = event
         self.embedding_key = embedding_key
         self.poignancy = poignancy
         self.keywords = keywords
-        self.describe = describe or event.sub_desc
-
         self.created = created or datetime.now()
         self.expiration = expiration
         self.last_accessed = self.created

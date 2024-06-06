@@ -2,20 +2,42 @@
 
 
 class Event:
-    def __init__(self, subject, predicate=None, object=None, describe=None, emoji=None):
+    def __init__(
+        self,
+        subject,
+        predicate=None,
+        object=None,
+        address=None,
+        describe=None,
+        emoji=None,
+    ):
         self.subject = subject
         self.predicate = predicate or "is"
         self.object = object or "idle"
-        self.describe = describe or "idle"
+        self.describe = describe or "{} {} {}".format(
+            self.subject, self.predicate, self.object
+        )
+        self.address = address or []
         self.emoji = emoji or ""
 
     def __str__(self):
-        return "{} <{}> {} ({}{})".format(
+        des = "{} <{}> {} ({}{})".format(
             self.subject, self.predicate, self.object, self.describe, self.emoji
         )
+        if self.address:
+            des += " @ " + ":".join(self.address)
+        return des
 
     def __hash__(self):
-        return hash((self.subject, self.predicate, self.object, self.describe))
+        return hash(
+            (
+                self.subject,
+                self.predicate,
+                self.object,
+                self.describe,
+                ":".join(self.address),
+            )
+        )
 
     def __eq__(self, other):
         if isinstance(other, Event):
@@ -41,25 +63,6 @@ class Event:
         if object and self.object != object:
             return False
         return True
-
-    @property
-    def sub_desc(self):
-        desc = "{} is {}".format(self.local_subject, self.describe)
-        if "(" in desc:
-            desc = desc.split("(")[1].split(")")[0].strip()
-        return desc
-
-    @property
-    def local_subject(self):
-        if ":" in self.subject:
-            return self.subject.split(":")[-1]
-        return self.subject
-
-    @property
-    def local_object(self):
-        if ":" in self.object:
-            return self.object.split(":")[-1]
-        return self.object
 
     @classmethod
     def from_list(cls, event):
