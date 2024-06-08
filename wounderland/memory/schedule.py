@@ -1,20 +1,17 @@
 """wounderland.memory.schedule"""
 
-import datetime
 from wounderland import utils
 
 
 class Schedule:
     def __init__(self, config):
         if config.get("created_at"):
-            self.created_at = datetime.datetime.strptime(
-                config["created_at"], "%Y%m%d %H:%M:%S"
-            )
+            self.created_at = utils.to_date(config["created_at"])
         else:
             self.created_at = None
         self.daily_schedule = config.get("daily_schedule", [])
-        self.diversity = config.get("schedule_diversity", 5)
-        self.max_try = config.get("schedule_max_try", 3)
+        self.diversity = config.get("diversity", 5)
+        self.max_try = config.get("max_try", 3)
 
     def __str__(self):
         def _to_stamp(plan):
@@ -48,8 +45,8 @@ class Schedule:
         )
         return self.daily_schedule[-1]
 
-    def plan_at(self, date=None):
-        total_minute = utils.get_timer().daily_duration(date)
+    def current_plan(self):
+        total_minute = utils.get_timer().daily_duration()
         for plan in self.daily_schedule:
             if self.plan_stamps(plan)[1] <= total_minute:
                 continue
@@ -63,10 +60,7 @@ class Schedule:
 
     def plan_stamps(self, plan, time_format=None):
         def _to_date(minutes):
-            date = datetime.datetime.strptime(
-                "00:00:00", "%H:%M:%S"
-            ) + datetime.timedelta(minutes=minutes)
-            return date.strftime(time_format)
+            return utils.daily_time(minutes).strftime(time_format)
 
         start, end = plan["start"], plan["start"] + plan["duration"]
         if time_format:
@@ -75,7 +69,7 @@ class Schedule:
 
     def decompose(self, plan):
         if plan.get("decompose"):
-            return False
+            return any(d["duration"] > 60 for d in plan["decompose"])
         describe = plan["describe"]
         if "sleep" not in describe and "bed" not in describe:
             return True
@@ -85,15 +79,15 @@ class Schedule:
             return plan["duration"] <= 60
         return True
 
-    def scheduled(self, date=None):
+    def scheduled(self):
         if not self.daily_schedule:
             return False
-        return utils.get_timer().daily_format(date) == self.created_at.strftime(
-            "%A %B %d"
-        )
+        return utils.get_timer().daily_format() == self.created_at.strftime("%A %B %d")
 
     def to_dict(self):
         return {
-            "created_at": self.created_at.strftime("%Y%m%d %H:%M:%S"),
+            "created_at": (
+                self.created_at.strftime("%Y%m%d-%H:%M:%S") if self.created_at else None
+            ),
             "daily_schedule": self.daily_schedule,
         }

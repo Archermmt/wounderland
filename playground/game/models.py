@@ -29,7 +29,7 @@ class User(models.Model):
 
     def all_llm_keys(self):
         return [
-            {"key": k.key, "create": k.create_time.strftime("%Y%m%d %H:%M")}
+            {"key": k.key, "create": k.create_time.strftime("%Y%m%d-%H:%M")}
             for k in self.llmkey_set.all()
         ]
 
@@ -42,7 +42,7 @@ class LLMKey(models.Model):
 
     def __str__(self):
         return "{}, create @ {}".format(
-            self.key, self.create_time.strftime("%Y%m%d %H:%M")
+            self.key, self.create_time.strftime("%Y%m%d-%H:%M")
         )
 
     @classmethod

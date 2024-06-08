@@ -1,9 +1,9 @@
 {
   "name": "Maria Lopez",
   "portrait": "assets/village/agents/Maria_Lopez/portrait.png",
-  "position": [
-    3936,
-    1824
+  "coord": [
+    123,
+    57
   ],
   "scratch": {
     "age": 21,

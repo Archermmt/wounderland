@@ -64,6 +64,20 @@ class Event:
             return False
         return True
 
+    def to_dict(self):
+        return {
+            "subject": self.subject,
+            "predicate": self.predicate,
+            "object": self.object,
+            "describe": self.describe,
+            "address": self.address,
+            "emoji": self.emoji,
+        }
+
+    @classmethod
+    def from_dict(cls, config):
+        return cls(**config)
+
     @classmethod
     def from_list(cls, event):
         if len(event) == 3:

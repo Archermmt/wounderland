@@ -1,9 +1,9 @@
 {
   "name": "Klaus Mueller",
   "portrait": "assets/village/agents/Klaus_Mueller/portrait.png",
-  "position": [
-    4032,
-    1472
+  "coord": [
+    126,
+    46
   ],
   "scratch": {
     "age": 20,

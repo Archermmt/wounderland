@@ -2,6 +2,7 @@
 
 import datetime
 from wounderland import utils
+from .event import Event
 
 
 class Action:
@@ -10,17 +11,14 @@ class Action:
         event,
         obj_event,
         act_type="action",
-        duration=None,
         start=None,
+        duration=None,
     ):
         self.event = event
         self.obj_event = obj_event
         self.act_type = act_type
+        self.start = start or utils.get_timer().get_date()
         self.duration = duration
-        self.start = start
-        if not self.start:
-            date = datetime.datetime.now()
-            self.start = date.hour * 60 + date.minute
 
     def __str__(self):
         des = {
@@ -28,21 +26,33 @@ class Action:
             "event({})".format(self.act_type): self.event,
             "obj_event": self.obj_event,
         }
-        start = datetime.datetime.strptime("00:00:00", "%H:%M:%S") + datetime.timedelta(
-            minutes=self.start
-        )
         if self.duration:
-            end = start + datetime.timedelta(minutes=self.duration)
+            end = self.start + datetime.timedelta(minutes=self.duration)
             des["duration"] = "{}~{}".format(
-                start.strftime("%H:%M"), end.strftime("%H:%M")
+                self.start.strftime("%H:%M"), end.strftime("%H:%M")
             )
         else:
-            des["start"] = start.strftime("%H:%M")
+            des["start"] = self.start.strftime("%H:%M")
         return utils.dump_dict(des)
 
     def finished(self):
         if not self.event.address:
             return True
-        date = datetime.datetime.now()
-        total = date.hour * 60 + date.minute
-        return self.start + self.duration <= total
+        end = self.start + datetime.timedelta(minutes=self.duration)
+        return utils.get_timer().get_date() > end
+
+    def to_dict(self):
+        return {
+            "event": self.event.to_dict(),
+            "obj_event": self.obj_event.to_dict(),
+            "act_type": self.act_type,
+            "start": self.start.strftime("%Y%m%d-%H:%M:%S"),
+            "duration": self.duration,
+        }
+
+    @classmethod
+    def from_dict(cls, config):
+        config["event"] = Event.from_dict(config["event"])
+        config["obj_event"] = Event.from_dict(config["obj_event"])
+        config["start"] = utils.to_date(config["start"])
+        return cls(**config)

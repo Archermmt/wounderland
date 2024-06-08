@@ -11,7 +11,8 @@ parser.add_argument(
 )
 parser.add_argument("--checkpoint", type=str, default="ckpt.json", help="The env file")
 parser.add_argument("--step", type=int, default=5, help="The simulate step")
-parser.add_argument("--output", type=str, default="village_test", help="The output dir")
+parser.add_argument("--stride", type=int, default=10, help="The step stride in minute")
+parser.add_argument("--start", type=int, default=-1, help="The start time in minute")
 args = parser.parse_args()
 
 
@@ -34,4 +35,4 @@ def get_config(agents=None):
 
 if __name__ == "__main__":
     server = SimulateServer(args.statics_dir, get_config(), args.checkpoint)
-    server.simulate(args.step)
+    server.simulate(args.step, args.start, args.stride)

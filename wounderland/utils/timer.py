@@ -4,17 +4,43 @@ import datetime
 from .namespace import WounderMap, WounderKey
 
 
+def to_date(date_str, date_format="%Y%m%d-%H:%M:%S"):
+    return datetime.datetime.strptime(date_str, date_format)
+
+
+def daily_time(duration):
+    return datetime.datetime.strptime("00:00:00", "%H:%M:%S") + datetime.timedelta(
+        minutes=duration
+    )
+
+
 class Timer:
-    def __init__(self, start=None, rate=1):
-        self._start = start or datetime.datetime.now()
+    def __init__(self, start=None, offset=0, rate=1):
+        if start:
+            self._start = daily_time(start)
+        else:
+            self._start = datetime.datetime.now()
+        self._offset = offset
         self._rate = rate
 
-    def get_date(self, date=None):
-        date = date or datetime.datetime.now()
-        return (date - self._start) * self._rate + self._start
+    def forward(self, offset):
+        self._offset += offset
+
+    def speedup(self, rate):
+        self._rate = rate
+
+    def get_date(self, date_format=""):
+        date = datetime.datetime.now()
+        delta = (date - self._start) * self._rate + datetime.timedelta(
+            minutes=self._offset
+        )
+        date = delta + self._start
+        if date_format:
+            return date.strftime(date_format)
+        return date
 
     def get_delta(self, start, end=None, mode="minute"):
-        end = end or datetime.datetime.now()
+        end = end or self.get_date()
         seconds = (end - start).total_seconds() * self._rate
         if mode == "second":
             return seconds
@@ -24,14 +50,11 @@ class Timer:
             return seconds // 3600
         return (end - start) * self._rate
 
-    def format_date(self, f_str, date=None):
-        return self.get_date(date).strftime(f_str)
+    def daily_format(self):
+        return self.get_date("%A %B %d")
 
-    def daily_format(self, date=None):
-        return self.format_date("%A %B %d", date)
-
-    def daily_duration(self, date=None, mode="minute"):
-        date = self.get_date(date)
+    def daily_duration(self, mode="minute"):
+        date = self.get_date()
         duration = date.hour % 24
         if mode == "hour":
             return duration
@@ -41,8 +64,8 @@ class Timer:
         return datetime.timedelta(minutes=duration)
 
 
-def set_timer(start=None, rate=1):
-    WounderMap.set(WounderKey.TIMER, Timer(start=start, rate=rate))
+def set_timer(start=None, offset=0, rate=1):
+    WounderMap.set(WounderKey.TIMER, Timer(start=start, offset=offset, rate=rate))
     return WounderMap.get(WounderKey.TIMER)
 
 

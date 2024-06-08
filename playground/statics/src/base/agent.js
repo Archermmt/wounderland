@@ -1,23 +1,35 @@
 import utils from "./utils.js";
 
+function coordToPosition(coord, tile_size) {
+    return (coord[0] * tile_size + tile_size / 2, coord[1] * tile_size + tile_size / 2);
+}
+
+function positionToCoord(position, tile_size) {
+    return (Math.floor(position[0] / tile_size), Math.floor(position[1] / tile_size));
+}
+
+
+
 export default class Agent extends Phaser.GameObjects.Sprite {
-    constructor(scene, config, urls) {
-        let position = [0, 0];
-        if (config.position) {
-            position = config.position;
-        } else if (config.zone) {
-            position[0] = Math.floor(Math.random() * (config.zone[0][1] - config.zone[0][0])) + config.zone[0][0];
-            position[1] = Math.floor(Math.random() * (config.zone[1][1] - config.zone[1][0])) + config.zone[1][0];
-        }
+    constructor(scene, config, tile_size, urls) {
         super(scene, 0, 0, config.name);
-        this.setPosition(position[0] + this.width / 2, position[1] + this.height / 2);
+        let coord = [0, 0];
+        if (config.coord) {
+            coord = config.coord;
+        } else if (config.zone) {
+            coord[0] = Math.floor(Math.random() * (config.zone[0][1] - config.zone[0][0])) + config.zone[0][0];
+            coord[1] = Math.floor(Math.random() * (config.zone[1][1] - config.zone[1][0])) + config.zone[1][0];
+        }
+        const position = coordToPosition(coord, tile_size);
+        this.setPosition(position[0], position[1]);
         this.scene = scene;
         this.config = config;
+        this.tile_size = tile_size;
         this.name = config.name;
         this.urls = urls;
 
         // status
-        this.status = { direction: "stop", speed: config.move.speed, position: position };
+        this.status = { direction: "stop", speed: config.move.speed, coord: coord, path: [] };
 
         // add sprite
         scene.add.existing(this);
@@ -56,10 +68,10 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.body.setCollideWorldBounds(true);
         this.colliders = new Set();
 
-        // pronunciation
-        var text_config = { font: Math.round(this.displayHeight * 0.6) + "px monospace" };
-        this.bubble = scene.add.text(0, 0, "🦁", text_config);
-        this.locateBubble();
+        // emoji
+        this.bubbles = {};
+        this.text_config = { font: Math.round(this.displayHeight * 0.6) + "px monospace" };
+        this.bubbles["agent"] = scene.add.text(0, 0, "🦁", this.text_config);
 
         // set events
         if (config.interactive || true) {
@@ -70,28 +82,32 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
     }
 
-    locateBubble() {
-        this.bubble.x = this.body.position.x;
-        this.bubble.y = this.body.position.y - Math.round(this.displayHeight * 0.8);
-    }
-
     update() {
-        this.locateBubble();
+        this.bubbles["agent"].x = this.body.position.x;
+        this.bubbles["agent"].y = this.body.position.y - Math.round(this.displayHeight * 0.8);
         if (!this.is_control) {
+            if (this.status.path) {
+                let next_pos = coordToPosition(this.status.path[0], this.tile_size);
+                if (this.body.position.x == next_pos[0] && this.body.position.y == next_pos[1]) {
+                    this.status.path = this.status.path.slice(1);
+                    next_pos = coordToPosition(this.status.path[0], this.tile_size);
+                }
+                this.positionMove(next_pos);
+            }
             return;
         }
         const cursors = this.scene.cursors;
         if (cursors.left.isDown) {
-            this.move("left");
+            this.directionMove("left");
         } else if (cursors.right.isDown) {
-            this.move("right");
+            this.directionMove("right");
         } else if (cursors.up.isDown) {
-            this.move("up");
+            this.directionMove("up");
         } else if (cursors.down.isDown) {
-            this.move("down");
+            this.directionMove("down");
         }
         if (cursors.left.isUp && cursors.right.isUp && cursors.up.isUp && cursors.down.isUp) {
-            this.move("stop");
+            this.directionMove("stop");
         }
     }
 
@@ -99,8 +115,19 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         if (!this.is_thinking) {
             this.is_thinking = true;
             let callback = (info) => {
-                if (!this.is_control) {
-                    this.move(info.direct);
+                this.status.path = info.path;
+                for (const [name, emoji] of Object.entries(info.emojis)) {
+                    if (!this.bubbles.hasOwnProperty(name)) {
+                        let e_pos = emoji.coord;
+                        e_pos = [e_pos[0] * self.tile_size, e_pos[1] * self.tile_size];
+                        this.bubbles["agent"] = scene.add.text(e_pos[0], e_pos[1], "", this.text_config);
+                    }
+                    if (emoji.text == "") {
+                        this.bubbles[name].setVisable(false);
+                    } else {
+                        this.bubbles[name].setVisable(true);
+                        this.bubbles[name].setText(emoji.text);
+                    }
                 }
                 this.is_thinking = false;
                 this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
@@ -109,9 +136,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
-    move(direction) {
+    setMoveAnim(direction) {
         const curr_move = this.config.move[direction];
-        this.body.setVelocity(0);
         if (direction === "stop") {
             this.anims.stop();
             const last_move = this.config.move[this.status.direction];
@@ -121,6 +147,12 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         } else if (curr_move.anim) {
             this.anims.play(this.animations[curr_move.anim], true);
         }
+        this.status.direction = direction;
+    }
+
+    directionMove(direction) {
+        this.setMoveAnim(direction);
+        this.body.setVelocity(0);
         if (direction === "left") {
             this.body.setVelocityX(-this.status.speed);
         } else if (direction === "right") {
@@ -130,11 +162,25 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         } else if (direction === "down") {
             this.body.setVelocityY(this.status.speed);
         }
-        this.status.direction = direction;
+    }
+
+    positionMove(position) {
+        let direction = "stop";
+        if (position[0] < self.body.position.x) {
+            direction = "left";
+        } else if (position[0] > self.body.position.x) {
+            direction = "right";
+        } else if (position[1] < self.body.position.y) {
+            direction = "up";
+        } else if (position[1] > self.body.position.y) {
+            direction = "down";
+        }
+        this.setMoveAnim(direction);
+        this.moveTo(position[0], position[1], this.status.speed);
     }
 
     getStatus() {
-        this.status.position = [Math.round(this.body.position.x), Math.round(this.body.position.y)];
+        this.status.coord = positionToCoord([this.body.position.x, this.body.position.y], self.tile_size);
         return this.status;
     }
 

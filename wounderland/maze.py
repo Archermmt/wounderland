@@ -172,8 +172,10 @@ class Maze:
     def remove_events(self, coord, subject=None, event=None):
         self.tile_at(coord).remove_events(subject=subject, event=event)
 
-    def update_event(self, coord, event, mode):
-        self.tile_at(coord).update_event(event, mode)
+    def update_events(self, coord, mode, events=None):
+        events = events or self.events_at(coord)
+        for e in events:
+            self.tile_at(coord).update_event(e, mode)
 
     def get_scope(self, coord, config):
         coords = []

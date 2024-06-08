@@ -45,14 +45,15 @@ export default class Land extends Phaser.Scene {
 
     create() {
         // create maze
-        this.maze = new Maze(this, this.cache.json.get('config.maze'));
+        const maze_config = this.cache.json.get('config.maze');
+        this.maze = new Maze(this, maze_config);
 
         // create agent
         this.agents = {};
         const agent_base_config = this.cache.json.get("config.agent_base");
         for (const name of this.msg.agents) {
             const agent_config = utils.recursiveUpdate(agent_base_config, this.cache.json.get("config.agent." + name));
-            this.agents[name] = new Agent(this, agent_config, this.msg.urls);
+            this.agents[name] = new Agent(this, agent_config, maze_config.tile_size, this.msg.urls);
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
             }

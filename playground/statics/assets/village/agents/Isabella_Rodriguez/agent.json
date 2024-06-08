@@ -1,9 +1,9 @@
 {
   "name": "Isabella Rodriguez",
   "portrait": "assets/village/agents/Isabella_Rodriguez/portrait.png",
-  "position": [
-    2304,
-    448
+  "coord": [
+    72,
+    14
   ],
   "think": {
     "mode": "llm",
