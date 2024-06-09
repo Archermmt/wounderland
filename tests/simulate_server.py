@@ -6,7 +6,7 @@ from wounderland import utils
 
 
 class SimulateServer:
-    def __init__(self, static_root, config, ckpt_file):
+    def __init__(self, static_root, config, ckpt_file, start=""):
         self.static_root = static_root
         self.ckpt = utils.load_dict(ckpt_file)
         self.ckpt.setdefault("agents", {})
@@ -14,6 +14,8 @@ class SimulateServer:
             if name not in config["agents"]:
                 continue
             config["agents"][name]["update"] = a_config
+        if start:
+            config["time"] = {"start": start}
         game = create_game(static_root, config)
         game.reset_user("test", keys=self.ckpt["keys"])
         self.game = get_game()
@@ -38,9 +40,7 @@ class SimulateServer:
         )
         self.logger = self.game.logger
 
-    def simulate(self, step, start=-1, stride=0):
-        if start >= 0:
-            utils.set_timer(start=start)
+    def simulate(self, step, stride=0):
         timer = utils.get_timer()
         for i in range(step):
             self.logger.info(

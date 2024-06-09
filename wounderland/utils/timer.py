@@ -14,13 +14,23 @@ def daily_time(duration):
     )
 
 
+def daily_duration(date, mode="minute"):
+    duration = date.hour % 24
+    if mode == "hour":
+        return duration
+    duration = duration * 60 + date.minute
+    if mode == "minute":
+        return duration
+    return datetime.timedelta(minutes=duration)
+
+
 class Timer:
     def __init__(self, start=None, offset=0, rate=1):
-        if start:
-            self._start = daily_time(start)
-        else:
-            self._start = datetime.datetime.now()
+        self._start = datetime.datetime.now()
         self._offset = offset
+        if start:
+            s_minute = daily_duration(to_date(start, "%H:%M"))
+            self._offset += s_minute - daily_duration(self._start)
         self._rate = rate
 
     def forward(self, offset):
@@ -54,14 +64,7 @@ class Timer:
         return self.get_date("%A %B %d")
 
     def daily_duration(self, mode="minute"):
-        date = self.get_date()
-        duration = date.hour % 24
-        if mode == "hour":
-            return duration
-        duration = duration * 60 + date.minute
-        if mode == "minute":
-            return duration
-        return datetime.timedelta(minutes=duration)
+        return daily_duration(self.get_date(), mode)
 
 
 def set_timer(start=None, offset=0, rate=1):

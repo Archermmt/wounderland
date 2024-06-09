@@ -49,6 +49,7 @@ class Tile:
         if isinstance(event, (tuple, list)):
             event = Event.from_list(event)
         self._events.add(event)
+        return event
 
     def remove_events(self, subject=None, event=None):
         r_events = set()
@@ -59,11 +60,14 @@ class Tile:
                 r_events.add(eve)
         for r_eve in r_events:
             self._events.remove(r_eve)
+        return r_events
 
     def update_event(self, event, mode):
         for eve in self._events:
             if eve == event:
                 eve.update(mode)
+                return eve
+        return None
 
     def has_address(self, key):
         return key in self.address_map
@@ -118,8 +122,6 @@ class Maze:
                 for add in self.tile_at([j, i]).get_addresses():
                     self.address_tiles.setdefault(add, set()).add((j, i))
 
-        # slot for persona
-        self.persona_tiles = {}
         self.logger = logger
 
     def find_path(self, src_coord, dst_coord):
@@ -129,12 +131,7 @@ class Maze:
         while map[dst_coord[1]][dst_coord[0]] == 0:
             new_frontier = []
             for f in frontier:
-                for c in [
-                    (f[0] - 1, f[1]),
-                    (f[0] + 1, f[1]),
-                    (f[0], f[1] - 1),
-                    (f[0], f[1] + 1),
-                ]:
+                for c in self.get_around(f):
                     if (
                         0 < c[0] < self.maze_width - 1
                         and 0 < c[1] < self.maze_height - 1
@@ -147,13 +144,7 @@ class Maze:
         step = map[dst_coord[1]][dst_coord[0]]
         path = [dst_coord]
         while step > 1:
-            f = path[-1]
-            for c in [
-                (f[0] - 1, f[1]),
-                (f[0] + 1, f[1]),
-                (f[0], f[1] - 1),
-                (f[0], f[1] + 1),
-            ]:
+            for c in self.get_around(path[-1]):
                 if map[c[1]][c[0]] == step - 1:
                     path.append(c)
                     break
@@ -167,15 +158,17 @@ class Maze:
         return self.tile_at(coord).events
 
     def add_event(self, coord, event):
-        self.tile_at(coord).add_event(event)
+        return self.tile_at(coord).add_event(event)
 
     def remove_events(self, coord, subject=None, event=None):
-        self.tile_at(coord).remove_events(subject=subject, event=event)
+        return self.tile_at(coord).remove_events(subject=subject, event=event)
 
     def update_events(self, coord, mode, events=None):
         events = events or self.events_at(coord)
+        u_events = set()
         for e in events:
-            self.tile_at(coord).update_event(e, mode)
+            u_events.add(self.tile_at(coord).update_event(e, mode))
+        return u_events
 
     def get_scope(self, coord, config):
         coords = []
@@ -191,6 +184,14 @@ class Maze:
             ]
             coords = list(product(list(range(*x_range)), list(range(*y_range))))
         return [self.tile_at(c) for c in coords]
+
+    def get_around(self, coord):
+        return [
+            (coord[0] - 1, coord[1]),
+            (coord[0] + 1, coord[1]),
+            (coord[0], coord[1] - 1),
+            (coord[0], coord[1] + 1),
+        ]
 
     def get_address_tiles(self, address):
         addr = ":".join(address)

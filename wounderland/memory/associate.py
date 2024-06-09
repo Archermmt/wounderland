@@ -1,5 +1,6 @@
 """wounderland.memory.associate"""
 
+import datetime
 from wounderland import utils
 from .event import Event
 
@@ -15,6 +16,7 @@ class Concept:
         keywords,
         filling=None,
         created=None,
+        last_accessed=None,
         expiration=None,
     ):
         self.name = name
@@ -25,19 +27,18 @@ class Concept:
         self.poignancy = poignancy
         self.keywords = keywords
         self.created = created or utils.get_timer().get_date()
-        self.expiration = expiration
-        self.last_accessed = self.created
+        self.last_accessed = last_accessed or self.created
+        self.expiration = expiration or (self.created + datetime.timedelta(days=30))
 
     def __str__(self):
         des = {
             "event(P.{})".format(self.poignancy): self.event,
-            "describe": "{}({})".format(self.describe, ",".join(self.keywords)),
-            "access": "{}(C:{})".format(
-                self.last_accessed.strftime("%m%d-%H:%M"),
+            "describe": "{}({})[{}~{},A:{}]".format(
+                self.describe,
+                ";".join(self.keywords),
                 self.created.strftime("%m%d-%H:%M"),
-            ),
-            "expiration": (
-                self.expiration.strftime("%m%d-%H:%M") if self.expiration else None
+                self.expiration.strftime("%m%d-%H:%M") if self.expiration else "NOW",
+                self.last_accessed.strftime("%m%d-%H:%M"),
             ),
         }
         return utils.dump_dict(des)
@@ -227,6 +228,12 @@ class Associate:
 
     def retrieve_chats(self, name):
         return self._retrieve_nodes("chat", keywords=[name.lower()])
+
+    def get_relation(self, node):
+        return {
+            "events": self.retrieve_events(node),
+            "thoughts": self.retrieve_thoughts(node),
+        }
 
     def to_dict(self):
         return {

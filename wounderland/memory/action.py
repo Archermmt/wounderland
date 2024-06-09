@@ -12,7 +12,7 @@ class Action:
         obj_event,
         act_type="action",
         start=None,
-        duration=None,
+        duration=0,
     ):
         self.event = event
         self.obj_event = obj_event
@@ -21,18 +21,14 @@ class Action:
         self.duration = duration
 
     def __str__(self):
+        status = "finished" if self.finished else "unfinished"
+        end = self.start + datetime.timedelta(minutes=self.duration)
+        status += "({}~{})".format(self.start.strftime("%H:%M"), end.strftime("%H:%M"))
         des = {
-            "finished": self.finished(),
+            "status": status,
             "event({})".format(self.act_type): self.event,
             "obj_event": self.obj_event,
         }
-        if self.duration:
-            end = self.start + datetime.timedelta(minutes=self.duration)
-            des["duration"] = "{}~{}".format(
-                self.start.strftime("%H:%M"), end.strftime("%H:%M")
-            )
-        else:
-            des["start"] = self.start.strftime("%H:%M")
         return utils.dump_dict(des)
 
     def finished(self):
