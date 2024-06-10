@@ -101,7 +101,7 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
                 return int(hours[0])
             raise Exception("Can not find single integer in " + str(response))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": 6}
 
     def prompt_schedule_init(self, wake_up):
         prompt = self._base_desc()
@@ -127,7 +127,16 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
                     plan.append(sch.strip().strip("."))
             return plan
 
-        return {"prompt": prompt, "callback": _callback}
+        failsafe = [
+            "wake up and complete the morning routine at 6:00 am",
+            "eat breakfast at 7:00 am",
+            "read a book from 8:00 am to 12:00 pm",
+            "have lunch at 12:00 pm",
+            "take a nap from 1:00 pm to 4:00 pm",
+            "relax and watch TV from 7:00 pm to 8:00 pm",
+            "go to bed at 11:00 pm",
+        ]
+        return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_schedule_daily(self, wake_up, schedule, daily_schedule):
         prompt = "Hourly schedule format:\n"
@@ -176,7 +185,27 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
                     _add_schedule(line, stamps)
             return left_schedule
 
-        return {"prompt": prompt, "callback": _callback}
+        failsafe = {
+            "6:00 AM": "wake up and complete the morning routine",
+            "7:00 AM": "eat breakfast",
+            "8:00 AM": "read a book",
+            "9:00 AM": "read a book",
+            "10:00 AM": "read a book",
+            "11:00 AM": "read a book",
+            "0:00 PM": "have lunch",
+            "1:00 PM": "take a nap",
+            "2:00 PM": "take a nap",
+            "3:00 PM": "take a nap",
+            "4:00 PM": "continue work",
+            "5:00 PM": "continue work",
+            "6:00 PM": "go back to home",
+            "7:00 PM": "relax and watch TV",
+            "8:00 PM": "relax and watch TV",
+            "9:00 PM": "read book before go to bed",
+            "10:00 PM": "prepare to sleep",
+            "11:00 PM": "sleeping",
+        }
+        return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_schedule_decompose(self, plan, schedule):
         def _plan_des(plan):
@@ -235,7 +264,11 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
                 decompose.append((plan["describe"], left))
             return decompose
 
-        return {"prompt": prompt, "callback": _callback}
+        failsafe = [
+            (plan["describe"], increment)
+            for _ in range(int(plan["duration"] / increment))
+        ]
+        return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_determine_sector(self, describes, spatial, address, tile):
         template = Template(

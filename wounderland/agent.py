@@ -12,7 +12,7 @@ def check_llm(ret=None):
     def checker(func):
         @wraps(func)
         def inner_checker(agent, *args, **kwargs):
-            if not agent._llm:
+            if not agent.llm_available():
                 return ret
             return func(agent, *args, **kwargs)
 
@@ -82,8 +82,10 @@ class Agent:
         )
         if self.schedule.scheduled():
             des["schedule"] = "\n  " + str(self.schedule).replace("\n", "\n  ")
-        if self._llm:
-            des["llm_status"] = self._llm.status
+        if self.llm_available():
+            des["llm"] = ",".join(
+                ["{}={}".format(k, v) for k, v in self._llm.status.items()]
+            )
         return utils.dump_dict(des)
 
     def reset_user(self, user):
@@ -161,20 +163,27 @@ class Agent:
         return self.schedule.current_plan()
 
     def move(self, coord, path=None):
-        blank = None
-        if self.coord:
-            tile = self.get_tile()
-            tile.remove_events(subject=self.name)
-            if tile.has_address("game_object"):
-                address = tile.get_address("game_object")
-                blank = memory.Event(address[-1], address=address)
-                self.maze.update_obj(self.coord, blank)
-        if not path:
-            self.maze.tile_at(coord).add_event(self.get_event())
-            self.maze.update_obj(coord, self.get_event(False))
-        self.coord = coord
-        self.path = path or []
-        return blank
+        obj_events = set()
+        if self.is_awake():
+            if self.coord and self.coord != coord:
+                tile = self.get_tile()
+                tile.remove_events(subject=self.name)
+                if tile.has_address("game_object"):
+                    addr = tile.get_address("game_object")
+                    self.maze.update_obj(
+                        self.coord, memory.Event(addr[-1], address=addr)
+                    )
+                    obj_events |= set(tile.get_events())
+            if not path:
+                self.maze.tile_at(coord).add_event(self.get_event())
+                self.maze.update_obj(coord, self.get_event(False))
+                obj_events |= set(self.maze.tile_at(coord).get_events())
+            self.coord = coord
+            self.path = path or []
+        elif self.coord and self.get_tile().has_address("game_object"):
+            self.maze.update_obj(self.coord, self.get_event(False))
+            obj_events |= set(self.get_tile().get_events())
+        return obj_events
 
     def think(self, status, agents):
         self.move(status["coord"], status.get("path"))
@@ -299,11 +308,12 @@ class Agent:
         return pathes[target][1:]
 
     def _determine_action(self):
-        if self.think_config["mode"] == "random" or not self._llm:
+        if self.think_config["mode"] == "random" or not self.llm_available():
             address = self.spatial.random_address()
             return memory.Action(
                 memory.Event(self.name, address=address),
                 memory.Event(address[-1], address=address),
+                duration=random.choice(list(range(5, 30))),
             )
         plan, de_plan = self.schedule.current_plan()
         describes = [plan["describe"], de_plan["describe"]]
@@ -487,7 +497,7 @@ class Agent:
         if desc in self.associate.embeddings:
             return (desc, self.associate.embeddings[desc]), poignancy
         # TMINFO debug only
-        # if self._llm:
+        # if self.llm_available():
         #    return (desc, self._llm.embedding(desc)), poignancy
         return (desc, None), poignancy
 
@@ -519,6 +529,11 @@ class Agent:
         if self.get_event().fit(self.name, "is", "sleeping"):
             return False
         return True
+
+    def llm_available(self):
+        if not self._llm:
+            return False
+        return self._llm.is_available()
 
     def to_dict(self):
         return {

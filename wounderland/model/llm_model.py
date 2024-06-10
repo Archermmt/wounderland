@@ -20,7 +20,7 @@ class LLMModel:
     def __init__(self, model, keys, config=None):
         self._model = model
         self._handle = self.setup(keys, config)
-        self._status = {"request": 0}
+        self._status = {"request": 0, "failed": 0}
 
     def embedding(self, text, retry=1):
         response = None
@@ -51,12 +51,17 @@ class LLMModel:
                 continue
             if response:
                 break
+        if not response:
+            self._status["failed"] += 1
         return response or failsafe
 
     def _completion(self, prompt, **kwargs):
         raise NotImplementedError(
             "_completion is not support for " + str(self.__class__)
         )
+
+    def is_available(self):
+        return self._status["failed"] <= 10
 
     @property
     def status(self):
