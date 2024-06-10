@@ -9,9 +9,8 @@ def to_date(date_str, date_format="%Y%m%d-%H:%M:%S"):
 
 
 def daily_time(duration):
-    return datetime.datetime.strptime("00:00:00", "%H:%M:%S") + datetime.timedelta(
-        minutes=duration
-    )
+    base = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return base + datetime.timedelta(minutes=duration)
 
 
 def daily_duration(date, mode="minute"):

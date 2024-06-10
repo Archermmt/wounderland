@@ -3,8 +3,22 @@
 import math
 import random
 import datetime
+from functools import wraps
 from wounderland import memory, prompt, utils
 from wounderland.model.llm_model import create_llm_model
+
+
+def check_llm(ret=None):
+    def checker(func):
+        @wraps(func)
+        def inner_checker(agent, *args, **kwargs):
+            if not agent._llm:
+                return ret
+            return func(agent, *args, **kwargs)
+
+        return inner_checker
+
+    return checker
 
 
 class Agent:
@@ -25,21 +39,25 @@ class Agent:
         self.concepts = []
 
         # prompt
-        self.scratch = prompt.Scratch(self.name, config["scratch"])
+        self.scratch = prompt.Scratch(self.name, config["scratch"], self.logger)
 
         # status
-        self.status = {"poignancy": {"current": 0, "num_event": 0}, "chat_with": {}}
+        self.status = {"poignancy": {"current": 0, "num_event": 0}}
         self.status = utils.update_dict(self.status, config.get("status", {}))
+        self.plan = config.get("plan", {})
 
         # action and events
-        tile = self.maze.tile_at(config["coord"])
-        address = tile.get_address("game_object", as_list=True)
-        self.actions = [
-            memory.Action(
-                memory.Event(self.name, address=address),
-                memory.Event(address[-1], address=address),
-            )
-        ]
+        if "actions" in config:
+            self.actions = [memory.Action.from_dict(a) for a in config["actions"]]
+        else:
+            tile = self.maze.tile_at(config["coord"])
+            address = tile.get_address("game_object", as_list=True)
+            self.actions = [
+                memory.Action(
+                    memory.Event(self.name, address=address),
+                    memory.Event(address[-1], address=address),
+                )
+            ]
 
         # update maze
         self.coord, self.path = None, None
@@ -49,22 +67,34 @@ class Agent:
         des = {
             "name": self.name,
             "tile": self.maze.tile_at(self.coord).to_dict(),
-            "actions": [str(a).replace("\n", "\n    ") for a in self.actions],
             "concepts": [str(c).replace("\n", "\n    ") for c in self.concepts],
+            "actions": [str(a).replace("\n", "\n    ") for a in self.actions],
         }
+        if self.plan.get("path"):
+            des["path"] = "-".join(
+                ["{},{}".format(c[0], c[1]) for c in self.plan["path"]]
+            )
+        des["associate"] = ", ".join(
+            [
+                "{} {}s".format(len(self.associate.memory[t]), t)
+                for t in ["event", "thought", "chat"]
+            ]
+        )
         if self.schedule.scheduled():
-            des["schedule"] = ("\n  " + str(self.schedule).replace("\n", "\n  "),)
+            des["schedule"] = "\n  " + str(self.schedule).replace("\n", "\n  ")
+        if self._llm:
+            des["llm_status"] = self._llm.status
         return utils.dump_dict(des)
 
     def reset_user(self, user):
         if self.think_config["mode"] == "llm" and not self._llm:
             self._llm = create_llm_model(**self.think_config["llm"], keys=user.keys)
-            if self._llm:
-                self.make_schedule()
+        self.make_schedule()
 
     def remove_user(self):
         self._llm = None
 
+    @check_llm()
     def make_schedule(self):
         if not self.schedule.scheduled():
             # make init schedule
@@ -128,91 +158,109 @@ class Agent:
                 )
                 start += duration
             plan["decompose"] = decompose
+        return self.schedule.current_plan()
 
     def move(self, coord, path=None):
-        idle_events = {}
-        if self.coord and self.coord != coord:
-            self.maze.remove_events(self.coord, subject=self.name)
-            idle_events = self.maze.update_events(self.coord, "idle")
+        blank = None
+        if self.coord:
+            tile = self.get_tile()
+            tile.remove_events(subject=self.name)
+            if tile.has_address("game_object"):
+                address = tile.get_address("game_object")
+                blank = memory.Event(address[-1], address=address)
+                self.maze.update_obj(self.coord, blank)
         if not path:
-            self.maze.add_event(coord, self.get_curr_event())
-            self.maze.add_event(coord, self.get_curr_event(False))
+            self.maze.tile_at(coord).add_event(self.get_event())
+            self.maze.update_obj(coord, self.get_event(False))
         self.coord = coord
         self.path = path or []
-        return idle_events
+        return blank
 
     def think(self, status, agents):
-        self.move(status["coord"], status["path"])
-        self.percept()
-        if self.think_config["mode"] == "random" or not self._llm:
-            path = [self.coord]
-            for _ in range(5):
-                path.append(random.choice(self.maze.get_around(path[-1])))
-            return {"name": self.name, "path": path[1:], "emojis": {}}
-        self.plan(agents)
-        self.reflect()
-        path = self.find_path(agents)
-        return {
-            "name": self.name,
-            "path": path,
-            "emojis": {"agent": self.get_curr_event().emoji},
+        self.move(status["coord"], status.get("path"))
+        self.make_schedule()
+        if self.schedule.scheduled():
+            plan, _ = self.schedule.current_plan()
+            if plan["describe"] == "sleeping" and self.is_awake():
+                address = self.spatial.find_address("sleeping", as_list=True)
+                action = memory.Action(
+                    memory.Event(
+                        self.name, "is", "sleeping", address=address, emoji="😴"
+                    ),
+                    memory.Event(
+                        address[-1],
+                        "occupied by",
+                        self.name,
+                        address=address,
+                        emoji="🛌",
+                    ),
+                    duration=plan["duration"],
+                    start=utils.daily_time(plan["start"]),
+                )
+                self.actions = [action]
+        if self.is_awake():
+            self.percept()
+            self.make_plan(agents)
+            self.reflect()
+        self.plan = {
+            "path": self.find_path(agents),
+            "emojis": {"agent": self.get_event().emoji},
         }
+        return self.plan
 
     def percept(self):
-        curr_tile = self.get_curr_tile()
         scope = self.maze.get_scope(self.coord, self.percept_config)
         # add spatial memory
         for tile in scope:
             if tile.has_address("game_object"):
                 self.spatial.add_leaf(tile.address)
-        percept_events, curr_address = {}, curr_tile.get_address("arena", as_list=False)
-        # gather perceived events
+        events, arena = {}, self.get_tile().get_address("arena")
+        # gather events in scope
         for tile in scope:
-            address = tile.get_address("arena", as_list=False)
-            if not tile.events or address != curr_address:
+            if not tile.events or tile.get_address("arena") != arena:
                 continue
             dist = math.dist(tile.coord, self.coord)
-            for event in tile.events:
-                if dist < percept_events.get(event, float("inf")):
-                    percept_events[event] = dist
-        percept_events = list(
-            sorted(percept_events.keys(), key=lambda k: percept_events[k])
-        )
-
-        # retention events
+            for event in tile.get_events():
+                if dist < events.get(event, float("inf")):
+                    events[event] = dist
+        events = list(sorted(events.keys(), key=lambda k: events[k]))
+        # get concepts
         self.concepts = []
-        for p_event in percept_events[: self.percept_config["att_bandwidth"]]:
+        for event in events[: self.percept_config["att_bandwidth"]]:
             recent_events = {n.event: n for n in self.associate.retrieve_events()}
-            if p_event in recent_events:
-                self.concepts.append(recent_events[p_event])
+            if event in recent_events:
+                self.concepts.append(recent_events[event])
             else:
                 chats = []
-                if p_event.fit(self.name, "chat with"):
+                if event.fit(self.name, "chat with"):
                     node = self._add_concept(
-                        self.get_curr_event(), "chat", filling=self.scratch.chat
+                        self.get_event(), "chat", filling=self.scratch.chat
                     )
                     chats = [node.name]
-                node = self._add_concept(p_event, "event", filling=chats)
+                node = self._add_concept(event, "event", filling=chats)
                 self._increase_poignancy(node.poignancy)
                 self.concepts.append(node)
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
 
-    def plan(self, agents):
-        self.make_schedule()
+    def make_plan(self, agents):
         self.actions = [a for a in self.actions if not a.finished()]
         if not self.actions:
             self.actions.append(self._determine_action())
         self._reaction(agents)
 
+    @check_llm()
     def reflect(self):
         if self.status["poignancy"]["current"] >= self.think_config["poignancy_max"]:
             self.status["poignancy"]["current"] = 0
             self.status["poignancy"]["num_event"] = 0
             raise Exception("should reflect!!")
-        return None
 
     def find_path(self, agents):
-        address = self.get_curr_event().address
+        if not self.is_awake():
+            return []
+        address = self.get_event().address
+        if address[0] == "<waiting>":
+            return []
         if address[0] == "<persona>":
             other = agents[address[1]]
             path = self.maze.find_path(self.coord, other.coord)
@@ -226,8 +274,6 @@ class Agent:
                     target_tiles = [targets[0]]
                 else:
                     target_tiles = [targets[1]]
-        elif address[0] == "<waiting>":
-            target_tiles = [address[1]]
         elif address[-1] == "<random>":
             obj = random.choice(self.spatial.get_leaves(address[:-1]))
             target_tiles = self.maze.get_address_tiles(address[:-1] + [obj])
@@ -236,12 +282,16 @@ class Agent:
 
         # filter tile with self event
         def _ignore_target(t_coord):
-            events = self.maze.events_at(t_coord)
+            if list(t_coord) == list(self.coord):
+                return True
+            events = self.maze.tile_at(t_coord).get_events()
             if any(e.subject in agents for e in events):
                 return True
             return False
 
         target_tiles = [t for t in target_tiles if not _ignore_target(t)]
+        if not target_tiles:
+            return []
         if len(target_tiles) >= 4:
             target_tiles = random.sample(target_tiles, 4)
         pathes = {t: self.maze.find_path(self.coord, t) for t in target_tiles}
@@ -249,11 +299,17 @@ class Agent:
         return pathes[target][1:]
 
     def _determine_action(self):
+        if self.think_config["mode"] == "random" or not self._llm:
+            address = self.spatial.random_address()
+            return memory.Action(
+                memory.Event(self.name, address=address),
+                memory.Event(address[-1], address=address),
+            )
         plan, de_plan = self.schedule.current_plan()
         describes = [plan["describe"], de_plan["describe"]]
         address = self.spatial.find_address(describes[0], as_list=True)
         if not address:
-            tile = self.get_curr_tile()
+            tile = self.get_tile()
             kwargs = {
                 "describes": describes,
                 "spatial": self.spatial,
@@ -297,6 +353,7 @@ class Agent:
             start=utils.daily_time(de_plan["start"]),
         )
 
+    @check_llm()
     def _reaction(self, agents=None, ignore_words=None):
         focus = None
         ignore_words = ignore_words or ["is idle"]
@@ -434,15 +491,15 @@ class Agent:
         #    return (desc, self._llm.embedding(desc)), poignancy
         return (desc, None), poignancy
 
+    @check_llm(ret=1)
     def _evaluate_event(self, event):
-        if event.fit(None, "is", "idle") or not self._llm:
+        if event.fit(None, "is", "idle"):
             return 1
         prompt = self.scratch.prompt_poignancy_event(event)
         return self._llm.completion(**prompt)
 
+    @check_llm(ret=1)
     def _evaluate_chat(self, event):
-        if not self._llm:
-            return 1
         print("should evaluare chat " + str(event))
         raise Exception("stop here!!")
         return 1
@@ -451,12 +508,17 @@ class Agent:
         self.status["poignancy"]["current"] += score
         self.status["poignancy"]["num_event"] += 1
 
-    def get_curr_tile(self):
+    def get_tile(self):
         return self.maze.tile_at(self.coord)
 
-    def get_curr_event(self, as_act=True):
+    def get_event(self, as_act=True):
         action = self.actions[-1]
         return action.event if as_act else action.obj_event
+
+    def is_awake(self):
+        if self.get_event().fit(self.name, "is", "sleeping"):
+            return False
+        return True
 
     def to_dict(self):
         return {

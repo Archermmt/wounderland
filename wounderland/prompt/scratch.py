@@ -7,10 +7,10 @@ from wounderland import utils
 
 
 class Scratch:
-    def __init__(self, name, config):
+    def __init__(self, name, config, logger):
         self.name = name
         self.config = config
-        self.chat = None
+        self.logger = logger
 
     def _base_desc(self):
         return """Name: {0}
@@ -40,6 +40,14 @@ Current Date: {7}\n""".format(
             prompt += f"\nExample output {style}:\n{example}"
         return prompt
 
+    def _debug_msg(self, title, prompt, response):
+        title = "{}.{} @ {}".format(
+            self.name, title, utils.get_timer().get_date("%H:%M:%S")
+        )
+        return "{}<PROMPT>:\n{}\n\n<RESPONSE>:\n{}\n".format(
+            utils.split_line(title), prompt, response
+        )
+
     def prompt_poignancy_event(self, event):
         prompt = self._base_desc()
         prompt += """\nOn the scale of 1 to 10, where 1 is purely mundane (e.g., brushing teeth, making bed) and 10 is extremely poignant (e.g., a break up, college acceptance), rate the likely poignancy of the following event for {}.
@@ -57,6 +65,7 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
         )
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("poignancy_event", prompt, response))
             pattern = "Rate \(return a number between 1 to 10\): (\d{1,2})"
             for line in response.split("\n"):
                 if event.describe not in line:
@@ -66,7 +75,11 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
                     return int(infos[0])
             raise Exception("Can not find single integer in " + str(response))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": random.choice(list(range(10))) + 1,
+        }
 
     def prompt_wake_up(self):
         prompt = self._base_desc()
@@ -78,6 +91,7 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
         )
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("wake_up", prompt, response))
             response = response.replace("\n", "").strip()
             hours = re.findall(r"(\d):00 am+", response)
             if len(hours) == 1:
@@ -104,6 +118,7 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
         )
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("schedule_init", prompt, response))
             plan = []
             for sch in response.split("\n"):
                 if ")" in sch:
@@ -134,6 +149,7 @@ Event: {}. Rate (return a number between 1 to 10): """.format(
         )
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("schedule_daily", prompt, response))
             left_schedule = {}
 
             def _add_schedule(line, stamps):
@@ -204,6 +220,7 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
         prompt += f"1) {self.name} is"
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("schedule_decompose", prompt, response))
             decompose, left = [], plan["duration"]
             pattern = self.name + " is (.+?) \(duration: (\d{1,2})"
             for line in response.split("\n"):
@@ -287,6 +304,7 @@ Area options: <{{ areas|join(', ') }}>.
         sectors, default = spatial.get_leaves(address), live_address[-1]
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("determine_sector", prompt, response))
             pattern = self.name + " should go to the following area: <(.+?)>"
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
@@ -335,6 +353,7 @@ Area options: <{{ areas|join(', ') }}>.
         default = spatial.find_address("living_area", as_list=True)[-1]
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("determine_arena", prompt, response))
             pattern = (
                 self.name
                 + " should go to the following area in "
@@ -401,6 +420,7 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
         default = random.choice(objects)
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("determine_object", prompt, response))
             pattern = (
                 "Pick ONE most relevant object from the Objects available: <(.+?)>"
             )
@@ -428,6 +448,7 @@ Action description: {describe}
 Emoji: <"""
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("describe_emoji", prompt, response))
             pattern = "Emoji: <(.+?)>"
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
@@ -461,6 +482,7 @@ Input: {subject} is {describe}.
 Output: (~{subject}~,"""
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("describe_event", prompt, response))
             patterns = ["\(~(.+?)~, =(.+?)=, -(.+?)-\)", "\(~(.+?)~, =(.+?)="]
             for line in response.split("\n"):
                 for p in patterns:
@@ -498,6 +520,7 @@ Step 1. {self.name} is {describe} at/using the {obj}.
 Step 2. Describe the {obj}'s state: {obj} is <"""
 
         def _callback(response):
+            self.logger.debug(self._debug_msg("describe_object", prompt, response))
             pattern = "Describe the " + obj + "'s state: " + obj + " is <(.+?)>"
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
@@ -539,10 +562,9 @@ Right now, it is {date_str}.{chat_history}
 Question: Would {self.name} initiate a conversation with {other.name}? \n
 Reasoning: Let's think step by step.
 """
-        print("\n[TMINFO] prompt_decide_talk prompt " + str(prompt))
 
         def _callback(response):
-            print("\n[TMINFO] prompt_decide_talk response " + str(response))
+            self.logger.debug(self._debug_msg("decide_talk", prompt, response))
             return response
 
         return {"prompt": prompt, "callback": _callback}
@@ -618,10 +640,8 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             o_action=other.get_curr_event().describe,
         )
 
-        print("\n[TMINFO] prompt_decide_react prompt " + str(prompt))
-
         def _callback(response):
-            print("\n[TMINFO] prompt_decide_react response " + str(response))
+            self.logger.debug(self._debug_msg("decide_react", prompt, response))
             return response
 
         return {"prompt": prompt, "callback": _callback}

@@ -6,7 +6,7 @@ from wounderland import utils
 
 
 class SimulateServer:
-    def __init__(self, static_root, config, ckpt_file, start=""):
+    def __init__(self, static_root, config, ckpt_file, start="", verbose="info"):
         self.static_root = static_root
         self.ckpt = utils.load_dict(ckpt_file)
         self.ckpt.setdefault("agents", {})
@@ -16,7 +16,7 @@ class SimulateServer:
             config["agents"][name]["update"] = a_config
         if start:
             config["time"] = {"start": start}
-        game = create_game(static_root, config)
+        game = create_game(static_root, config, logger=utils.create_io_logger(verbose))
         game.reset_user("test", keys=self.ckpt["keys"])
         self.game = get_game()
         self.tile_size = self.game.maze.tile_size
@@ -42,22 +42,24 @@ class SimulateServer:
 
     def simulate(self, step, stride=0):
         timer = utils.get_timer()
+        move_num = step * 10
         for i in range(step):
-            self.logger.info(
-                "Simulate Step[{}/{}] @ {}".format(i, step, timer.get_date("%H:%M:%S"))
-            )
+            title = "Simulate Step[{}/{}]".format(i, step)
+            self.logger.info(utils.split_line(title, "="))
             for name, status in self.agent_status.items():
-                print("\n\nstatus of {}:{}".format(name, status))
                 plan = self.game.agent_think(name, status)
                 agent = self.game.get_agent(name)
                 if name not in self.ckpt["agents"]:
                     self.ckpt["agents"][name] = {}
                 self.ckpt["agents"][name].update(agent.to_dict())
-                print("Agent {}\nhas plan {}".format(agent, plan))
-                if len(plan["path"]) > 5:
-                    status["coord"], status["path"] = plan["path"][5], plan["path"][5:]
-                else:
+                title = "{} @ {}".format(name, timer.get_date("%H:%M:%S"))
+                self.logger.info("{}{}\n".format(utils.split_line(title), agent))
+                if len(plan["path"]) > move_num:
+                    status["coord"] = plan["path"][move_num]
+                    status["path"] = plan["path"][move_num:]
+                elif plan["path"]:
                     status["coord"], status["path"] = plan["path"][-1], []
+            self.ckpt["time"] = timer.get_date("%Y%m%d-%H:%M:%S")
             with open("ckpt_{}.json".format(i), "w") as f:
                 f.write(json.dumps(self.ckpt, indent=2))
             if stride > 0:

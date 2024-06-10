@@ -24,7 +24,7 @@ class Tile:
         self.address_map = dict(zip(address_keys[: len(self.address)], self.address))
         self.collision = collision
         self.event_cnt = 0
-        self._events = set()
+        self._events = {}
         if len(self.address) == 4:
             self.add_event(Event(self.address[-1], address=self.address))
 
@@ -45,29 +45,35 @@ class Tile:
             "events": self.events,
         }
 
+    def get_events(self):
+        return self.events.values()
+
     def add_event(self, event):
         if isinstance(event, (tuple, list)):
             event = Event.from_list(event)
-        self._events.add(event)
+        if all(e != event for e in self._events.values()):
+            self._events["e_" + str(self.event_cnt)] = event
+            self.event_cnt += 1
         return event
 
     def remove_events(self, subject=None, event=None):
-        r_events = set()
-        for eve in self._events:
+        r_events = {}
+        for tag, eve in self._events.items():
             if subject and eve.subject == subject:
-                r_events.add(eve)
+                r_events[tag] = eve
             if event and eve == event:
-                r_events.add(eve)
+                r_events[tag] = eve
         for r_eve in r_events:
-            self._events.remove(r_eve)
+            self._events.pop(r_eve)
         return r_events
 
-    def update_event(self, event, mode):
-        for eve in self._events:
-            if eve == event:
-                eve.update(mode)
-                return eve
-        return None
+    def update_events(self, event, match="subject"):
+        u_events = {}
+        for tag, eve in self._events.items():
+            if match == "subject" and eve.subject == event.subject:
+                self._events[tag] = event
+                u_events[tag] = event
+        return u_events
 
     def has_address(self, key):
         return key in self.address_map
@@ -154,21 +160,20 @@ class Maze:
     def tile_at(self, coord):
         return self.tiles[coord[1]][coord[0]]
 
-    def events_at(self, coord):
-        return self.tile_at(coord).events
-
-    def add_event(self, coord, event):
-        return self.tile_at(coord).add_event(event)
-
-    def remove_events(self, coord, subject=None, event=None):
-        return self.tile_at(coord).remove_events(subject=subject, event=event)
-
-    def update_events(self, coord, mode, events=None):
-        events = events or self.events_at(coord)
-        u_events = set()
-        for e in events:
-            u_events.add(self.tile_at(coord).update_event(e, mode))
-        return u_events
+    def update_obj(self, coord, obj_event):
+        tile = self.tile_at(coord)
+        if not tile.has_address("game_object"):
+            return
+        assert obj_event.address == tile.get_address(
+            "game_object"
+        ), "address {} and {} mismatch".format(
+            obj_event.address, tile.get_address("game_object")
+        )
+        addr = ":".join(obj_event.address)
+        if addr not in self.address_tiles:
+            return
+        for c in self.address_tiles[addr]:
+            self.tile_at(c).update_events(obj_event)
 
     def get_scope(self, coord, config):
         coords = []

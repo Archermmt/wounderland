@@ -13,6 +13,7 @@ parser.add_argument("--checkpoint", type=str, default="ckpt.json", help="The env
 parser.add_argument("--step", type=int, default=5, help="The simulate step")
 parser.add_argument("--stride", type=int, default=10, help="The step stride in minute")
 parser.add_argument("--start", type=str, default="", help="The start time in minute")
+parser.add_argument("--verbose", type=str, default="info", help="The verbose level")
 args = parser.parse_args()
 
 
@@ -34,5 +35,7 @@ def get_config(agents=None):
 
 
 if __name__ == "__main__":
-    server = SimulateServer(args.statics_dir, get_config(), args.checkpoint, args.start)
+    server = SimulateServer(
+        args.statics_dir, get_config(), args.checkpoint, args.start, args.verbose
+    )
     server.simulate(args.step, args.stride)

@@ -1,5 +1,6 @@
 """wounderland.memory.spatial"""
 
+import random
 from wounderland import utils
 
 
@@ -43,3 +44,12 @@ class Spatial:
             return _get_tree(address[1:], tree[address[0]])
 
         return _get_tree(address, self.tree)
+
+    def random_address(self):
+        address, tree = [], self.tree
+        while isinstance(tree, dict):
+            roots = [r for r in tree if len(tree[r]) > 0]
+            address.append(random.choice(roots))
+            tree = tree[address[-1]]
+        address.append(random.choice(tree))
+        return address

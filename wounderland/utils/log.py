@@ -8,7 +8,7 @@ from typing import Union
 class IOLogger(object):
     """IO Logger for MSC"""
 
-    def __init__(self):
+    def __init__(self, level, color=False):
         self._printers = {
             "red": (lambda m: print("\033[91m {}\033[00m".format(m))),
             "green": (lambda m: print("\033[92m {}\033[00m".format(m))),
@@ -18,19 +18,48 @@ class IOLogger(object):
             "gray": (lambda m: print("\033[97m {}\033[00m".format(m))),
             "black": (lambda m: print("\033[98m {}\033[00m".format(m))),
         }
+        self._level = level
+        self._color = color
+
+    def _get_printer(self, color):
+        if not self._color:
+            return print
+        if color not in self._printers:
+            return print
+        return self._printers.get(color, print)
 
     def info(self, msg):
-        self._printers["green"]("[MSC_INFO] " + str(msg))
+        if self._level <= logging.INFO:
+            self._get_printer("green")("[INFO] " + str(msg))
 
     def debug(self, msg):
-        self._printers["green"]("[MSC_DEBUG] " + str(msg))
+        if self._level <= logging.DEBUG:
+            self._get_printer("green")("[DEBUG] " + str(msg))
 
     def warning(self, msg):
-        self._printers["yellow"]("[MSC_WARNING] " + str(msg))
+        if self._level >= logging.WARN:
+            self._get_printer("yellow")("[WARNING] " + str(msg))
 
     def error(self, msg):
-        self._printers["red"]("[MSC_ERROR] " + str(msg))
+        self._get_printer("red")("[ERROR] " + str(msg))
         raise Exception(msg)
+
+
+def create_io_logger(level: Union[str, int] = logging.INFO):
+    if isinstance(level, str):
+        if level.startswith("debug"):
+            level = logging.DEBUG
+        elif level == "info":
+            level = logging.INFO
+        elif level == "warn":
+            level = logging.WARN
+        elif level == "error":
+            level = logging.ERROR
+        elif level == "critical":
+            level = logging.CRITICAL
+        else:
+            raise Exception("Unexcept verbose {}, should be debug| info| warn")
+    return IOLogger(level)
 
 
 def create_file_logger(
@@ -87,87 +116,5 @@ def create_file_logger(
     return logger
 
 
-def set_global_logger(
-    level: Union[str, int] = logging.INFO, path: str = None
-) -> logging.Logger:
-    """Create file logger and set to global
-
-    Parameters
-    ----------
-    level: logging level
-        The logging level.
-    path: str
-        The file path.
-
-    Returns
-    -------
-    logger: logging.Logger
-        The logger.
-    """
-
-    logger = create_file_logger(level, path)
-    MSCMap.set(MSCKey.GLOBALE_LOGGER, logger)
-    return logger
-
-
-def get_global_logger() -> logging.Logger:
-    """Get the global logger
-
-    Returns
-    -------
-    logger: logging.Logger
-        The logger.
-    """
-
-    if not MSCMap.get(MSCKey.GLOBALE_LOGGER):
-        MSCMap.set(MSCKey.GLOBALE_LOGGER, IOLogger())
-    return MSCMap.get(MSCKey.GLOBALE_LOGGER)
-
-
-def get_log_file(logger: logging.Logger) -> str:
-    """Get the log file from logger
-
-    Parameters
-    ----------
-    logger: logging.Logger
-        The logger.
-
-    Returns
-    -------
-    log_file: str
-        The log file.
-    """
-
-    for log_h in logger.handlers:
-        if isinstance(log_h, logging.FileHandler):
-            return log_h.baseFilename
-    return None
-
-
-def remove_loggers():
-    """Remove the logger handlers"""
-
-    logger = MSCMap.get(MSCKey.GLOBALE_LOGGER)
-    if logger:
-        logger.handlers.clear()
-
-
-def split_line(msg: str, symbol: str = "#", width: int = 100) -> str:
-    """Mark message to split line
-
-    Parameters
-    ----------
-    msg: str
-        The message.
-    symbol: str
-        The split symbol.
-    width: int
-        The line width.
-
-    Returns
-    -------
-    split_line: str
-        The split line with message.
-    """
-
-    return "\n{0}{1}{0}".format(20 * symbol, msg.center(width - 40))
+def split_line(title, symbol="-", width=100):
+    return "{0}{1}{0}\n".format(symbol * 20, title.center(width - 40))

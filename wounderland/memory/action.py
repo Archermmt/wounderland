@@ -19,23 +19,25 @@ class Action:
         self.act_type = act_type
         self.start = start or utils.get_timer().get_date()
         self.duration = duration
+        self.end = self.start + datetime.timedelta(minutes=self.duration)
 
     def __str__(self):
-        status = "finished" if self.finished else "unfinished"
-        end = self.start + datetime.timedelta(minutes=self.duration)
-        status += "({}~{})".format(self.start.strftime("%H:%M"), end.strftime("%H:%M"))
+        status = "{}[{}~{}]".format(
+            "done" if self.finished() else "doing",
+            self.start.strftime("%H:%M"),
+            self.end.strftime("%H:%M"),
+        )
         des = {
             "status": status,
             "event({})".format(self.act_type): self.event,
-            "obj_event": self.obj_event,
+            "object": self.obj_event,
         }
         return utils.dump_dict(des)
 
     def finished(self):
         if not self.event.address:
             return True
-        end = self.start + datetime.timedelta(minutes=self.duration)
-        return utils.get_timer().get_date() > end
+        return utils.get_timer().get_date() > self.end
 
     def to_dict(self):
         return {

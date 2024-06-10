@@ -20,6 +20,7 @@ class LLMModel:
     def __init__(self, model, keys, config=None):
         self._model = model
         self._handle = self.setup(keys, config)
+        self._status = {"request": 0}
 
     def embedding(self, text, retry=1):
         response = None
@@ -42,6 +43,7 @@ class LLMModel:
         for _ in range(retry):
             try:
                 response = self._completion(prompt, **kwargs)
+                self._status["request"] += 1
                 if callback:
                     response = callback(response)
             except:
@@ -55,6 +57,10 @@ class LLMModel:
         raise NotImplementedError(
             "_completion is not support for " + str(self.__class__)
         )
+
+    @property
+    def status(self):
+        return self._status
 
     @classmethod
     def model_type(cls):

@@ -44,13 +44,12 @@ class Event:
             return hash(self) == hash(other)
         return False
 
-    def update(self, mode):
-        if mode == "idle":
-            self.predicate = "is"
-            self.object = "idle"
-            self.describe = "idle"
-        else:
-            raise TypeError("Unexpected mode " + str(mode))
+    def update(self, predicate=None, object=None, describe=None):
+        self.predicate = predicate or "is"
+        self.object = object or "idle"
+        self.describe = describe or "{} {} {}".format(
+            self.subject, self.predicate, self.object
+        )
 
     def to_id(self):
         return (self.subject, self.predicate, self.object, self.describe)
