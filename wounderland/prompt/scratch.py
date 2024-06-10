@@ -334,7 +334,8 @@ Area options: <{{ areas|join(', ') }}>.
             describes=describes,
         )
 
-        sectors, default = spatial.get_leaves(address), live_address[-1]
+        sectors = spatial.get_leaves(address)
+        failsafe = random.choice(sectors)
 
         def _callback(response):
             self.logger.debug(self._debug_msg("determine_sector", prompt, response))
@@ -342,10 +343,10 @@ Area options: <{{ areas|join(', ') }}>.
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1:
-                    return infos[0] if infos[0] in sectors else default
+                    return infos[0] if infos[0] in sectors else failsafe
             raise Exception("Can not find sector for plan " + str(describes))
 
-        return {"prompt": prompt, "callback": _callback, "failsafe": default}
+        return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_determine_arena(self, describes, spatial, address):
         template = Template(
@@ -383,7 +384,7 @@ Area options: <{{ areas|join(', ') }}>.
         )
 
         arenas = spatial.get_leaves(address)
-        default = spatial.find_address("living_area", as_list=True)[-1]
+        failsafe = random.choice(arenas)
 
         def _callback(response):
             self.logger.debug(self._debug_msg("determine_arena", prompt, response))
@@ -396,10 +397,10 @@ Area options: <{{ areas|join(', ') }}>.
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1:
-                    return infos[0] if infos[0] in arenas else default
+                    return infos[0] if infos[0] in arenas else failsafe
             raise Exception("Can not find arena for plan " + str(describes))
 
-        return {"prompt": prompt, "callback": _callback, "failsafe": default}
+        return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_determine_object(self, describes, spatial, address):
         template = Template(
@@ -450,7 +451,7 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
         )
 
         objects = spatial.get_leaves(address)
-        default = random.choice(objects)
+        failsafe = random.choice(objects)
 
         def _callback(response):
             self.logger.debug(self._debug_msg("determine_object", prompt, response))
@@ -460,10 +461,10 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
             for line in response.split("\n"):
                 infos = re.findall(pattern, line)
                 if len(infos) == 1:
-                    return infos[0] if infos[0] in objects else default
+                    return infos[0] if infos[0] in objects else failsafe
             raise Exception("Can not find object for plan " + str(describes[1]))
 
-        return {"prompt": prompt, "callback": _callback, "failsafe": default}
+        return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_describe_emoji(self, describe):
         prompt = f"""Convert an action description to an emoji (important: use three or less emojis).\n
@@ -489,7 +490,7 @@ Emoji: <"""
                     return infos[0][:3]
             raise Exception("Can not make emoji for " + str(describe))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": ""}
 
     def prompt_describe_event(self, subject, describe):
         prompt = f"""Task: Turn the input into (~subject~, =predicate=, -object-).\n
@@ -530,7 +531,7 @@ Output: (~{subject}~,"""
             "failsafe": (subject, "is", describe),
         }
 
-    def promt_describe_object(self, obj, describe):
+    def prompt_describe_object(self, obj, describe):
         prompt = f"""Task: We want to understand the state of an object that is being used by someone.\n
 Let's think step by step. 
 We want to know about oven's state. 
@@ -561,7 +562,7 @@ Step 2. Describe the {obj}'s state: {obj} is <"""
                     return infos[0]
             raise Exception("Can not describe object {}: {}".format(obj, describe))
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": "idle"}
 
     def prompt_decide_talk(self, agent, other, focus):
         def _status_des(agent):
@@ -600,7 +601,7 @@ Reasoning: Let's think step by step.
             self.logger.debug(self._debug_msg("decide_talk", prompt, response))
             return response
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": False}
 
     def prompt_decide_react(self, agent, other, focus):
         template = Template(
@@ -677,4 +678,4 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             self.logger.debug(self._debug_msg("decide_react", prompt, response))
             return response
 
-        return {"prompt": prompt, "callback": _callback}
+        return {"prompt": prompt, "callback": _callback, "failsafe": False}

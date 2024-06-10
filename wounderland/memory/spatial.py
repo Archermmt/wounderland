@@ -8,6 +8,8 @@ class Spatial:
     def __init__(self, config):
         self.tree = config["tree"]
         self.address = config.get("address", {})
+        if "sleeping" not in self.address and "living_area" in self.address:
+            self.address["sleeping"] = self.address["living_area"] + ["bed"]
 
     def __str__(self):
         return utils.dump_dict(self.tree)

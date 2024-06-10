@@ -6,7 +6,10 @@ from wounderland import utils
 class Schedule:
     def __init__(self, config):
         if config.get("created_at"):
-            self.created_at = utils.to_date(config["created_at"])
+            if config["created_at"] == "always":
+                self.created_at = utils.get_timer().get_date()
+            else:
+                self.created_at = utils.to_date(config["created_at"])
         else:
             self.created_at = None
         self.daily_schedule = config.get("daily_schedule", [])

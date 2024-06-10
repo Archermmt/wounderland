@@ -96,15 +96,12 @@ class Agent:
     def remove_user(self):
         self._llm = None
 
-    @check_llm()
     def make_schedule(self):
         if not self.schedule.scheduled():
             # make init schedule
             self.schedule.created_at = utils.get_timer().get_date()
-            prompt = self.scratch.prompt_wake_up()
-            wake_up = self._llm.completion(**prompt)
-            prompt = self.scratch.prompt_schedule_init(wake_up)
-            init_schedule = self._llm.completion(**prompt)
+            wake_up = self.completion("wake_up")
+            init_schedule = self.completion("schedule_init", wake_up)
             if self.associate.nodes:
                 print("should adjust daily schedule!!")
                 raise Exception("stop here!!")
@@ -115,10 +112,9 @@ class Agent:
             for _ in range(self.schedule.max_try):
                 schedule = [(h, "sleeping") for h in hours[:wake_up]]
                 schedule += [(h, "") for h in hours[wake_up:]]
-                prompt = self.scratch.prompt_schedule_daily(
-                    wake_up, schedule, init_schedule
+                daily_schedule = self.completion(
+                    "schedule_daily", wake_up, schedule, init_schedule
                 )
-                daily_schedule = self._llm.completion(**prompt)
                 daily_schedule.update({h: s for h, s in schedule[:wake_up]})
                 if len(set(daily_schedule.values())) >= self.schedule.diversity:
                     break
@@ -147,9 +143,11 @@ class Agent:
         # decompose current plan
         plan, _ = self.schedule.current_plan()
         if self.schedule.decompose(plan):
-            prompt = self.scratch.prompt_schedule_decompose(plan, self.schedule)
+            decompose_schedule = self.completion(
+                "schedule_decompose", plan, self.schedule
+            )
             decompose, start = [], plan["start"]
-            for describe, duration in self._llm.completion(**prompt):
+            for describe, duration in decompose_schedule:
                 decompose.append(
                     {
                         "idx": len(decompose),
@@ -163,7 +161,15 @@ class Agent:
         return self.schedule.current_plan()
 
     def move(self, coord, path=None):
-        obj_events = set()
+        events = {}
+
+        def _update_tile(coord):
+            tile = self.maze.tile_at(coord)
+            if not tile.update_events(self.get_event()):
+                tile.add_event(self.get_event())
+            self.maze.update_obj(coord, self.get_event(False))
+            return {e: coord for e in tile.get_events()}
+
         if self.is_awake():
             if self.coord and self.coord != coord:
                 tile = self.get_tile()
@@ -173,40 +179,33 @@ class Agent:
                     self.maze.update_obj(
                         self.coord, memory.Event(addr[-1], address=addr)
                     )
-                    obj_events |= set(tile.get_events())
+                events.update({e: self.coord for e in tile.get_events()})
             if not path:
-                self.maze.tile_at(coord).add_event(self.get_event())
-                self.maze.update_obj(coord, self.get_event(False))
-                obj_events |= set(self.maze.tile_at(coord).get_events())
+                events.update(_update_tile(coord))
             self.coord = coord
             self.path = path or []
-        elif self.coord and self.get_tile().has_address("game_object"):
-            self.maze.update_obj(self.coord, self.get_event(False))
-            obj_events |= set(self.get_tile().get_events())
-        return obj_events
+        elif self.coord:
+            events.update(_update_tile(self.coord))
+        return events
 
     def think(self, status, agents):
         self.move(status["coord"], status.get("path"))
-        self.make_schedule()
-        if self.schedule.scheduled():
-            plan, _ = self.schedule.current_plan()
-            if plan["describe"] == "sleeping" and self.is_awake():
-                address = self.spatial.find_address("sleeping", as_list=True)
-                action = memory.Action(
-                    memory.Event(
-                        self.name, "is", "sleeping", address=address, emoji="😴"
-                    ),
-                    memory.Event(
-                        address[-1],
-                        "occupied by",
-                        self.name,
-                        address=address,
-                        emoji="🛌",
-                    ),
-                    duration=plan["duration"],
-                    start=utils.daily_time(plan["start"]),
-                )
-                self.actions = [action]
+        plan, _ = self.make_schedule()
+        if plan["describe"] == "sleeping" and self.is_awake():
+            address = self.spatial.find_address("sleeping", as_list=True)
+            action = memory.Action(
+                memory.Event(self.name, "is", "sleeping", address=address, emoji="😴"),
+                memory.Event(
+                    address[-1],
+                    "occupied by",
+                    self.name,
+                    address=address,
+                    emoji="🛌",
+                ),
+                duration=plan["duration"],
+                start=utils.daily_time(plan["start"]),
+            )
+            self.actions = [action]
         if self.is_awake():
             self.percept()
             self.make_plan(agents)
@@ -257,7 +256,6 @@ class Agent:
             self.actions.append(self._determine_action())
         self._reaction(agents)
 
-    @check_llm()
     def reflect(self):
         if self.status["poignancy"]["current"] >= self.think_config["poignancy_max"]:
             self.status["poignancy"]["current"] = 0
@@ -284,8 +282,7 @@ class Agent:
                 else:
                     target_tiles = [targets[1]]
         elif address[-1] == "<random>":
-            obj = random.choice(self.spatial.get_leaves(address[:-1]))
-            target_tiles = self.maze.get_address_tiles(address[:-1] + [obj])
+            target_tiles = self.maze.get_address_tiles(address[:-1])
         else:
             target_tiles = self.maze.get_address_tiles(address)
 
@@ -308,13 +305,6 @@ class Agent:
         return pathes[target][1:]
 
     def _determine_action(self):
-        if self.think_config["mode"] == "random" or not self.llm_available():
-            address = self.spatial.random_address()
-            return memory.Action(
-                memory.Event(self.name, address=address),
-                memory.Event(address[-1], address=address),
-                duration=random.choice(list(range(5, 30))),
-            )
         plan, de_plan = self.schedule.current_plan()
         describes = [plan["describe"], de_plan["describe"]]
         address = self.spatial.find_address(describes[0], as_list=True)
@@ -325,37 +315,34 @@ class Agent:
                 "spatial": self.spatial,
                 "address": tile.get_address("world", as_list=True),
             }
-            prompt = self.scratch.prompt_determine_sector(**kwargs, tile=tile)
-            kwargs["address"].append(self._llm.completion(**prompt))
+            kwargs["address"].append(
+                self.completion("determine_sector", **kwargs, tile=tile)
+            )
             arenas = self.spatial.get_leaves(kwargs["address"])
             if len(arenas) == 1:
                 kwargs["address"].append(arenas[0])
             else:
-                prompt = self.scratch.prompt_determine_arena(**kwargs)
-                kwargs["address"].append(self._llm.completion(**prompt))
+                kwargs["address"].append(self.completion("determine_arena", **kwargs))
             objs = self.spatial.get_leaves(kwargs["address"])
             if len(objs) == 0:
-                kwargs["address"].append("random")
+                kwargs["address"].append("<random>")
             elif len(objs) == 1:
                 kwargs["address"].append(objs[0])
             else:
-                prompt = self.scratch.prompt_determine_object(**kwargs)
-                kwargs["address"].append(self._llm.completion(**prompt))
+                kwargs["address"].append(self.completion("determine_object", **kwargs))
             address = kwargs["address"]
 
         # create action && object events
         def _make_event(subject, describe):
-            prompt = self.scratch.prompt_describe_emoji(describe)
-            emoji = self._llm.completion(**prompt)
+            emoji = self.completion("describe_emoji", describe)
             if subject == self.name:
-                prompt = self.scratch.prompt_describe_event(subject, describe)
-                args = self._llm.completion(**prompt)
+                args = self.completion("describe_event", subject, describe)
                 return memory.Event(*args, address=address, emoji=emoji)
             return memory.Event(subject, "is", describe, address=address, emoji=emoji)
 
         event = _make_event(self.name, describes[-1])
-        prompt = self.scratch.promt_describe_object(address[-1], describes[-1])
-        obj_event = _make_event(address[-1], self._llm.completion(**prompt))
+        obj_describe = self.completion("describe_object", address[-1], describes[-1])
+        obj_event = _make_event(address[-1], obj_describe)
         return memory.Action(
             event,
             obj_event,
@@ -363,7 +350,6 @@ class Agent:
             start=utils.daily_time(de_plan["start"]),
         )
 
-    @check_llm()
     def _reaction(self, agents=None, ignore_words=None):
         focus = None
         ignore_words = ignore_words or ["is idle"]
@@ -400,11 +386,11 @@ class Agent:
 
         if self.actions[-1].act_type == "chat":
             return True
-        if "<waiting>" in self.actions[-1].address:
-            return True
-        if _skip(self.actions[-1]) or _skip(other.actions[-1]):
+        if "<waiting>" in self.get_event().address:
             return True
         if utils.get_timer().daily_duration(mode="hour") >= 23:
+            return True
+        if _skip(self.get_event()) or _skip(other.get_event()):
             return True
         return False
 
@@ -419,8 +405,7 @@ class Agent:
         chats = self.associate.retrieve_chats(other.name)
         if chats and utils.get_timer().get_delta(chats[0].expiration) < 60:
             return False
-        prompt = self.scratch.prompt_decide_talk(self, other, focus)
-        if "yes" not in self._llm.completion(**prompt):
+        if not self.completion("decide_talk", self, other, focus):
             return False
         print("should chat with " + str(other))
         convo, duration_min = generate_convo(maze, init_persona, target_persona)
@@ -438,8 +423,8 @@ class Agent:
             return False
         if act.address != o_act.address:
             return False
-        prompt = self.scratch.prompt_decide_react(self, other, focus)
-        return self._llm.completion(**prompt)
+        if not self.completion("decide_react", self, other, focus):
+            return False
 
     def _add_concept(
         self,
@@ -501,14 +486,11 @@ class Agent:
         #    return (desc, self._llm.embedding(desc)), poignancy
         return (desc, None), poignancy
 
-    @check_llm(ret=1)
     def _evaluate_event(self, event):
         if event.fit(None, "is", "idle"):
             return 1
-        prompt = self.scratch.prompt_poignancy_event(event)
-        return self._llm.completion(**prompt)
+        return self.completion("poignancy_event", event)
 
-    @check_llm(ret=1)
     def _evaluate_chat(self, event):
         print("should evaluare chat " + str(event))
         raise Exception("stop here!!")
@@ -534,6 +516,16 @@ class Agent:
         if not self._llm:
             return False
         return self._llm.is_available()
+
+    def completion(self, func_hint, *args, **kwargs):
+        assert hasattr(
+            self.scratch, "prompt_" + func_hint
+        ), "Can not find func prompt_{} from scratch".format(func_hint)
+        func = getattr(self.scratch, "prompt_" + func_hint)
+        prompt = func(*args, **kwargs)
+        if self.llm_available():
+            return self._llm.completion(**prompt)
+        return prompt.get("failsafe")
 
     def to_dict(self):
         return {
