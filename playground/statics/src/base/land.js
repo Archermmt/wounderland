@@ -39,8 +39,11 @@ export default class Land extends Phaser.Scene {
         this.game_status = { start: false };
         let callback = (info) => {
             this.game_status = info;
+            this.msg.timer.current = info["current_time"]
         }
         utils.jsonRequest(this.urls.start_game, this.game_config, callback);
+        // update time
+        this.getTime();
     }
 
     create() {
@@ -88,6 +91,19 @@ export default class Land extends Phaser.Scene {
         if (this.cursors.space.isUp && this.on_config) {
             console.log("debugging...");
             this.on_config = false;
+        }
+    }
+
+    getTime = () => {
+        var timer = this.msg.timer;
+        let callback = (info) => {
+            timer.current = info.time;
+            this.scene.time.delayedCall(6000 / timer.rate, this.getTime, [], this);
+        }
+        let timer_config = timer.update;
+        utils.jsonRequest(this.urls.get_time, timer_config, callback);
+        if (Object.keys(timer.update).length > 0) {
+            timer.update = {};
         }
     }
 

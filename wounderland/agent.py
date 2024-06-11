@@ -66,26 +66,19 @@ class Agent:
     def __str__(self):
         des = {
             "name": self.name,
-            "tile": self.maze.tile_at(self.coord).to_dict(),
-            "concepts": [str(c).replace("\n", "\n    ") for c in self.concepts],
-            "actions": [str(a).replace("\n", "\n    ") for a in self.actions],
+            "tile": self.maze.tile_at(self.coord).abstract(),
+            "concepts": [c.abstract() for c in self.concepts],
+            "actions": [a.abstract() for a in self.actions],
         }
         if self.plan.get("path"):
             des["path"] = "-".join(
                 ["{},{}".format(c[0], c[1]) for c in self.plan["path"]]
             )
-        des["associate"] = ", ".join(
-            [
-                "{} {}s".format(len(self.associate.memory[t]), t)
-                for t in ["event", "thought", "chat"]
-            ]
-        )
+        des["associate"] = self.associate.abstract()
         if self.schedule.scheduled():
-            des["schedule"] = "\n  " + str(self.schedule).replace("\n", "\n  ")
+            des["schedule"] = self.schedule.abstract()
         if self.llm_available():
-            des["llm"] = ",".join(
-                ["{}={}".format(k, v) for k, v in self._llm.status.items()]
-            )
+            des["llm"] = self._llm.get_summary()
         return utils.dump_dict(des)
 
     def reset_user(self, user):
@@ -375,12 +368,8 @@ class Agent:
             self._react_to(other, focus)
 
     def _skip_react(self, other):
-        def _skip(action):
-            if (
-                not action.address
-                or not action.event
-                or "sleeping" in action.event.describe
-            ):
+        def _skip(event):
+            if not event.address or "sleeping" in event.describe:
                 return False
             return True
 
@@ -524,12 +513,14 @@ class Agent:
         func = getattr(self.scratch, "prompt_" + func_hint)
         prompt = func(*args, **kwargs)
         if self.llm_available():
-            return self._llm.completion(**prompt)
+            return self._llm.completion(**prompt, caller=func_hint)
         return prompt.get("failsafe")
 
     def to_dict(self):
         return {
+            "coord": self.coord,
             "status": self.status,
             "schedule": self.schedule.to_dict(),
             "associate": self.associate.to_dict(),
+            "actions": [a.to_dict() for a in self.actions],
         }

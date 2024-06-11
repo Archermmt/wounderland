@@ -6,6 +6,10 @@
 
 <div id="msg" style="font-size:0.8vw">
     <div id="msg_board" class="nes-container is-rounded is-dark with-title" style="width:35vw; position:fixed">
+        <span class="title">[[timer.current]]
+            <i @click="timeBackward()">-</i>10<i @click="timeForward()">+</i>
+            <i @click="timeSpeedup()">X[[timer.rate]]<i>
+        </span>
         <div id="player">
             <div style="background-color:#212529; padding:0; width:100%">
                 <div class="nes-select is-dark">
@@ -137,9 +141,15 @@
             urls: {
                 start_game: "{% url 'start_game' %}",
                 agent_think: "{% url 'agent_think' %}",
+                get_time: "{% url 'get_time' %}",
                 user_login: "{% url 'user_login' %}",
                 user_logout: "{% url 'user_logout' %}",
                 user_add_key: "{% url 'user_add_key' %}",
+            },
+            timer: {
+                update: {},
+                current: "Jan 1, 00:00 AM",
+                rate: 1
             },
             agents: ctx.agents,
             player: {
@@ -179,6 +189,19 @@
                 }
                 xobj.open('POST', url, true);
                 xobj.send(JSON.stringify(data));
+            },
+            timeBackward: function () {
+                this.timer.update["offset"] = -10;
+            },
+            timeForward: function () {
+                this.timer.update["offset"] = 10;
+            },
+            timeSpeedup: function () {
+                this.timer.rate *= 2;
+                if (this.timer.rate >= 16) {
+                    this.timer.rate = 1;
+                }
+                this.timer.update["rate"] = this.timer.rate;
             },
             boardDisplay: function (tab_name, board = "") {
                 if (board === "") {

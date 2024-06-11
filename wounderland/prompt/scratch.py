@@ -51,28 +51,31 @@ Current Date: {7}\n""".format(
     def prompt_poignancy_event(self, event):
         prompt = self._base_desc()
         prompt += """\nOn the scale of 1 to 10, where 1 is purely mundane (e.g., brushing teeth, making bed) and 10 is extremely poignant (e.g., a break up, college acceptance), rate the likely poignancy of the following event for {}.
+Each event should ONLY be rate with ONE integer on the scale of 1 to 10.
 -----
-Event: brushing teeth. Rate (return a number between 1 to 10): 1
+Event: brushing teeth. Rate(return a number between 1 to 10): <1>
 -----
-Event: making bed. Rate (return a number between 1 to 10): 1
+Event: making bed. Rate(return a number between 1 to 10): <1>
 -----
-Event: breaking up. Rate (return a number between 1 to 10): 10
+Event: a break up. Rate(return a number between 1 to 10): <10>
 -----
-Event: college acceptance. Rate (return a number between 1 to 10): 10
+Event: college acceptance. Rate(return a number between 1 to 10): <10>
 -----
-Event: {}. Rate (return a number between 1 to 10): """.format(
+Event: {}. Rate(return a number between 1 to 10): <""".format(
             self.name, event.describe
         )
 
         def _callback(response):
             self.logger.debug(self._debug_msg("poignancy_event", prompt, response))
-            pattern = "Rate \(return a number between 1 to 10\): (\d{1,2})"
+            pattern = ". Rate\(return a number between 1 to 10\): <(\d{1,2})>"
+            rate = None
             for line in response.split("\n"):
-                if event.describe not in line:
-                    continue
                 infos = re.findall(pattern, line)
+                print("[TMINFO] line {} has infos {}".format(line, infos))
                 if len(infos) == 1:
-                    return int(infos[0])
+                    rate = int(infos[0])
+            if rate is not None:
+                return rate
             raise Exception("Can not find single integer in " + str(response))
 
         return {

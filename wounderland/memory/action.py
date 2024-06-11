@@ -21,18 +21,20 @@ class Action:
         self.duration = duration
         self.end = self.start + datetime.timedelta(minutes=self.duration)
 
-    def __str__(self):
+    def abstract(self):
         status = "{}[{}~{}]".format(
             "done" if self.finished() else "doing",
             self.start.strftime("%H:%M"),
             self.end.strftime("%H:%M"),
         )
-        des = {
+        return {
             "status": status,
             "event({})".format(self.act_type): self.event,
             "object": self.obj_event,
         }
-        return utils.dump_dict(des)
+
+    def __str__(self):
+        return utils.dump_dict(self.abstract())
 
     def finished(self):
         if not self.event.address:

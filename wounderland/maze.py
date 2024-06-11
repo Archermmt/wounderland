@@ -28,15 +28,7 @@ class Tile:
         if len(self.address) == 4:
             self.add_event(Event(self.address[-1], address=self.address))
 
-    def __str__(self):
-        return utils.dump_dict(self.to_dict())
-
-    def __eq__(self, other):
-        if isinstance(other, Tile):
-            return hash(self.coord) == hash(other.coord)
-        return False
-
-    def to_dict(self):
+    def abstract(self):
         address = ":".join(self.address)
         if self.collision:
             address += "(collision)"
@@ -44,6 +36,14 @@ class Tile:
             "coord[{},{}]".format(self.coord[0], self.coord[1]): address,
             "events": self.events,
         }
+
+    def __str__(self):
+        return utils.dump_dict(self.abstract())
+
+    def __eq__(self, other):
+        if isinstance(other, Tile):
+            return hash(self.coord) == hash(other.coord)
+        return False
 
     def get_events(self):
         return self.events.values()

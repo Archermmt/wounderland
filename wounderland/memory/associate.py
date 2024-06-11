@@ -30,8 +30,8 @@ class Concept:
         self.last_accessed = last_accessed or self.created
         self.expiration = expiration or (self.created + datetime.timedelta(days=30))
 
-    def __str__(self):
-        des = {
+    def abstract(self):
+        return {
             "event(P.{})".format(self.poignancy): self.event,
             "describe": "{}({})[{}~{},A:{}]".format(
                 self.describe,
@@ -41,7 +41,9 @@ class Concept:
                 self.last_accessed.strftime("%m%d-%H:%M"),
             ),
         }
-        return utils.dump_dict(des)
+
+    def __str__(self):
+        return utils.dump_dict(self.abstract())
 
     def to_dict(self):
         return {
@@ -80,22 +82,29 @@ class Associate:
         for n in config.get("nodes", []):
             self._add_node(Concept.from_dict(n))
 
-    def __str__(self):
+    def abstract(self):
         des = {
-            "nodes": len(self.nodes),
+            "memory": ", ".join(
+                ["{}:{}".format(k, len(v)) for k, v in self.memory.items()]
+            ),
             "embeddings": len(self.embeddings),
             "keywords": {},
         }
+        des["memory"] += ", total:{}".format(len(self.nodes))
         for kw, info in self.keywords.items():
-            kw_des = {}
-            for n_type in ["event", "thought", "chat"]:
-                if n_type in info:
-                    strength = info.get(n_type + "_strength", 0)
-                    kw_des["{}({})".format(n_type, strength)] = [
-                        str(e) for e in info[n_type]
-                    ]
-            des["keywords"][kw] = kw_des
-        return utils.dump_dict(des)
+            kw_infos = []
+            for n in ["event", "thought", "chat"]:
+                if n not in info:
+                    continue
+                kw_des = "{}:{}(strength {})".format(
+                    n, len(info[n]), info.get(n + "_strength", 0)
+                )
+                kw_infos.append(kw_des)
+            des["keywords"][kw.lower()] = ", ".join(kw_infos)
+        return des
+
+    def __str__(self):
+        return utils.dump_dict(self.abstract())
 
     def _create_node(
         self,
@@ -127,7 +136,7 @@ class Associate:
             self.embeddings[node.describe] = embedding
         for kw in node.keywords:
             kw_info = self.keywords.setdefault(kw.lower(), {})
-            kw_info.setdefault(node.node_type, []).insert(0, node)
+            kw_info.setdefault(node.node_type, []).insert(0, node.name)
             if not node.event.fit(None, "is", "idle"):
                 kw_info.setdefault(node.node_type + "_strength", 1)
                 kw_info[node.node_type + "_strength"] += 1
@@ -209,7 +218,8 @@ class Associate:
         for k in keywords:
             if k not in self.keywords:
                 continue
-            nodes.extend(self.keywords[k].get(node_type, []))
+            node_names = self.keywords[k].get(node_type, [])
+            nodes.extend([self.nodes[n] for n in node_names])
         return nodes[: self.retention]
 
     def retrieve_events(self, node=None):

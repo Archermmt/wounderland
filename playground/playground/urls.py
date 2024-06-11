@@ -24,6 +24,7 @@ urlpatterns = [
     url("village", game_views.village),
     url("start_game", game_views.start_game, name="start_game"),
     url("agent_think", game_views.agent_think, name="agent_think"),
+    url("get_time", game_views.get_time, name="get_time"),
     url("user_login", game_views.user_login, name="user_login"),
     url("user_logout", game_views.user_logout, name="user_logout"),
     url("user_add_key", game_views.user_add_key, name="user_add_key"),

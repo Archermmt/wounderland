@@ -20,7 +20,7 @@ class LLMModel:
     def __init__(self, model, keys, config=None):
         self._model = model
         self._handle = self.setup(keys, config)
-        self._status = {"request": 0, "failed": 0}
+        self._summary = {"total": [0, 0, 0]}
 
     def embedding(self, text, retry=1):
         response = None
@@ -38,12 +38,22 @@ class LLMModel:
             "_embedding is not support for " + str(self.__class__)
         )
 
-    def completion(self, prompt, retry=5, callback=None, failsafe=None, **kwargs):
+    def completion(
+        self,
+        prompt,
+        retry=5,
+        callback=None,
+        failsafe=None,
+        caller="llm_normal",
+        **kwargs
+    ):
         response = None
+        self._summary.setdefault(caller, [0, 0, 0])
         for _ in range(retry):
             try:
                 response = self._completion(prompt, **kwargs)
-                self._status["request"] += 1
+                self._summary["total"][0] += 1
+                self._summary[caller][0] += 1
                 if callback:
                     response = callback(response)
             except:
@@ -51,8 +61,9 @@ class LLMModel:
                 continue
             if response:
                 break
-        if not response:
-            self._status["failed"] += 1
+        pos = 1 if response else 2
+        self._summary["total"][pos] += 1
+        self._summary[caller][pos] += 1
         return response or failsafe
 
     def _completion(self, prompt, **kwargs):
@@ -61,11 +72,13 @@ class LLMModel:
         )
 
     def is_available(self):
-        return self._status["failed"] <= 10
+        return self._summary["total"][2] <= 10
 
-    @property
-    def status(self):
-        return self._status
+    def get_summary(self):
+        des = {}
+        for k, v in self._summary.items():
+            des[k] = "S:{},F:{}/R:{}".format(v[1], v[2], v[0])
+        return des
 
     @classmethod
     def model_type(cls):

@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from wounderland.game import create_game, get_game
+from wounderland.utils import get_timer
 from .models import *
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,16 @@ def agent_think(request):
         info = game.agent_think(**json.loads(request.body))
         return JsonResponse({"success": True, "info": info})
     return JsonResponse({"success": True, "info": {"direct": "stop"}})
+
+
+@csrf_exempt
+def get_time(request):
+    timer, data = get_timer(), json.loads(request.body)
+    if data.get("offset"):
+        timer.forward(data["offset"])
+    if data.get("rate"):
+        timer.speedup(data["rate"])
+    return JsonResponse({"success": True, "info": {"time": timer.daily_format()}})
 
 
 @csrf_exempt

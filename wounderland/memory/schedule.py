@@ -16,20 +16,23 @@ class Schedule:
         self.diversity = config.get("diversity", 5)
         self.max_try = config.get("max_try", 3)
 
-    def __str__(self):
+    def abstract(self):
         def _to_stamp(plan):
             start, end = self.plan_stamps(plan, time_format="%H:%M")
             return "{}~{}".format(start, end)
 
-        plan_info = {}
+        des = {}
         for plan in self.daily_schedule:
             stamp = _to_stamp(plan)
             if plan.get("decompose"):
                 s_info = {_to_stamp(p): p["describe"] for p in plan["decompose"]}
-                plan_info[stamp + ": " + plan["describe"]] = s_info
+                des[stamp + ": " + plan["describe"]] = s_info
             else:
-                plan_info[stamp] = plan["describe"]
-        return utils.dump_dict(plan_info)
+                des[stamp] = plan["describe"]
+        return des
+
+    def __str__(self):
+        return utils.dump_dict(self.abstract())
 
     def add_plan(self, describe, duration, decompose=None):
         if self.daily_schedule:
