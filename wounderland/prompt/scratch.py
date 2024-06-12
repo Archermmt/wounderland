@@ -230,10 +230,7 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
                 schedules.append((plan["describe"], left))
             return schedules
 
-        failsafe = [
-            (plan["describe"], increment)
-            for _ in range(int(plan["duration"] / increment))
-        ]
+        failsafe = [(plan["describe"], 30) for _ in range(int(plan["duration"] / 30))]
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_determine_sector(self, describes, spatial, address, tile):
@@ -440,7 +437,7 @@ Emoji: <"""
 
         def _callback(response):
             self.logger.debug(self._debug_msg("describe_emoji", prompt, response))
-            return parse_llm_output(response, "Emoji: <(.+?)>")[:3]
+            return parse_llm_output(response, "Emoji: <(.+?)>")[:3] or "🦁"
 
         return {"prompt": prompt, "callback": _callback, "failsafe": "🦁"}
 

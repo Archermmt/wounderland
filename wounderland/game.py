@@ -31,17 +31,21 @@ class Game:
             self.agents[name] = Agent(agent_config, self.maze, self.logger)
         self.user = None
 
+    def get_agent(self, name):
+        return self.agents[name]
+
     def agent_think(self, name, status):
-        plan = self.agents[name].think(status, self.agents)
+        agent = self.get_agent(name)
+        plan = agent.think(status, self.agents)
+        info = agent.abstract()
         title = "{} @ {}".format(name, utils.get_timer().get_date("%H:%M:%S"))
-        self.logger.info("{}{}\n".format(utils.split_line(title), self.agents[name]))
-        return plan
+        self.logger.info(
+            "{}{}\n".format(utils.split_line(title), utils.dump_dict(info))
+        )
+        return {"plan": plan, "info": info}
 
     def load_static(self, path):
         return utils.load_dict(os.path.join(self.static_root, path))
-
-    def get_agent(self, name):
-        return self.agents[name]
 
     def reset_user(self, name, keys, email=None):
         self.user = User(name, keys, email=email)

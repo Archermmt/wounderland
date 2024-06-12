@@ -76,15 +76,6 @@ def agent_think(request):
 
 
 @csrf_exempt
-def agent_info(request):
-    game = get_game()
-    if request.method == "POST" and game:
-        info = game.agent_info(**json.loads(request.body))
-        return JsonResponse({"success": True, "info": info})
-    return JsonResponse({"success": True, "info": {}})
-
-
-@csrf_exempt
 def get_time(request):
     timer = get_timer()
     if request.method == "POST" and timer:

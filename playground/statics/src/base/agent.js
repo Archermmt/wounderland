@@ -30,6 +30,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
         // status
         this.status = { direction: "stop", speed: config.move.speed, coord: coord, path: [] };
+        this.info = { associate: {}, concepts: [], actions: [], schedule: {} };
 
         // add sprite
         scene.add.existing(this);
@@ -123,8 +124,10 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             this.is_thinking = true;
             let callback = (info) => {
                 console.log("[TMINFO] " + this.name + " action get info " + JSON.stringify(info));
-                this.status.path = info.path;
-                for (const [name, emoji] of Object.entries(info.emojis)) {
+                const plan = info.plan;
+                const info = info.info;
+                this.status.path = plan.path;
+                for (const [name, emoji] of Object.entries(plan.emojis)) {
                     console.log("has emoji " + name + " : " + JSON.stringify(emoji));
                     /*
                     if (!this.bubbles.hasOwnProperty(name)) {
@@ -139,6 +142,12 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                         this.bubbles[name].setText(emoji.text);
                     }
                     */
+                }
+                for (const [key, value] of Object.entries(info.emojis)) {
+                    console.log("has info " + key + " : " + JSON.stringify(value));
+                    if (this.info.hasOwnProperty(key)) {
+                        this.info[key] = value;
+                    }
                 }
                 this.is_thinking = false;
                 this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
@@ -176,19 +185,23 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     positionMove(position) {
-        console.log("should move to " + position);
+        console.log(this.name + " should move to " + position);
         let direction = "stop";
+        const step = this.tile_size / 20;
         if (position[0] < this.body.position.x) {
             direction = "left";
+            this.body.position.x -= Math.min(step, this.body.position.x - position[0]);
         } else if (position[0] > this.body.position.x) {
             direction = "right";
+            this.body.position.x += Math.min(step, position[0] - this.body.position.x);
         } else if (position[1] < this.body.position.y) {
             direction = "up";
+            this.body.position.y -= Math.min(step, this.body.position.y - position[1]);
         } else if (position[1] > this.body.position.y) {
             direction = "down";
+            this.body.position.y += Math.min(step, position[1] - this.body.position.y);
         }
         this.setMoveAnim(direction);
-        this.scene.physics.arcade.moveToXY(position[0], position[1], this.status.speed);
     }
 
     getStatus() {
@@ -198,6 +211,10 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
     getScratch() {
         return this.config.scratch;
+    }
+
+    getInfo(key) {
+        return this.info[key];
     }
 
     toString = () => {

@@ -47,7 +47,7 @@ class SimulateServer:
             title = "Simulate Step[{}/{}]".format(i, step)
             self.logger.info(utils.split_line(title, "="))
             for name, status in self.agent_status.items():
-                plan = self.game.agent_think(name, status)
+                plan = self.game.agent_think(name, status)["plan"]
                 agent = self.game.get_agent(name)
                 if name not in self.ckpt["agents"]:
                     self.ckpt["agents"][name] = {}

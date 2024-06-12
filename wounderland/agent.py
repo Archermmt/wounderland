@@ -63,10 +63,11 @@ class Agent:
         self.coord, self.path = None, None
         self.move(config["coord"])
 
-    def __str__(self):
+    def abstract(self):
         des = {
             "name": self.name,
             "tile": self.maze.tile_at(self.coord).abstract(),
+            "status": self.status,
             "concepts": [c.abstract() for c in self.concepts],
             "actions": [a.abstract() for a in self.actions],
             "associate": self.associate.abstract(),
@@ -79,7 +80,10 @@ class Agent:
             des["path"] = "-".join(
                 ["{},{}".format(c[0], c[1]) for c in self.plan["path"]]
             )
-        return utils.dump_dict(des)
+        return des
+
+    def __str__(self):
+        return utils.dump_dict(self.abstract())
 
     def reset_user(self, user):
         if self.think_config["mode"] == "llm" and not self._llm:
@@ -182,7 +186,7 @@ class Agent:
         return events
 
     def think(self, status, agents):
-        self.move(status["coord"], status.get("path"))
+        events = self.move(status["coord"], status.get("path"))
         plan, _ = self.make_schedule()
         if plan["describe"] == "sleeping" and self.is_awake():
             address = self.spatial.find_address("sleeping", as_list=True)
@@ -203,10 +207,18 @@ class Agent:
             self.percept()
             self.make_plan(agents)
             self.reflect()
+        emojis = {}
+        for eve, coord in events.items():
+            print("has event {} @ {}".format(eve, coord))
+            if not eve.emoji:
+                continue
+            key = eve.subject if eve.subject in agents else ":".join(eve.address)
+            emojis[key] = {"emoji": eve.emoji, "coord": coord}
+        print("emojis " + str(emojis))
         self.plan = {
             "name": self.name,
             "path": self.find_path(agents),
-            "emojis": {"agent": self.get_event().emoji},
+            "emojis": emojis,
         }
         return self.plan
 

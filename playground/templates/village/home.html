@@ -6,7 +6,7 @@
 
 <div id="msg" style="font-size:0.8vw">
     <div id="msg_board" class="nes-container is-rounded is-dark with-title" style="width:35vw; position:fixed">
-        <span class="title">[[timer.current]]</span>
+        <span class="title" style="font-size:1vw">[[timer.current]]</span>
         <!--<button @click="timeBackward()">- </button>10<button @click="timeForward()"> +</button>
         <button @click="timeSpeedup()">X[[timer.rate]]<button>-->
 
@@ -63,15 +63,20 @@
             </div>
 
             <div id="agent_memory" class="nes-container is-dark msg_box" v-show="agent.display.memory">
-                <p>This is memeory</p>
+                <p>Associate:</p>
+                <p v-for="l in agent.memory.associate" class="message">[[l]]</p><br>
             </div>
 
             <div id="agent_percept" class="nes-container is-dark msg_box" v-show="agent.display.percept">
-                <p>This is percept</p>
+                <p>Concepts:</p>
+                <p v-for="l in agent.percept.concepts" class="message">[[l]]</p><br>
             </div>
 
             <div id="agent_plan" class="nes-container is-dark msg_box" v-show="agent.display.plan">
-                <p>This is plan</p>
+                <p>Actions:</p>
+                <p v-for="l in agent.plan.actions" class="message">[[l]]</p><br>
+                <p>Schedule:</p>
+                <p v-for="l in agent.plan.schedule" class="message">[[l]]</p><br>
             </div>
 
         </div>
@@ -162,9 +167,9 @@
             agent: {
                 display: { profile: true, memory: false, percept: false, plan: false },
                 profile: { status: [], scratch: [] },
-                memory: {},
-                percept: {},
-                plan: {},
+                memory: { associate: [] },
+                percept: { concepts: [] },
+                plan: { actions: [], schedule: [] },
             },
             user: {
                 user: ctx.user,
