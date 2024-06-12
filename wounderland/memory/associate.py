@@ -85,18 +85,18 @@ class Associate:
     def abstract(self):
         des = {
             "memory": ", ".join(
-                ["{}:{}".format(k, len(v)) for k, v in self.memory.items()]
+                ["{}-{}".format(k, len(v)) for k, v in self.memory.items()]
             ),
             "embeddings": len(self.embeddings),
             "keywords": {},
         }
-        des["memory"] += ", total:{}".format(len(self.nodes))
+        des["memory"] += ", total-{}".format(len(self.nodes))
         for kw, info in self.keywords.items():
             kw_infos = []
             for n in ["event", "thought", "chat"]:
                 if n not in info:
                     continue
-                kw_des = "{}:{}(strength {})".format(
+                kw_des = "{}-{}(S.{})".format(
                     n, len(info[n]), info.get(n + "_strength", 0)
                 )
                 kw_infos.append(kw_des)

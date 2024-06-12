@@ -21,9 +21,9 @@ class Event:
         self.emoji = emoji or ""
 
     def __str__(self):
-        des = "{} <{}> {} ({}{})".format(
-            self.subject, self.predicate, self.object, self.describe, self.emoji
-        )
+        des = "{} <{}> {}".format(self.subject, self.predicate, self.object)
+        if self.emoji:
+            des += "({})".format(self.emoji)
         if self.address:
             des += " @ " + ":".join(self.address)
         return des

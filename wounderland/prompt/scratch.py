@@ -4,6 +4,7 @@ import re
 import random
 from jinja2 import Template
 from wounderland import utils
+from wounderland.model import parse_llm_output
 
 
 class Scratch:
@@ -31,6 +32,14 @@ Current Date: {7}\n""".format(
             utils.get_timer().daily_format(),
         )
 
+    def _debug_msg(self, title, prompt, response):
+        title = "{}.{} @ {}".format(
+            self.name, title, utils.get_timer().get_date("%H:%M:%S")
+        )
+        return "{}<PROMPT>:\n{}\n\n<RESPONSE>:\n{}\n".format(
+            utils.split_line(title), prompt, response
+        )
+
     def _format_output(self, prompt, style, example="", instruction=""):
         prompt = '"""\n' + prompt + '\n"""\n'
         prompt += f"Output the response to the prompt above in {style}."
@@ -40,43 +49,27 @@ Current Date: {7}\n""".format(
             prompt += f"\nExample output {style}:\n{example}"
         return prompt
 
-    def _debug_msg(self, title, prompt, response):
-        title = "{}.{} @ {}".format(
-            self.name, title, utils.get_timer().get_date("%H:%M:%S")
-        )
-        return "{}<PROMPT>:\n{}\n\n<RESPONSE>:\n{}\n".format(
-            utils.split_line(title), prompt, response
-        )
-
     def prompt_poignancy_event(self, event):
         prompt = self._base_desc()
         prompt += """\nOn the scale of 1 to 10, where 1 is purely mundane (e.g., brushing teeth, making bed) and 10 is extremely poignant (e.g., a break up, college acceptance), rate the likely poignancy of the following event for {}.
 Each event should ONLY be rate with ONE integer on the scale of 1 to 10.
 -----
-Event: brushing teeth. Rate(return a number between 1 to 10): <1>
+Event: brushing teeth. Rate: 1
 -----
-Event: making bed. Rate(return a number between 1 to 10): <1>
+Event: making bed. Rate: 1
 -----
-Event: a break up. Rate(return a number between 1 to 10): <10>
+Event: a break up. Rate: 10
 -----
-Event: college acceptance. Rate(return a number between 1 to 10): <10>
+Event: college acceptance. Rate: 10
 -----
-Event: {}. Rate(return a number between 1 to 10): <""".format(
+Event: {}. Rate: """.format(
             self.name, event.describe
         )
 
         def _callback(response):
             self.logger.debug(self._debug_msg("poignancy_event", prompt, response))
-            pattern = ". Rate\(return a number between 1 to 10\): <(\d{1,2})>"
-            rate = None
-            for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                print("[TMINFO] line {} has infos {}".format(line, infos))
-                if len(infos) == 1:
-                    rate = int(infos[0])
-            if rate is not None:
-                return rate
-            raise Exception("Can not find single integer in " + str(response))
+            pattern = "Event: .*\. Rate: (\d{1,2})"
+            return int(parse_llm_output(response, pattern, "match_last"))
 
         return {
             "prompt": prompt,
@@ -95,14 +88,7 @@ Event: {}. Rate(return a number between 1 to 10): <""".format(
 
         def _callback(response):
             self.logger.debug(self._debug_msg("wake_up", prompt, response))
-            response = response.replace("\n", "").strip()
-            hours = re.findall(r"(\d):00 am+", response)
-            if len(hours) == 1:
-                return int(hours[0])
-            hours = re.findall(r"(\d) am+", response)
-            if len(hours) == 1:
-                return int(hours[0])
-            raise Exception("Can not find single integer in " + str(response))
+            return int(parse_llm_output(response, ["(\d):00 am+", "(\d) am+"]))
 
         return {"prompt": prompt, "callback": _callback, "failsafe": 6}
 
@@ -122,13 +108,8 @@ Event: {}. Rate(return a number between 1 to 10): <""".format(
 
         def _callback(response):
             self.logger.debug(self._debug_msg("schedule_init", prompt, response))
-            plan = []
-            for sch in response.split("\n"):
-                if ")" in sch:
-                    plan.append(sch.split(") ")[1].strip().strip("."))
-                else:
-                    plan.append(sch.strip().strip("."))
-            return plan
+            patterns = ["\d{1,2}\) (.*)\.", "\d{1,2}\) (.*)", "(.*)\.", "(.*)"]
+            return parse_llm_output(response, patterns, mode="match_all")
 
         failsafe = [
             "wake up and complete the morning routine at 6:00 am",
@@ -151,7 +132,7 @@ Event: {}. Rate(return a number between 1 to 10): <""".format(
             self.name
         )
         prompt += " ".join(
-            ["{}) {}".format(idx, sch) for idx, sch in enumerate(daily_schedule)]
+            ["{}) {}".format(idx + 1, sch) for idx, sch in enumerate(daily_schedule)]
         )
         prompt += "\n\n" + "\n".join(
             [
@@ -162,31 +143,14 @@ Event: {}. Rate(return a number between 1 to 10): <""".format(
 
         def _callback(response):
             self.logger.debug(self._debug_msg("schedule_daily", prompt, response))
-            left_schedule = {}
-
-            def _add_schedule(line, stamps):
-                if len(stamps) == 1:
-                    keywords = [
-                        "[{}]".format(stamps[0]),
-                        "{} is".format(self.name),
-                        "{} is".format(self.name.split(" ")[0]),
-                        self.name,
-                        self.name.split(" ")[0],
-                    ]
-                    plan = line
-                    for key in keywords:
-                        if key in plan:
-                            plan = plan.split(key)[1].strip()
-                    left_schedule[stamps[0]] = plan
-                    return True
-                return False
-
-            for line in response.split("\n"):
-                stamps = re.findall(r"\d{1,2}:00 AM", line)
-                if not _add_schedule(line, stamps):
-                    stamps = re.findall(r"\d{1,2}:00 PM", line)
-                    _add_schedule(line, stamps)
-            return left_schedule
+            patterns = [
+                "\[(\d{1,2}:00 AM)\] Activity: " + self.name + " is (.*)\.",
+                "\[(\d{1,2}:00 AM)\] Activity: " + self.name + " is (.*)",
+                "\[(\d{1,2}:00 PM)\] Activity: " + self.name + " is (.*)\.",
+                "\[(\d{1,2}:00 PM)\] Activity: " + self.name + " is (.*)",
+            ]
+            schedules = parse_llm_output(response, patterns, mode="match_all")
+            return {s[0]: s[1] for s in schedules}
 
         failsafe = {
             "6:00 AM": "wake up and complete the morning routine",
@@ -253,19 +217,18 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
 
         def _callback(response):
             self.logger.debug(self._debug_msg("schedule_decompose", prompt, response))
-            decompose, left = [], plan["duration"]
-            pattern = self.name + " is (.+?) \(duration: (\d{1,2})"
-            for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                if len(infos) == 1:
-                    describe, duration = infos[0][0], int(infos[0][1])
-                    decompose.append((describe.strip(".").strip(), duration))
-                    left -= duration
-                if left <= 0:
-                    break
+            patterns = [
+                "\d{1,2}\) "
+                + self.name
+                + " is (.*) \(duration: (\d{1,2}), left: \d*\)",
+                self.name + " is (.*) \(duration: (\d{1,2}), left: \d*\)",
+            ]
+            schedules = parse_llm_output(response, patterns, mode="match_all")
+            schedules = [(s[0].strip("."), int(s[1])) for s in schedules]
+            left = plan["duration"] - sum([s[1] for s in schedules])
             if left > 0:
-                decompose.append((plan["describe"], left))
-            return decompose
+                schedules.append((plan["describe"], left))
+            return schedules
 
         failsafe = [
             (plan["describe"], increment)
@@ -343,11 +306,8 @@ Area options: <{{ areas|join(', ') }}>.
         def _callback(response):
             self.logger.debug(self._debug_msg("determine_sector", prompt, response))
             pattern = self.name + " should go to the following area: <(.+?)>"
-            for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                if len(infos) == 1:
-                    return infos[0] if infos[0] in sectors else failsafe
-            raise Exception("Can not find sector for plan " + str(describes))
+            sector = parse_llm_output(response, pattern)
+            return sector if sector in sectors else failsafe
 
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
@@ -397,11 +357,8 @@ Area options: <{{ areas|join(', ') }}>.
                 + address[-1]
                 + ": <(.+?)>"
             )
-            for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                if len(infos) == 1:
-                    return infos[0] if infos[0] in arenas else failsafe
-            raise Exception("Can not find arena for plan " + str(describes))
+            arena = parse_llm_output(response, pattern)
+            return arena if arena in arenas else failsafe
 
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
@@ -461,11 +418,8 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
             pattern = (
                 "Pick ONE most relevant object from the Objects available: <(.+?)>"
             )
-            for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                if len(infos) == 1:
-                    return infos[0] if infos[0] in objects else failsafe
-            raise Exception("Can not find object for plan " + str(describes[1]))
+            obj = parse_llm_output(response, pattern)
+            return obj if obj in objects else failsafe
 
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
@@ -486,14 +440,9 @@ Emoji: <"""
 
         def _callback(response):
             self.logger.debug(self._debug_msg("describe_emoji", prompt, response))
-            pattern = "Emoji: <(.+?)>"
-            for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                if len(infos) == 1:
-                    return infos[0][:3]
-            raise Exception("Can not make emoji for " + str(describe))
+            return parse_llm_output(response, "Emoji: <(.+?)>")[:3]
 
-        return {"prompt": prompt, "callback": _callback, "failsafe": ""}
+        return {"prompt": prompt, "callback": _callback, "failsafe": "🦁"}
 
     def prompt_describe_event(self, subject, describe):
         prompt = f"""Task: Turn the input into (~subject~, =predicate=, -object-).\n
@@ -521,11 +470,9 @@ Output: (~{subject}~,"""
         def _callback(response):
             self.logger.debug(self._debug_msg("describe_event", prompt, response))
             patterns = ["\(~(.+?)~, =(.+?)=, -(.+?)-\)", "\(~(.+?)~, =(.+?)="]
-            for line in response.split("\n"):
-                for p in patterns:
-                    infos = re.findall(p, line)
-                    if len(infos) == 1 and infos[0][0] == subject:
-                        return infos[0]
+            event = parse_llm_output(response, patterns)
+            if event[0] == subject:
+                return event
             raise Exception("Can not make event for " + str(describe))
 
         return {
@@ -559,11 +506,7 @@ Step 2. Describe the {obj}'s state: {obj} is <"""
         def _callback(response):
             self.logger.debug(self._debug_msg("describe_object", prompt, response))
             pattern = "Describe the " + obj + "'s state: " + obj + " is <(.+?)>"
-            for line in response.split("\n"):
-                infos = re.findall(pattern, line)
-                if len(infos) == 1:
-                    return infos[0]
-            raise Exception("Can not describe object {}: {}".format(obj, describe))
+            return parse_llm_output(response, pattern)
 
         return {"prompt": prompt, "callback": _callback, "failsafe": "idle"}
 
@@ -586,18 +529,13 @@ Step 2. Describe the {obj}'s state: {obj} is <"""
         if last_chats:
             chat_history = f" {self.name} and {other.name} last chatted at {last_chats[0].created} about {last_chats[0].describe}"
         a_des, o_des = _status_des(agent), _status_des(other)
-        prompt = f"""Task -- given context, determine whether the subject will initiate a conversation with another. 
-Format: 
-Context: []
-Question: []
-Reasoning: []
-Answer in "yes" or "no": []
----
+        prompt = f"""Task -- given context, determine whether the subject will initiate a conversation with another.
 Context: {context}
 Right now, it is {date_str}.{chat_history}
 {a_des}\n{o_des}\n
 Question: Would {self.name} initiate a conversation with {other.name}? \n
 Reasoning: Let's think step by step.
+Answer in "yes" or "no":
 """
 
         def _callback(response):

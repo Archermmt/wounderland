@@ -98,7 +98,7 @@ export default class Land extends Phaser.Scene {
         var timer = this.msg.timer;
         let callback = (info) => {
             timer.current = info.time;
-            this.scene.time.delayedCall(6000 / timer.rate, this.getTime, [], this);
+            this.time.delayedCall(6000 / timer.rate, this.getTime, [], this);
         }
         let timer_config = timer.update;
         utils.jsonRequest(this.urls.get_time, timer_config, callback);

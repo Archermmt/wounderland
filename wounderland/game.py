@@ -32,7 +32,10 @@ class Game:
         self.user = None
 
     def agent_think(self, name, status):
-        return self.agents[name].think(status, self.agents)
+        plan = self.agents[name].think(status, self.agents)
+        title = "{} @ {}".format(name, utils.get_timer().get_date("%H:%M:%S"))
+        self.logger.info("{}{}\n".format(utils.split_line(title), self.agents[name]))
+        return plan
 
     def load_static(self, path):
         return utils.load_dict(os.path.join(self.static_root, path))

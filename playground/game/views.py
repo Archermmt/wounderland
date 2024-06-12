@@ -70,17 +70,32 @@ def agent_think(request):
     if request.method == "POST" and game:
         info = game.agent_think(**json.loads(request.body))
         return JsonResponse({"success": True, "info": info})
-    return JsonResponse({"success": True, "info": {"direct": "stop"}})
+    return JsonResponse(
+        {"success": True, "info": {"name": "any", "path": [], "emojis": {}}}
+    )
+
+
+@csrf_exempt
+def agent_info(request):
+    game = get_game()
+    if request.method == "POST" and game:
+        info = game.agent_info(**json.loads(request.body))
+        return JsonResponse({"success": True, "info": info})
+    return JsonResponse({"success": True, "info": {}})
 
 
 @csrf_exempt
 def get_time(request):
-    timer, data = get_timer(), json.loads(request.body)
-    if data.get("offset"):
-        timer.forward(data["offset"])
-    if data.get("rate"):
-        timer.speedup(data["rate"])
-    return JsonResponse({"success": True, "info": {"time": timer.daily_format()}})
+    timer = get_timer()
+    if request.method == "POST" and timer:
+        data = json.loads(request.body)
+        if data.get("offset"):
+            timer.forward(data["offset"])
+        if data.get("rate"):
+            timer.speedup(data["rate"])
+    return JsonResponse(
+        {"success": True, "info": {"time": timer.get_date("%A %B %d %H:%M %p")}}
+    )
 
 
 @csrf_exempt

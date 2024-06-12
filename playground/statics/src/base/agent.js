@@ -1,11 +1,11 @@
 import utils from "./utils.js";
 
 function coordToPosition(coord, tile_size) {
-    return (coord[0] * tile_size + tile_size / 2, coord[1] * tile_size + tile_size / 2);
+    return [coord[0] * tile_size + tile_size / 2, coord[1] * tile_size + tile_size / 2];
 }
 
 function positionToCoord(position, tile_size) {
-    return (Math.floor(position[0] / tile_size), Math.floor(position[1] / tile_size));
+    return [Math.floor(position[0] / tile_size), Math.floor(position[1] / tile_size)];
 }
 
 
@@ -86,13 +86,20 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.bubbles["agent"].x = this.body.position.x;
         this.bubbles["agent"].y = this.body.position.y - Math.round(this.displayHeight * 0.8);
         if (!this.is_control) {
-            if (this.status.path) {
+            if (this.status.path.length > 0) {
+                console.log("get path " + this.status.path);
                 let next_pos = coordToPosition(this.status.path[0], this.tile_size);
                 if (this.body.position.x == next_pos[0] && this.body.position.y == next_pos[1]) {
                     this.status.path = this.status.path.slice(1);
-                    next_pos = coordToPosition(this.status.path[0], this.tile_size);
+                    if (this.status.path.length > 0) {
+                        next_pos = coordToPosition(this.status.path[0], this.tile_size);
+                    } else {
+                        next_pos = [];
+                    }
                 }
-                this.positionMove(next_pos);
+                if (next_pos.length > 0) {
+                    this.positionMove(next_pos);
+                }
             }
             return;
         }
@@ -115,8 +122,11 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         if (!this.is_thinking) {
             this.is_thinking = true;
             let callback = (info) => {
+                console.log("[TMINFO] " + this.name + " action get info " + JSON.stringify(info));
                 this.status.path = info.path;
                 for (const [name, emoji] of Object.entries(info.emojis)) {
+                    console.log("has emoji " + name + " : " + JSON.stringify(emoji));
+                    /*
                     if (!this.bubbles.hasOwnProperty(name)) {
                         let e_pos = emoji.coord;
                         e_pos = [e_pos[0] * self.tile_size, e_pos[1] * self.tile_size];
@@ -128,6 +138,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                         this.bubbles[name].setVisable(true);
                         this.bubbles[name].setText(emoji.text);
                     }
+                    */
                 }
                 this.is_thinking = false;
                 this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
@@ -165,22 +176,23 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     positionMove(position) {
+        console.log("should move to " + position);
         let direction = "stop";
-        if (position[0] < self.body.position.x) {
+        if (position[0] < this.body.position.x) {
             direction = "left";
-        } else if (position[0] > self.body.position.x) {
+        } else if (position[0] > this.body.position.x) {
             direction = "right";
-        } else if (position[1] < self.body.position.y) {
+        } else if (position[1] < this.body.position.y) {
             direction = "up";
-        } else if (position[1] > self.body.position.y) {
+        } else if (position[1] > this.body.position.y) {
             direction = "down";
         }
         this.setMoveAnim(direction);
-        this.moveTo(position[0], position[1], this.status.speed);
+        this.scene.physics.arcade.moveToXY(position[0], position[1], this.status.speed);
     }
 
     getStatus() {
-        this.status.coord = positionToCoord([this.body.position.x, this.body.position.y], self.tile_size);
+        this.status.coord = positionToCoord([this.body.position.x, this.body.position.y], this.tile_size);
         return this.status;
     }
 

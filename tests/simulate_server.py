@@ -52,11 +52,9 @@ class SimulateServer:
                 if name not in self.ckpt["agents"]:
                     self.ckpt["agents"][name] = {}
                 self.ckpt["agents"][name].update(agent.to_dict())
-                title = "{} @ {}".format(name, timer.get_date("%H:%M:%S"))
-                self.logger.info("{}{}\n".format(utils.split_line(title), agent))
                 if len(plan["path"]) > move_num:
                     status["coord"] = plan["path"][move_num]
-                    status["path"] = plan["path"][move_num:]
+                    status["path"] = plan["path"][move_num + 1 :]
                 elif plan["path"]:
                     status["coord"], status["path"] = plan["path"][-1], []
             self.ckpt["time"] = timer.get_date("%Y%m%d-%H:%M:%S")

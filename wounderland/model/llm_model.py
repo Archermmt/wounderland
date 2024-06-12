@@ -1,6 +1,7 @@
 """wounderland.model.llm_model"""
 
 import os
+import re
 import json
 import requests
 from wounderland.utils.namespace import ModelType
@@ -270,4 +271,28 @@ def create_llm_model(model, keys, config=None):
     for _, model_cls in utils.get_registered_model(ModelType.LLM).items():
         if model_cls.support_model(model) and model_cls.creatable(keys, config):
             return model_cls(model, keys, config=config)
+    return None
+
+
+def parse_llm_output(response, patterns, mode="match_last", ignore_empty=False):
+    if isinstance(patterns, str):
+        patterns = [patterns]
+    rets = []
+    for line in response.split("\n"):
+        for pattern in patterns:
+            if pattern:
+                matchs = re.findall(pattern, line)
+            else:
+                matchs = [line]
+            if len(matchs) == 1:
+                rets.append(matchs[0])
+                break
+    if not ignore_empty:
+        assert rets, "Failed to match llm output"
+    if mode == "match_first":
+        return rets[0]
+    if mode == "match_last":
+        return rets[-1]
+    if mode == "match_all":
+        return rets
     return None

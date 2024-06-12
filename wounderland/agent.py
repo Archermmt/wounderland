@@ -69,16 +69,16 @@ class Agent:
             "tile": self.maze.tile_at(self.coord).abstract(),
             "concepts": [c.abstract() for c in self.concepts],
             "actions": [a.abstract() for a in self.actions],
+            "associate": self.associate.abstract(),
         }
-        if self.plan.get("path"):
-            des["path"] = "-".join(
-                ["{},{}".format(c[0], c[1]) for c in self.plan["path"]]
-            )
-        des["associate"] = self.associate.abstract()
         if self.schedule.scheduled():
             des["schedule"] = self.schedule.abstract()
         if self.llm_available():
             des["llm"] = self._llm.get_summary()
+        if self.plan.get("path"):
+            des["path"] = "-".join(
+                ["{},{}".format(c[0], c[1]) for c in self.plan["path"]]
+            )
         return utils.dump_dict(des)
 
     def reset_user(self, user):
@@ -204,6 +204,7 @@ class Agent:
             self.make_plan(agents)
             self.reflect()
         self.plan = {
+            "name": self.name,
             "path": self.find_path(agents),
             "emojis": {"agent": self.get_event().emoji},
         }
@@ -244,9 +245,10 @@ class Agent:
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
 
     def make_plan(self, agents):
-        self.actions = [a for a in self.actions if not a.finished()]
-        if not self.actions:
-            self.actions.append(self._determine_action())
+        if not self.path:
+            self.actions = [a for a in self.actions if not a.finished()]
+            if not self.actions:
+                self.actions.append(self._determine_action())
         self._reaction(agents)
 
     def reflect(self):
@@ -258,6 +260,8 @@ class Agent:
     def find_path(self, agents):
         if not self.is_awake():
             return []
+        if self.path:
+            return self.path
         address = self.get_event().address
         if address[0] == "<waiting>":
             return []
@@ -513,8 +517,16 @@ class Agent:
         func = getattr(self.scratch, "prompt_" + func_hint)
         prompt = func(*args, **kwargs)
         if self.llm_available():
-            return self._llm.completion(**prompt, caller=func_hint)
-        return prompt.get("failsafe")
+            ret = self._llm.completion(**prompt, caller=func_hint)
+            self.logger.debug("<COMPLETION>:\n{}\n".format(ret))
+            return ret
+        ret = prompt.get("failsafe")
+        title = "{}.{} @ {}".format(
+            self.name, func_hint, utils.get_timer().get_date("%H:%M:%S")
+        )
+        msg = "{}<FAILSAFE>:\n{}\n".format(utils.split_line(title), ret)
+        self.logger.debug(msg)
+        return ret
 
     def to_dict(self):
         return {
