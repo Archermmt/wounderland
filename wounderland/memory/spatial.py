@@ -5,9 +5,9 @@ from wounderland import utils
 
 
 class Spatial:
-    def __init__(self, config):
-        self.tree = config["tree"]
-        self.address = config.get("address", {})
+    def __init__(self, tree, address=None):
+        self.tree = tree
+        self.address = address or {}
         if "sleeping" not in self.address and "living_area" in self.address:
             self.address["sleeping"] = self.address["living_area"] + ["bed"]
 

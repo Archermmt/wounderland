@@ -32,7 +32,7 @@ class Concept:
 
     def abstract(self):
         return {
-            "event(P.{})".format(self.poignancy): self.event,
+            "event(P.{})".format(self.poignancy): str(self.event),
             "describe": "{}({})[{}~{},A:{}]".format(
                 self.describe,
                 ";".join(self.keywords),
@@ -72,15 +72,17 @@ class Concept:
 
 
 class Associate:
-    def __init__(self, config):
+    def __init__(self, storage_path, retention=8, max_memory=16, nodes=None):
         self.nodes = {}
         self.memory = {"event": [], "thought": [], "chat": []}
         self.keywords = {}
         self.embeddings = {}
-        self.retention = config.get("retention", 8)
-        self.max_memory = config.get("max_memory", self.retention * 2)
-        for n in config.get("nodes", []):
-            self._add_node(Concept.from_dict(n))
+        self.storage_path = storage_path
+        self.retention = retention
+        self.max_memory = max_memory
+        if nodes:
+            for n in nodes:
+                self._add_node(Concept.from_dict(n))
 
     def abstract(self):
         des = {

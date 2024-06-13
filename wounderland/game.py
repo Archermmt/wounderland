@@ -28,6 +28,7 @@ class Game:
             )
             if agent.get("update"):
                 agent_config = utils.update_dict(agent_config, agent["update"])
+            agent_config["storage_root"] = os.path.join(self.static_root, name)
             self.agents[name] = Agent(agent_config, self.maze, self.logger)
         self.user = None
 
@@ -37,11 +38,19 @@ class Game:
     def agent_think(self, name, status):
         agent = self.get_agent(name)
         plan = agent.think(status, self.agents)
-        info = agent.abstract()
+        info = {
+            "associate": agent.associate.abstract(),
+            "concepts": {
+                "concept.{}".format(i): c.abstract()
+                for i, c in enumerate(agent.concepts)
+            },
+            "actions": {
+                "action.{}".format(i): a.abstract() for i, a in enumerate(agent.actions)
+            },
+            "schedule": agent.schedule.abstract(),
+        }
         title = "{} @ {}".format(name, utils.get_timer().get_date("%H:%M:%S"))
-        self.logger.info(
-            "{}{}\n".format(utils.split_line(title), utils.dump_dict(info))
-        )
+        self.logger.info("{}{}\n".format(utils.split_line(title), agent))
         return {"plan": plan, "info": info}
 
     def load_static(self, path):

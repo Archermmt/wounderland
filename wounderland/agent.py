@@ -1,5 +1,6 @@
 """wounderland.agent"""
 
+import os
 import math
 import random
 import datetime
@@ -24,6 +25,7 @@ def check_llm(ret=None):
 class Agent:
     def __init__(self, config, maze, logger):
         self.name = config["name"]
+        self.storage_root = config["storage_root"]
         self.maze = maze
         self._llm = None
         self.logger = logger
@@ -33,9 +35,11 @@ class Agent:
         self.think_config = config["think"]
 
         # memory
-        self.spatial = memory.Spatial(config["spatial"])
-        self.schedule = memory.Schedule(config["schedule"])
-        self.associate = memory.Associate(config["associate"])
+        self.spatial = memory.Spatial(**config["spatial"])
+        self.schedule = memory.Schedule(**config["schedule"])
+        self.associate = memory.Associate(
+            os.path.join(self.storage_root, "associate"), **config["associate"]
+        )
         self.concepts = []
 
         # prompt
@@ -194,7 +198,7 @@ class Agent:
                 memory.Event(self.name, "is", "sleeping", address=address, emoji="😴"),
                 memory.Event(
                     address[-1],
-                    "occupied by",
+                    "used by",
                     self.name,
                     address=address,
                     emoji="🛌",
@@ -209,12 +213,10 @@ class Agent:
             self.reflect()
         emojis = {}
         for eve, coord in events.items():
-            print("has event {} @ {}".format(eve, coord))
-            if not eve.emoji:
-                continue
             key = eve.subject if eve.subject in agents else ":".join(eve.address)
+            if key in agents and key != self.name:
+                continue
             emojis[key] = {"emoji": eve.emoji, "coord": coord}
-        print("emojis " + str(emojis))
         self.plan = {
             "name": self.name,
             "path": self.find_path(agents),
@@ -264,10 +266,17 @@ class Agent:
         self._reaction(agents)
 
     def reflect(self):
-        if self.status["poignancy"]["current"] >= self.think_config["poignancy_max"]:
-            self.status["poignancy"]["current"] = 0
-            self.status["poignancy"]["num_event"] = 0
-            raise Exception("should reflect!!")
+        if self.status["poignancy"]["current"] < self.think_config["poignancy_max"]:
+            return
+        if (
+            not self.associate.retrieve_events()
+            and not self.associate.retrieve_thoughts()
+        ):
+            return
+
+        self.status["poignancy"]["current"] = 0
+        self.status["poignancy"]["num_event"] = 0
+        raise Exception("should reflect!!")
 
     def find_path(self, agents):
         if not self.is_awake():
@@ -528,17 +537,20 @@ class Agent:
         ), "Can not find func prompt_{} from scratch".format(func_hint)
         func = getattr(self.scratch, "prompt_" + func_hint)
         prompt = func(*args, **kwargs)
-        if self.llm_available():
-            ret = self._llm.completion(**prompt, caller=func_hint)
-            self.logger.debug("<COMPLETION>:\n{}\n".format(ret))
-            return ret
-        ret = prompt.get("failsafe")
         title = "{}.{} @ {}".format(
             self.name, func_hint, utils.get_timer().get_date("%H:%M:%S")
         )
-        msg = "{}<FAILSAFE>:\n{}\n".format(utils.split_line(title), ret)
-        self.logger.debug(msg)
-        return ret
+        title = utils.split_line(title)
+        if self.llm_available():
+            output = self._llm.completion(**prompt, caller=func_hint)
+            msg = "{}<PROMPT>:\n{}\n\n<RESPONSE>:\n{}\n\n<OUTPUT>:\n{}\n".format(
+                title, prompt["prompt"], self._llm.meta_response, output
+            )
+            self.logger.debug(msg)
+            return output
+        output = prompt.get("failsafe")
+        self.logger.debug("{}<OUTPUT>:\n{}\n".format(title, output))
+        return output
 
     def to_dict(self):
         return {

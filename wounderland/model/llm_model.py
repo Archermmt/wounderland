@@ -21,6 +21,7 @@ class LLMModel:
     def __init__(self, model, keys, config=None):
         self._model = model
         self._handle = self.setup(keys, config)
+        self._meta_response = None
         self._summary = {"total": [0, 0, 0]}
 
     def embedding(self, text, retry=1):
@@ -42,21 +43,23 @@ class LLMModel:
     def completion(
         self,
         prompt,
-        retry=5,
+        retry=3,
         callback=None,
         failsafe=None,
         caller="llm_normal",
         **kwargs
     ):
-        response = None
+        response, self._meta_response = None, None
         self._summary.setdefault(caller, [0, 0, 0])
         for _ in range(retry):
             try:
-                response = self._completion(prompt, **kwargs)
+                self._meta_response = self._completion(prompt, **kwargs)
                 self._summary["total"][0] += 1
                 self._summary[caller][0] += 1
                 if callback:
-                    response = callback(response)
+                    response = callback(self._meta_response)
+                else:
+                    response = self._meta_response
             except:
                 response = None
                 continue
@@ -80,6 +83,10 @@ class LLMModel:
         for k, v in self._summary.items():
             des[k] = "S:{},F:{}/R:{}".format(v[1], v[2], v[0])
         return des
+
+    @property
+    def meta_response(self):
+        return self._meta_response
 
     @classmethod
     def model_type(cls):

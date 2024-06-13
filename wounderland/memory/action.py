@@ -29,8 +29,8 @@ class Action:
         )
         return {
             "status": status,
-            "event({})".format(self.act_type): self.event,
-            "object": self.obj_event,
+            "event({})".format(self.act_type): str(self.event),
+            "object": str(self.obj_event),
         }
 
     def __str__(self):

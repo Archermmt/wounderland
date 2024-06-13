@@ -1,6 +1,5 @@
 """wounderland.prompt.scratch"""
 
-import re
 import random
 from jinja2 import Template
 from wounderland import utils
@@ -32,14 +31,6 @@ Current Date: {7}\n""".format(
             utils.get_timer().daily_format(),
         )
 
-    def _debug_msg(self, title, prompt, response):
-        title = "{}.{} @ {}".format(
-            self.name, title, utils.get_timer().get_date("%H:%M:%S")
-        )
-        return "{}<PROMPT>:\n{}\n\n<RESPONSE>:\n{}\n".format(
-            utils.split_line(title), prompt, response
-        )
-
     def _format_output(self, prompt, style, example="", instruction=""):
         prompt = '"""\n' + prompt + '\n"""\n'
         prompt += f"Output the response to the prompt above in {style}."
@@ -67,7 +58,6 @@ Event: {}. Rate: """.format(
         )
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("poignancy_event", prompt, response))
             pattern = "Event: .*\. Rate: (\d{1,2})"
             return int(parse_llm_output(response, pattern, "match_last"))
 
@@ -87,7 +77,6 @@ Event: {}. Rate: """.format(
         )
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("wake_up", prompt, response))
             return int(parse_llm_output(response, ["(\d):00 am+", "(\d) am+"]))
 
         return {"prompt": prompt, "callback": _callback, "failsafe": 6}
@@ -107,7 +96,6 @@ Event: {}. Rate: """.format(
         )
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("schedule_init", prompt, response))
             patterns = ["\d{1,2}\) (.*)\.", "\d{1,2}\) (.*)", "(.*)\.", "(.*)"]
             return parse_llm_output(response, patterns, mode="match_all")
 
@@ -142,7 +130,6 @@ Event: {}. Rate: """.format(
         )
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("schedule_daily", prompt, response))
             patterns = [
                 "\[(\d{1,2}:00 AM)\] Activity: " + self.name + " is (.*)\.",
                 "\[(\d{1,2}:00 AM)\] Activity: " + self.name + " is (.*)",
@@ -216,7 +203,6 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
         prompt += f"1) {self.name} is"
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("schedule_decompose", prompt, response))
             patterns = [
                 "\d{1,2}\) "
                 + self.name
@@ -301,8 +287,7 @@ Area options: <{{ areas|join(', ') }}>.
         failsafe = random.choice(sectors)
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("determine_sector", prompt, response))
-            pattern = self.name + " should go to the following area: <(.+?)>"
+            pattern = "For " + describes[1] + ", " + self.name + " .* area: <(.+?)>"
             sector = parse_llm_output(response, pattern)
             return sector if sector in sectors else failsafe
 
@@ -347,7 +332,6 @@ Area options: <{{ areas|join(', ') }}>.
         failsafe = random.choice(arenas)
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("determine_arena", prompt, response))
             pattern = (
                 self.name
                 + " should go to the following area in "
@@ -411,7 +395,6 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
         failsafe = random.choice(objects)
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("determine_object", prompt, response))
             pattern = (
                 "Pick ONE most relevant object from the Objects available: <(.+?)>"
             )
@@ -423,50 +406,48 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
     def prompt_describe_emoji(self, describe):
         prompt = f"""Convert an action description to an emoji (important: use three or less emojis).\n
 Action description: waking up and starting her morning routine (taking a shower)
-Emoji: <🛁🧖‍♀️>
+Emoji: 🛁🧖‍♀️
 Action description: having breakfast (making coffee)
-Emoji: <☕️🥐>
+Emoji: ☕️🥐
 Action description: painting (turning on classical music to listen to as she paints)
-Emoji: <🎨🎵>
+Emoji: 🎨🎵
 Action description: exercising (going for a run)
-Emoji: <🏃‍♀️>
+Emoji: 🏃‍♀️
 Action description: having breakfast (putting butter on her toast)
-Emoji: <🧈🍞>
+Emoji: 🧈🍞
 Action description: {describe}
-Emoji: <"""
+Emoji: """
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("describe_emoji", prompt, response))
-            return parse_llm_output(response, "Emoji: <(.+?)>")[:3] or "🦁"
+            return parse_llm_output(response, "Emoji: (.*)")[:3] or "🦁"
 
-        return {"prompt": prompt, "callback": _callback, "failsafe": "🦁"}
+        return {"prompt": prompt, "callback": _callback, "failsafe": "🦁", "retry": 1}
 
     def prompt_describe_event(self, subject, describe):
-        prompt = f"""Task: Turn the input into (~subject~, =predicate=, -object-).\n
+        prompt = f"""Task: Turn the input into (<subject>, <predicate>, <object>).\n
 Input: Sam Johnson is eating breakfast. 
-Output: (~Dolores Murphy~, =eat=, -breakfast-) 
+Output: (<Dolores Murphy>, <eat>, <breakfast>) 
 --- 
 Input: Joon Park is brewing coffee.
-Output: (~Joon Park~, =brew=, -coffee-)
+Output: (<Joon Park>, <brew>, <coffee>)
 ---
 Input: Jane Cook is sleeping. 
-Output: (~Jane Cook~, =is=, -sleep-)
+Output: (<Jane Cook>, <is>, <sleep>)
 ---
 Input: Michael Bernstein is writing email on a computer. 
-Output: (~Michael Bernstein~, =write=, -email-)
+Output: (<Michael Bernstein>, <write>, <email>)
 ---
 Input: Percy Liang is teaching students in a classroom. 
-Output: (~Percy Liang~, =teach=, -students-)
+Output: (<Percy Liang>, <teach>, <students>)
 ---
 Input: Merrie Morris is running on a treadmill. 
-Output: (~Merrie Morris~, =run=, -treadmill-)
+Output: (<Merrie Morris>, <run>, <treadmill>)
 ---
 Input: {subject} is {describe}. 
-Output: (~{subject}~,"""
+Output: (<{subject},"""
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("describe_event", prompt, response))
-            patterns = ["\(~(.+?)~, =(.+?)=, -(.+?)-\)", "\(~(.+?)~, =(.+?)="]
+            patterns = ["\(<(.+?)>, <(.+?)>, <(.+?)>", "\(<(.+?)>, <(.+?)>"]
             event = parse_llm_output(response, patterns)
             if event[0] == subject:
                 return event
@@ -483,26 +464,25 @@ Output: (~{subject}~,"""
 Let's think step by step. 
 We want to know about oven's state. 
 Step 1. Sam Johnson is eating breakfast at/using the oven. 
-Step 2. Describe the cooking utensils's state: oven is <being heated to cook breakfast>
+Step 2. Describe the cooking utensils's state: oven is being heated to cook breakfast
 ---
 Let's think step by step. 
 We want to know about computer's state. 
 Step 1. Michael Bernstein is writing email at/using the computer. 
-Step 2. Describe the computer's state: computer is <being used to write email>
+Step 2. Describe the computer's state: computer is being used to write email
 ---
 Let's think step by step. 
 We want to know about sink's state. 
 Step 1. Tom Kane is washing his face at/using the sink.
-Step 2. Describe the sink's state: sink is <running with water>
+Step 2. Describe the sink's state: sink is running with water
 ---
 Let's think step by step. 
 We want to know about {obj}'s state. 
 Step 1. {self.name} is {describe} at/using the {obj}.
-Step 2. Describe the {obj}'s state: {obj} is <"""
+Step 2. Describe the {obj}'s state: {obj} is """
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("describe_object", prompt, response))
-            pattern = "Describe the " + obj + "'s state: " + obj + " is <(.+?)>"
+            pattern = "Describe the " + obj + "'s state: " + obj + " is (.+?)"
             return parse_llm_output(response, pattern)
 
         return {"prompt": prompt, "callback": _callback, "failsafe": "idle"}
@@ -536,7 +516,6 @@ Answer in "yes" or "no":
 """
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("decide_talk", prompt, response))
             return response
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
@@ -613,7 +592,6 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
         )
 
         def _callback(response):
-            self.logger.debug(self._debug_msg("decide_react", prompt, response))
             return response
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}

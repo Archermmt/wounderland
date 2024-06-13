@@ -1,14 +1,12 @@
 import utils from "./utils.js";
 
 function coordToPosition(coord, tile_size) {
-    return [coord[0] * tile_size + tile_size / 2, coord[1] * tile_size + tile_size / 2];
+    return [coord[0] * tile_size, coord[1] * tile_size];
 }
 
 function positionToCoord(position, tile_size) {
     return [Math.floor(position[0] / tile_size), Math.floor(position[1] / tile_size)];
 }
-
-
 
 export default class Agent extends Phaser.GameObjects.Sprite {
     constructor(scene, config, tile_size, urls) {
@@ -21,7 +19,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             coord[1] = Math.floor(Math.random() * (config.zone[1][1] - config.zone[1][0])) + config.zone[1][0];
         }
         const position = coordToPosition(coord, tile_size);
-        this.setPosition(position[0], position[1]);
+        this.setPosition(position[0] + tile_size / 2, position[1] + tile_size / 2);
         this.scene = scene;
         this.config = config;
         this.tile_size = tile_size;
@@ -30,7 +28,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
         // status
         this.status = { direction: "stop", speed: config.move.speed, coord: coord, path: [] };
-        this.info = { associate: {}, concepts: [], actions: [], schedule: {} };
+        this.info = { associate: {}, concepts: {}, actions: {}, schedule: {} };
 
         // add sprite
         scene.add.existing(this);
@@ -72,7 +70,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         // emoji
         this.bubbles = {};
         this.text_config = { font: Math.round(this.displayHeight * 0.6) + "px monospace" };
-        this.bubbles["agent"] = scene.add.text(0, 0, "🦁", this.text_config);
+        this.bubbles[this.name] = scene.add.text(0, 0, "🦁", this.text_config);
 
         // set events
         if (config.interactive || true) {
@@ -84,8 +82,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     update() {
-        this.bubbles["agent"].x = this.body.position.x;
-        this.bubbles["agent"].y = this.body.position.y - Math.round(this.displayHeight * 0.8);
+        this.bubbles[this.name].x = this.body.position.x;
+        this.bubbles[this.name].y = this.body.position.y - Math.round(this.displayHeight * 0.8);
         if (!this.is_control) {
             if (this.status.path.length > 0) {
                 console.log("get path " + this.status.path);
@@ -123,12 +121,19 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         if (!this.is_thinking) {
             this.is_thinking = true;
             let callback = (info) => {
-                console.log("[TMINFO] " + this.name + " action get info " + JSON.stringify(info));
                 const plan = info.plan;
-                const info = info.info;
                 this.status.path = plan.path;
                 for (const [name, emoji] of Object.entries(plan.emojis)) {
                     console.log("has emoji " + name + " : " + JSON.stringify(emoji));
+                    console.log("in buuble " + this.bubbles.ContainsKey(name));
+
+                    if (this.bubbles.ContainsKey(name)) {
+                        this.bubbles[name].setText(emoji.emoji);
+                    } else {
+                        let e_pos = coordToPosition(emoji.coord);
+                        console.log("add text @ " + e_pos);
+                        this.bubbles[name] = this.scene.add.text(e_pos[0], e_pos[1], emoji.emoji, this.text_config);
+                    }
                     /*
                     if (!this.bubbles.hasOwnProperty(name)) {
                         let e_pos = emoji.coord;
@@ -143,8 +148,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                     }
                     */
                 }
-                for (const [key, value] of Object.entries(info.emojis)) {
-                    console.log("has info " + key + " : " + JSON.stringify(value));
+                for (const [key, value] of Object.entries(info.info)) {
                     if (this.info.hasOwnProperty(key)) {
                         this.info[key] = value;
                     }

@@ -86,8 +86,8 @@
         "retention": 8
     },
     "schedule": {
-        "schedule_max_try": 3,
-        "schedule_diversity": 5
+        "max_try": 3,
+        "diversity": 5
     },
     "scratch": {}
 }

@@ -4,17 +4,17 @@ from wounderland import utils
 
 
 class Schedule:
-    def __init__(self, config):
-        if config.get("created_at"):
-            if config["created_at"] == "always":
+    def __init__(self, created_at=None, daily_schedule=None, diversity=5, max_try=3):
+        if created_at:
+            if created_at == "always":
                 self.created_at = utils.get_timer().get_date()
             else:
-                self.created_at = utils.to_date(config["created_at"])
+                self.created_at = utils.to_date(created_at)
         else:
             self.created_at = None
-        self.daily_schedule = config.get("daily_schedule", [])
-        self.diversity = config.get("diversity", 5)
-        self.max_try = config.get("max_try", 3)
+        self.daily_schedule = daily_schedule or []
+        self.diversity = diversity
+        self.max_try = max_try
 
     def abstract(self):
         def _to_stamp(plan):

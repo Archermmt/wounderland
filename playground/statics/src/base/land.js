@@ -144,8 +144,15 @@ export default class Land extends Phaser.Scene {
         var agent = this.msg.agent;
         if (this.player && agent.display.profile) {
             this.msg.player.portrait = this.player.portrait || "";
-            agent.profile.status = utils.textBlock(this.player.getStatus());
             agent.profile.scratch = utils.textBlock(this.player.getScratch());
+            agent.profile.status = utils.textBlock(this.player.getStatus());
+        } else if (this.player && agent.display.memory) {
+            agent.memory.associate = utils.textBlock(this.player.getInfo("associate"));
+        } else if (this.player && agent.display.percept) {
+            agent.percept.concepts = utils.textBlock(this.player.getInfo("concepts"));
+        } else if (this.player && agent.display.plan) {
+            agent.plan.actions = utils.textBlock(this.player.getInfo("actions"));
+            agent.plan.schedule = utils.textBlock(this.player.getInfo("schedule"));
         }
     }
 

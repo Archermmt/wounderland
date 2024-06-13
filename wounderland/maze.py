@@ -34,7 +34,7 @@ class Tile:
             address += "(collision)"
         return {
             "coord[{},{}]".format(self.coord[0], self.coord[1]): address,
-            "events": self.events,
+            "events": {k: str(v) for k, v in self.events.items()},
         }
 
     def __str__(self):
