@@ -54,9 +54,8 @@ def _remove_user():
 @csrf_exempt
 def start_game(request):
     if request.method == "POST":
-        game = create_game(
-            settings.STATICFILES_DIRS[0], json.loads(request.body), logger
-        )
+        # TODO: use django logger
+        game = create_game(settings.STATICFILES_DIRS[0], json.loads(request.body))
         _reset_user(request.session.get("user", ""))
         if not game:
             return JsonResponse({"success": False, "error": "failed to create game"})

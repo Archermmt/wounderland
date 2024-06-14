@@ -82,7 +82,7 @@ class LLMModel:
         des = {}
         for k, v in self._summary.items():
             des[k] = "S:{},F:{}/R:{}".format(v[1], v[2], v[0])
-        return des
+        return {"model": self._model, "summary": des}
 
     @property
     def meta_response(self):

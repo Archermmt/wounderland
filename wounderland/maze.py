@@ -78,7 +78,8 @@ class Tile:
     def has_address(self, key):
         return key in self.address_map
 
-    def get_address(self, level, as_list=True):
+    def get_address(self, level=None, as_list=True):
+        level = level or self.address_keys[-1]
         assert level in self.address_keys, "Can not find {} from {}".format(
             level, self.address_keys
         )
@@ -132,7 +133,7 @@ class Maze:
 
     def find_path(self, src_coord, dst_coord):
         map = [[0 for _ in range(self.maze_width)] for _ in range(self.maze_height)]
-        frontier = [src_coord]
+        frontier, visited = [src_coord], set()
         map[src_coord[1]][src_coord[0]] = 1
         while map[dst_coord[1]][dst_coord[0]] == 0:
             new_frontier = []
@@ -143,9 +144,11 @@ class Maze:
                         and 0 < c[1] < self.maze_height - 1
                         and map[c[1]][c[0]] == 0
                         and not self.tile_at(c).collision
+                        and c not in visited
                     ):
                         map[c[1]][c[0]] = map[f[1]][f[0]] + 1
                         new_frontier.append(c)
+                        visited.add(c)
             frontier = new_frontier
         step = map[dst_coord[1]][dst_coord[0]]
         path = [dst_coord]

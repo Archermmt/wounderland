@@ -39,7 +39,11 @@ export default class Land extends Phaser.Scene {
         this.game_status = { start: false };
         let callback = (info) => {
             this.game_status = info;
-            this.msg.timer.current = info["current_time"]
+            if (this.game_status.start) {
+                for (const agent of Object.values(this.agents)) {
+                    agent.think();
+                }
+            }
         }
         utils.jsonRequest(this.urls.start_game, this.game_config, callback);
         // update time
@@ -81,7 +85,7 @@ export default class Land extends Phaser.Scene {
     update() {
         if (this.game_status.start) {
             for (const agent of Object.values(this.agents)) {
-                agent.update();
+                agent.move();
             }
         }
         this.configPlayer();
@@ -95,15 +99,15 @@ export default class Land extends Phaser.Scene {
     }
 
     getTime = () => {
-        var timer = this.msg.timer;
+        var time = this.msg.user.time;
         let callback = (info) => {
-            timer.current = info.time;
-            this.time.delayedCall(6000 / timer.rate, this.getTime, [], this);
+            time.current = info.time;
+            this.time.delayedCall(Math.round(1600 / time.rate), this.getTime, [], this);
         }
-        let timer_config = timer.update;
-        utils.jsonRequest(this.urls.get_time, timer_config, callback);
-        if (Object.keys(timer.update).length > 0) {
-            timer.update = {};
+        let time_config = time.update;
+        utils.jsonRequest(this.urls.get_time, time_config, callback);
+        if (Object.keys(time.update).length > 0) {
+            time.update = {};
         }
     }
 
@@ -121,16 +125,8 @@ export default class Land extends Phaser.Scene {
             }
             player.update = {};
         }
-        var agent = this.msg.agent;
-        if (this.player && agent.display.profile) {
-            agent.profile.status = utils.textBlock(this.player.getStatus());
-        } else if (this.player && agent.display.memory) {
-            agent.memory.associate = utils.textBlock(this.player.getInfo("associate"));
-        } else if (this.player && agent.display.percept) {
-            agent.percept.concepts = utils.textBlock(this.player.getInfo("concepts"));
-        } else if (this.player && agent.display.plan) {
-            agent.plan.actions = utils.textBlock(this.player.getInfo("actions"));
-            agent.plan.schedule = utils.textBlock(this.player.getInfo("schedule"));
+        if (this.player) {
+            this.player.updateMsg(this.msg.agent);
         }
     }
 
@@ -141,19 +137,8 @@ export default class Land extends Phaser.Scene {
         }
         this.player = this.agents[name];
         this.maze.locate(this.player);
-        var agent = this.msg.agent;
-        if (this.player && agent.display.profile) {
-            this.msg.player.portrait = this.player.portrait || "";
-            agent.profile.scratch = utils.textBlock(this.player.getScratch());
-            agent.profile.status = utils.textBlock(this.player.getStatus());
-        } else if (this.player && agent.display.memory) {
-            agent.memory.associate = utils.textBlock(this.player.getInfo("associate"));
-        } else if (this.player && agent.display.percept) {
-            agent.percept.concepts = utils.textBlock(this.player.getInfo("concepts"));
-        } else if (this.player && agent.display.plan) {
-            agent.plan.actions = utils.textBlock(this.player.getInfo("actions"));
-            agent.plan.schedule = utils.textBlock(this.player.getInfo("schedule"));
-        }
+        this.msg.player.portrait = this.player.portrait || "";
+        this.msg.agent.profile.scratch = utils.textBlock(this.player.getScratch());
     }
 
     objClicked = (pointer, obj) => {

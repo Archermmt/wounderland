@@ -166,6 +166,8 @@ class Agent:
 
         def _update_tile(coord):
             tile = self.maze.tile_at(coord)
+            if not self.actions:
+                return {}
             if not tile.update_events(self.get_event()):
                 tile.add_event(self.get_event())
             self.maze.update_obj(coord, self.get_event(False))
@@ -192,6 +194,8 @@ class Agent:
     def think(self, status, agents):
         events = self.move(status["coord"], status.get("path"))
         plan, _ = self.make_schedule()
+        if not self.path:
+            self.actions = [a for a in self.actions if not a.finished()]
         if plan["describe"] == "sleeping" and self.is_awake():
             address = self.spatial.find_address("sleeping", as_list=True)
             action = memory.Action(
@@ -212,11 +216,12 @@ class Agent:
             self.make_plan(agents)
             self.reflect()
         emojis = {}
+        if self.actions:
+            emojis[self.name] = {"emoji": self.get_event().emoji, "coord": self.coord}
         for eve, coord in events.items():
-            key = eve.subject if eve.subject in agents else ":".join(eve.address)
-            if key in agents and key != self.name:
+            if eve.subject in agents:
                 continue
-            emojis[key] = {"emoji": eve.emoji, "coord": coord}
+            emojis[":".join(eve.address)] = {"emoji": eve.emoji, "coord": coord}
         self.plan = {
             "name": self.name,
             "path": self.find_path(agents),
@@ -259,10 +264,8 @@ class Agent:
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
 
     def make_plan(self, agents):
-        if not self.path:
-            self.actions = [a for a in self.actions if not a.finished()]
-            if not self.actions:
-                self.actions.append(self._determine_action())
+        if not self.path and not self.actions:
+            self.actions.append(self._determine_action())
         self._reaction(agents)
 
     def reflect(self):
@@ -522,6 +525,8 @@ class Agent:
         return action.event if as_act else action.obj_event
 
     def is_awake(self):
+        if not self.actions:
+            return True
         if self.get_event().fit(self.name, "is", "sleeping"):
             return False
         return True

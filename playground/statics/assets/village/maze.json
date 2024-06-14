@@ -73,6 +73,7 @@
                 "tileset_group": [
                     "blocks"
                 ],
+                "depth": -1,
                 "collision": {
                     "exclusion": [
                         -1

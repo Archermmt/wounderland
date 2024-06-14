@@ -27,8 +27,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.urls = urls;
 
         // status
-        this.status = { direction: "stop", speed: config.move.speed, coord: coord, path: [] };
-        this.info = { associate: {}, concepts: {}, actions: {}, schedule: {} };
+        this.status = { state: "init", direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
+        this.info = { associate: {}, concepts: {}, actions: {}, schedule: {}, llm: {} };
 
         // add sprite
         scene.add.existing(this);
@@ -77,16 +77,49 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             this.setInteractive();
         }
         this.setControl(false);
+
         this.is_thinking = false;
-        this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
     }
 
-    update() {
+    think = () => {
+        if (!this.is_thinking) {
+            this.is_thinking = true;
+            this.status.state = "think";
+            let callback = (info) => {
+                const plan = info.plan;
+                this.status.path = plan.path;
+                if (this.status.path.length > 0) {
+                    this.status.state = "move";
+                } else {
+                    this.status.state = "action";
+                }
+                for (const [name, emoji] of Object.entries(plan.emojis)) {
+                    if (!(name in this.bubbles)) {
+                        let pos = coordToPosition(emoji.coord, this.tile_size);
+                        pos[1] = pos[1] - Math.round(this.displayHeight * 0.8);
+                        this.bubbles[name] = this.scene.add.text(pos[0], pos[1], emoji.emoji, this.text_config);
+                    }
+                    this.bubbles[name].setText(emoji.emoji);
+                }
+                for (const [key, value] of Object.entries(info.info)) {
+                    if (key in this.info) {
+                        this.info[key] = value;
+                    } else if (key in this.status) {
+                        this.status[key] = value;
+                    }
+                }
+                this.is_thinking = false;
+                this.scene.time.delayedCall(this.config.think.interval, this.think, [], this);
+            }
+            utils.jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
+        }
+    }
+
+    move() {
         this.bubbles[this.name].x = this.body.position.x;
         this.bubbles[this.name].y = this.body.position.y - Math.round(this.displayHeight * 0.8);
         if (!this.is_control) {
             if (this.status.path.length > 0) {
-                console.log("get path " + this.status.path);
                 let next_pos = coordToPosition(this.status.path[0], this.tile_size);
                 if (this.body.position.x == next_pos[0] && this.body.position.y == next_pos[1]) {
                     this.status.path = this.status.path.slice(1);
@@ -98,6 +131,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                 }
                 if (next_pos.length > 0) {
                     this.positionMove(next_pos);
+                } else {
+                    this.status.state = "action";
                 }
             }
             return;
@@ -117,46 +152,18 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         }
     }
 
-    action = () => {
-        if (!this.is_thinking) {
-            this.is_thinking = true;
-            let callback = (info) => {
-                const plan = info.plan;
-                this.status.path = plan.path;
-                for (const [name, emoji] of Object.entries(plan.emojis)) {
-                    console.log("has emoji " + name + " : " + JSON.stringify(emoji));
-                    console.log("in buuble " + this.bubbles.ContainsKey(name));
-
-                    if (this.bubbles.ContainsKey(name)) {
-                        this.bubbles[name].setText(emoji.emoji);
-                    } else {
-                        let e_pos = coordToPosition(emoji.coord);
-                        console.log("add text @ " + e_pos);
-                        this.bubbles[name] = this.scene.add.text(e_pos[0], e_pos[1], emoji.emoji, this.text_config);
-                    }
-                    /*
-                    if (!this.bubbles.hasOwnProperty(name)) {
-                        let e_pos = emoji.coord;
-                        e_pos = [e_pos[0] * self.tile_size, e_pos[1] * self.tile_size];
-                        this.bubbles["agent"] = scene.add.text(e_pos[0], e_pos[1], "", this.text_config);
-                    }
-                    if (emoji.text == "") {
-                        this.bubbles[name].setVisable(false);
-                    } else {
-                        this.bubbles[name].setVisable(true);
-                        this.bubbles[name].setText(emoji.text);
-                    }
-                    */
-                }
-                for (const [key, value] of Object.entries(info.info)) {
-                    if (this.info.hasOwnProperty(key)) {
-                        this.info[key] = value;
-                    }
-                }
-                this.is_thinking = false;
-                this.scene.time.delayedCall(this.config.think.interval, this.action, [], this);
-            }
-            utils.jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
+    updateMsg(msg) {
+        if (msg.display.profile) {
+            msg.profile.status = utils.textBlock(this.getStatus());
+        } else if (msg.display.memory) {
+            msg.memory.associate = utils.textBlock(this.info.associate);
+        } else if (msg.display.percept) {
+            msg.percept.concepts = utils.textBlock(this.info.concepts);
+        } else if (msg.display.plan) {
+            msg.plan.actions = utils.textBlock(this.info.actions);
+            msg.plan.schedule = utils.textBlock(this.info.schedule);
+        } else if (msg.display.stat) {
+            msg.stat.llm = utils.textBlock(this.info.llm);
         }
     }
 
@@ -189,7 +196,6 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     positionMove(position) {
-        console.log(this.name + " should move to " + position);
         let direction = "stop";
         const step = this.tile_size / 20;
         if (position[0] < this.body.position.x) {
@@ -236,12 +242,16 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             this.colliders.add(other.name);
             other.colliders.add(this.name);
             this.scene.physics.add.collider(this, other, (agent, other) => {
-                agent.move("stop");
-                other.move("stop");
+                if (agent.is_control) {
+                    agent.directionMove("stop");
+                    //other.directionMove("stop");
+                }
             });
         } else {
             this.scene.physics.add.collider(this, other, (agent, other) => {
-                agent.move("stop");
+                if (agent.is_control) {
+                    agent.directionMove("stop");
+                }
             });
         }
         return true;
