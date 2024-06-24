@@ -24,7 +24,8 @@ def daily_duration(date, mode="minute"):
 
 
 class Timer:
-    def __init__(self, start=None, offset=0, rate=1):
+    def __init__(self, start=None, offset=0, rate=1, mode="on_time"):
+        self._mode = mode
         self._start = datetime.datetime.now()
         self._offset = offset
         if start:
@@ -39,10 +40,13 @@ class Timer:
         self._rate = rate
 
     def get_date(self, date_format=""):
-        date = datetime.datetime.now()
-        delta = (date - self._start) * self._rate + datetime.timedelta(
-            minutes=self._offset
-        )
+        if self._mode == "on_time":
+            date = datetime.datetime.now()
+            delta = (date - self._start) * self._rate + datetime.timedelta(
+                minutes=self._offset
+            )
+        elif self._mode == "step":
+            delta = datetime.timedelta(minutes=self._offset)
         date = delta + self._start
         if date_format:
             return date.strftime(date_format)

@@ -2,6 +2,7 @@
 
 import os
 import copy
+import shutil
 
 from wounderland.utils import WounderMap, WounderKey
 from wounderland import utils
@@ -22,13 +23,19 @@ class Game:
             agent_base = self.load_static(config["agent_base"]["path"])
         else:
             agent_base = {}
+        storage_root = os.path.join(self.static_root, "storage")
+        if os.path.isdir(storage_root) and not config.get("keep_storage", True):
+            logger.info("Remove storage @ " + str(storage_root))
+            shutil.rmtree(storage_root)
+        if not os.path.isdir(storage_root):
+            os.makedirs(storage_root)
         for name, agent in config["agents"].items():
             agent_config = utils.update_dict(
                 copy.deepcopy(agent_base), self.load_static(agent["path"])
             )
             if agent.get("update"):
                 agent_config = utils.update_dict(agent_config, agent["update"])
-            agent_config["storage_root"] = os.path.join(self.static_root, name)
+            agent_config["storage_root"] = os.path.join(storage_root, name)
             self.agents[name] = Agent(agent_config, self.maze, self.logger)
         self.user = None
 

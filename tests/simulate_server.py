@@ -16,6 +16,7 @@ class SimulateServer:
             config["agents"][name]["update"] = a_config
         if start:
             config["time"] = {"start": start}
+        config["keep_storage"] = self.ckpt.get("keep_storage", True)
         game = create_game(static_root, config, logger=utils.create_io_logger(verbose))
         game.reset_user("test", keys=self.ckpt["keys"])
         self.game = get_game()
@@ -57,7 +58,9 @@ class SimulateServer:
                     status["path"] = plan["path"][move_num + 1 :]
                 elif plan["path"]:
                     status["coord"], status["path"] = plan["path"][-1], []
-            self.ckpt["time"] = timer.get_date("%Y%m%d-%H:%M:%S")
+            self.ckpt.update(
+                {"time": timer.get_date("%Y%m%d-%H:%M:%S"), "keep_storage": True}
+            )
             with open("ckpt_{}.json".format(i), "w") as f:
                 f.write(json.dumps(self.ckpt, indent=2))
             if stride > 0:

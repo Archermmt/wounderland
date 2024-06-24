@@ -280,6 +280,7 @@ gallery/how_to/work_with_microtvm/micro_tvmc.py
 # Databank
 *.sqlite3
 
-# Keys
+# Keys && test
 .env
 ckpt*.json
+playground/statics/storage
