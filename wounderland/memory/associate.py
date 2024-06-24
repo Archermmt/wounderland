@@ -1,6 +1,10 @@
 """wounderland.memory.associate"""
 
 import datetime
+from llama_index.core.query_engine import CustomQueryEngine
+from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
+
+from wounderland.storage import LlamaIndex
 from wounderland import utils
 from .event import Event
 
@@ -8,238 +12,144 @@ from .event import Event
 class Concept:
     def __init__(
         self,
-        name,
-        node_type,
-        event,
+        node_id,
         describe,
+        node_type,
+        subject,
+        predicate,
+        object,
         poignancy,
-        keywords,
-        filling=None,
-        created=None,
-        last_accessed=None,
-        expiration=None,
+        create,
+        expire,
+        access,
     ):
-        self.name = name
-        self.node_type = node_type  # thought / event / chat
-        self.filling = filling
-        self.event = event
+        self.node_id = node_id
         self.describe = describe
+        self.node_type = node_type
+        self.event = Event(subject, predicate, object)
         self.poignancy = poignancy
-        self.keywords = keywords
-        self.created = created or utils.get_timer().get_date()
-        self.last_accessed = last_accessed or self.created
-        self.expiration = expiration or (self.created + datetime.timedelta(days=30))
+        self.create = utils.to_date(create)
+        self.expire = utils.to_date(expire)
+        self.access = utils.to_date(access)
 
     def abstract(self):
         return {
-            "event(P.{})".format(self.poignancy): str(self.event),
-            "describe": "{}({})[{}~{},A:{}]".format(
+            "{}(P.{})".format(self.node_type, self.poignancy): self.event,
+            "describe": "{}[{} ~ {} @ {}]".format(
                 self.describe,
-                ";".join(self.keywords),
-                self.created.strftime("%m%d-%H:%M"),
-                self.expiration.strftime("%m%d-%H:%M") if self.expiration else "NOW",
-                self.last_accessed.strftime("%m%d-%H:%M"),
+                self.create.strftime("%m%d-%H:%M"),
+                self.expire.strftime("%m%d-%H:%M"),
+                self.access.strftime("%m%d-%H:%M"),
             ),
         }
 
     def __str__(self):
         return utils.dump_dict(self.abstract())
 
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "node_type": self.node_type,
-            "filling": self.filling,
-            "event": self.event.to_dict(),
-            "describe": self.describe,
-            "poignancy": self.poignancy,
-            "keywords": list(self.keywords),
-            "created": self.created.strftime("%Y%m%d-%H:%M:%S"),
-            "expiration": (
-                self.expiration.strftime("%Y%m%d-%H:%M:%S") if self.expiration else None
-            ),
-            "last_accessed": self.last_accessed.strftime("%Y%m%d-%H:%M:%S"),
-        }
-
     @classmethod
-    def from_dict(cls, config):
-        config["event"] = Event.from_dict(config["event"])
-        config["created"] = utils.to_date(config["created"])
-        config["last_accessed"] = utils.to_date(config["last_accessed"])
-        if config.get("expiration"):
-            config["expiration"] = utils.to_date(config["expiration"])
-        return cls(**config)
+    def from_node(cls, node):
+        return cls(node.id_, node.text, **node.metadata)
+
+
+class AssociateQueryEngine(CustomQueryEngine):
+    def __init__(self, associate_config, *args, **kwargs):
+        self._associate_config = associate_config
+        super().__init__(*args, **kwargs)
+
+    def custom_query(self, query_str: str):
+        print("[TMINFO] query_str " + str(query_str))
+        nodes = self.retriever.retrieve(query_str)
+        for n in nodes:
+            print("has node " + str(n.node))
+
+        context_str = "\n\n".join([n.node.get_content() for n in nodes])
+        return str(context_str)
 
 
 class Associate:
-    def __init__(self, storage_path, retention=8, max_memory=16, nodes=None):
-        self.nodes = {}
+    def __init__(self, path, embedding, retention=8, max_memory=16):
+        """
+        def _create_query(retriever):
+            return AssociateQueryEngine({"retention": retention}, retriever=retriever)
+        """
+        self._index_confg = {"embedding": embedding, "path": path}
+        self._index = LlamaIndex(**self._index_confg)
         self.memory = {"event": [], "thought": [], "chat": []}
-        self.keywords = {}
-        self.embeddings = {}
-        self.storage_path = storage_path
         self.retention = retention
         self.max_memory = max_memory
-        if nodes:
-            for n in nodes:
-                self._add_node(Concept.from_dict(n))
 
     def abstract(self):
-        des = {
-            "memory": ", ".join(
-                ["{}-{}".format(k, len(v)) for k, v in self.memory.items()]
-            ),
-            "embeddings": len(self.embeddings),
-            "keywords": {},
-        }
-        des["memory"] += ", total-{}".format(len(self.nodes))
-        for kw, info in self.keywords.items():
-            kw_infos = []
-            for n in ["event", "thought", "chat"]:
-                if n not in info:
-                    continue
-                kw_des = "{}-{}(S.{})".format(
-                    n, len(info[n]), info.get(n + "_strength", 0)
-                )
-                kw_infos.append(kw_des)
-            des["keywords"][kw.lower()] = ", ".join(kw_infos)
+        des = {"nodes": self._index.nodes_num}
+        for t in ["event", "chat", "thought"]:
+            des[t] = len(self.memory[t])
         return des
 
     def __str__(self):
         return utils.dump_dict(self.abstract())
 
-    def _create_node(
+    def enable_query(self, llm):
+        self._index.save()
+        self._index = LlamaIndex(**self._index_confg, llm=llm)
+
+    def add_node(
         self,
         node_type,
         event,
         describe,
         poignancy,
-        keywords,
+        create=None,
+        expire=None,
         filling=None,
-        created=None,
-        expiration=None,
+        as_concept=True,
     ):
-        name = "node_" + str(len(self.nodes))
-        return Concept(
-            name,
-            node_type,
-            event,
-            describe,
-            poignancy,
-            keywords,
-            filling=filling,
-            created=created,
-            expiration=expiration,
-        )
-
-    def _add_node(self, node, embedding=None):
-        self.nodes[node.name] = node
-        if embedding:
-            self.embeddings[node.describe] = embedding
-        for kw in node.keywords:
-            kw_info = self.keywords.setdefault(kw.lower(), {})
-            kw_info.setdefault(node.node_type, []).insert(0, node.name)
-            if not node.event.fit(None, "is", "idle"):
-                kw_info.setdefault(node.node_type + "_strength", 1)
-                kw_info[node.node_type + "_strength"] += 1
-        memory = self.memory[node.node_type]
-        memory.insert(0, node)
-        memory = memory[: self.max_memory]
+        create = create or utils.get_timer().get_date()
+        expire = expire or (create + datetime.timedelta(days=30))
+        metadata = {
+            "node_type": node_type,
+            "subject": event.subject,
+            "predicate": event.predicate,
+            "object": event.object,
+            "poignancy": poignancy,
+            "create": create.strftime("%Y%m%d-%H:%M:%S"),
+            "expire": expire.strftime("%Y%m%d-%H:%M:%S"),
+            "access": create.strftime("%Y%m%d-%H:%M:%S"),
+        }
+        node = self._index.add_node(describe, metadata)
+        memory = self.memory[node_type]
+        memory.insert(0, node.id_)
+        if len(memory) > self.max_memory:
+            self._index.remove_nodes(memory[self.max_memory :])
+            memory = memory[: self.max_memory]
+        if as_concept:
+            return self.to_concept(node)
         return node
 
-    def add_event(
-        self,
-        event,
-        embedding_pair,
-        poignancy,
-        keywords=None,
-        filling=None,
-        created=None,
-        expiration=None,
-    ):
-        node = self._create_node(
-            "event",
-            event,
-            embedding_pair[0],
-            poignancy,
-            keywords=keywords or {event.subject, event.object},
-            filling=filling,
-            created=created,
-            expiration=expiration,
-        )
-        return self._add_node(node, embedding_pair[1])
+    def to_concept(self, node):
+        return Concept.from_node(node)
 
-    def add_thought(
-        self,
-        event,
-        embedding_pair,
-        poignancy,
-        keywords=None,
-        filling=None,
-        created=None,
-        expiration=None,
-    ):
-        node = self._create_node(
-            "thought",
-            event,
-            embedding_pair[0],
-            poignancy,
-            keywords=keywords or {event.subject, event.predicate, event.object},
-            filling=filling,
-            created=created,
-            expiration=expiration,
-        )
-        return self._add_node(node, embedding_pair[1])
-
-    def add_chat(
-        self,
-        event,
-        embedding_pair,
-        poignancy,
-        keywords=None,
-        filling=None,
-        created=None,
-        expiration=None,
-    ):
-        node = self._create_node(
-            "chat",
-            event,
-            embedding_pair[0],
-            poignancy,
-            keywords=keywords or {event.subject, event.object},
-            filling=filling,
-            created=created,
-            expiration=expiration,
-        )
-        return self._add_node(node, embedding_pair[1])
-
-    def _retrieve_nodes(self, node_type, keywords=None):
-        if not keywords:
-            return self.memory[node_type][: self.retention]
-        keywords, nodes = [k.lower() for k in keywords], []
-        for k in keywords:
-            if k not in self.keywords:
-                continue
-            node_names = self.keywords[k].get(node_type, [])
-            nodes.extend([self.nodes[n] for n in node_names])
-        return nodes[: self.retention]
-
-    def retrieve_events(self, node=None):
-        if node:
-            keywords = [node.event.subject, node.event.object]
+    def _retrieve_nodes(self, node_type, text=None, as_concept=True):
+        if text:
+            filters = MetadataFilters(
+                filters=[ExactMatchFilter(key="node_type", value=node_type)]
+            )
+            nodes = self._index.retrieve(
+                text, filters=filters, node_ids=self.memory[node_type]
+            )
         else:
-            keywords = None
-        return self._retrieve_nodes("event", keywords)
+            nodes = [self._index.find_node(n) for n in self.memory[node_type]]
+        nodes = nodes[: self.retention]
+        if as_concept:
+            return [self.to_concept(n) for n in nodes]
+        return nodes
 
-    def retrieve_thoughts(self, node=None):
-        if node:
-            keywords = [node.event.subject, node.event.predicate, node.event.object]
-        else:
-            keywords = None
-        return self._retrieve_nodes("thought", keywords)
+    def retrieve_events(self, text=None):
+        return self._retrieve_nodes("event", text)
+
+    def retrieve_thoughts(self, text=None):
+        return self._retrieve_nodes("thought", text)
 
     def retrieve_chats(self, name):
-        return self._retrieve_nodes("chat", keywords=[name.lower()])
+        return self._retrieve_nodes("chat", "chat with " + name)
 
     def get_relation(self, node):
         return {
@@ -248,6 +158,9 @@ class Associate:
         }
 
     def to_dict(self):
-        return {
-            "nodes": [n.to_dict() for n in self.nodes.values()],
-        }
+        self._index.save()
+        return {"memory": self.memory}
+
+    @property
+    def index(self):
+        return self._index

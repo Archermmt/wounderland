@@ -83,6 +83,10 @@
     },
     "spatial": {},
     "associate": {
+        "embedding": {
+            "type": "hugging_face",
+            "model": "BAAI/bge-small-en-v1.5"
+        },
         "retention": 8
     },
     "schedule": {

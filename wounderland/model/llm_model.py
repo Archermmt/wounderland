@@ -21,7 +21,7 @@ class LLMModel:
     def __init__(self, model, keys, config=None):
         self._model = model
         self._handle = self.setup(keys, config)
-        self._meta_response = None
+        self._meta_response = ""
         self._summary = {"total": [0, 0, 0]}
 
     def embedding(self, text, retry=1):
@@ -49,7 +49,7 @@ class LLMModel:
         caller="llm_normal",
         **kwargs
     ):
-        response, self._meta_response = None, None
+        response, self._meta_response = "", ""
         self._summary.setdefault(caller, [0, 0, 0])
         for _ in range(retry):
             try:
@@ -61,7 +61,7 @@ class LLMModel:
                 else:
                     response = self._meta_response
             except:
-                response = None
+                response = ""
                 continue
             if response:
                 break

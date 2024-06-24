@@ -4,14 +4,14 @@ from wounderland import utils
 
 
 class Schedule:
-    def __init__(self, created_at=None, daily_schedule=None, diversity=5, max_try=3):
-        if created_at:
-            if created_at == "always":
-                self.created_at = utils.get_timer().get_date()
+    def __init__(self, create=None, daily_schedule=None, diversity=5, max_try=3):
+        if create:
+            if create == "always":
+                self.create = utils.get_timer().get_date()
             else:
-                self.created_at = utils.to_date(created_at)
+                self.create = utils.to_date(create)
         else:
-            self.created_at = None
+            self.create = None
         self.daily_schedule = daily_schedule or []
         self.diversity = diversity
         self.max_try = max_try
@@ -88,12 +88,12 @@ class Schedule:
     def scheduled(self):
         if not self.daily_schedule:
             return False
-        return utils.get_timer().daily_format() == self.created_at.strftime("%A %B %d")
+        return utils.get_timer().daily_format() == self.create.strftime("%A %B %d")
 
     def to_dict(self):
         return {
-            "created_at": (
-                self.created_at.strftime("%Y%m%d-%H:%M:%S") if self.created_at else None
+            "create": (
+                self.create.strftime("%Y%m%d-%H:%M:%S") if self.create else None
             ),
             "daily_schedule": self.daily_schedule,
         }

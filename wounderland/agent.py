@@ -92,18 +92,40 @@ class Agent:
     def reset_user(self, user):
         if self.think_config["mode"] == "llm" and not self._llm:
             self._llm = create_llm_model(**self.think_config["llm"], keys=user.keys)
+        if self._llm and not self.associate.index.queryable:
+            self.associate.enable_query(self._llm)
         self.make_schedule()
 
     def remove_user(self):
         self._llm = None
 
+    def completion(self, func_hint, *args, **kwargs):
+        assert hasattr(
+            self.scratch, "prompt_" + func_hint
+        ), "Can not find func prompt_{} from scratch".format(func_hint)
+        func = getattr(self.scratch, "prompt_" + func_hint)
+        prompt = func(*args, **kwargs)
+        title, msg = "{}.{}".format(self.name, func_hint), {}
+        if self.llm_available():
+            output = self._llm.completion(**prompt, caller=func_hint)
+            msg = {
+                "<PROMPT>": "\n" + prompt["prompt"] + "\n",
+                "<RESPONSE>": "\n" + self._llm.meta_response + "\n",
+            }
+        else:
+            output = prompt.get("failsafe")
+        msg["<OUTPUT>"] = "\n" + str(output) + "\n"
+        self.logger.debug(utils.block_msg(title, msg))
+        return output
+
     def make_schedule(self):
         if not self.schedule.scheduled():
+            self.logger.info("{} is making schedule...".format(self.name))
             # make init schedule
-            self.schedule.created_at = utils.get_timer().get_date()
+            self.schedule.create = utils.get_timer().get_date()
             wake_up = self.completion("wake_up")
             init_schedule = self.completion("schedule_init", wake_up)
-            if self.associate.nodes:
+            if self.associate.index.nodes_num > 0:
                 print("should adjust daily schedule!!")
                 raise Exception("stop here!!")
             # make daily schedule
@@ -130,16 +152,15 @@ class Agent:
                 self.schedule.add_plan(daily_schedule[hour], 60)
                 prev = daily_schedule[hour]
             event = memory.Event(
-                self.name, "plan", self.schedule.created_at.strftime("%A %B %d")
+                self.name, "plan", self.schedule.create.strftime("%A %B %d")
             )
             thought = f"This is {self.name}'s plan for {event.object}: "
             thought += "; ".join(init_schedule)
             self._add_concept(
-                event,
                 "thought",
-                desc=thought,
-                keywords={"plan"},
-                expiration=self.schedule.created_at + datetime.timedelta(days=30),
+                event,
+                describe=thought,
+                expire=self.schedule.create + datetime.timedelta(days=30),
             )
         # decompose current plan
         plan, _ = self.schedule.current_plan()
@@ -197,6 +218,7 @@ class Agent:
         if not self.path:
             self.actions = [a for a in self.actions if not a.finished()]
         if plan["describe"] == "sleeping" and self.is_awake():
+            self.logger.info("{} is going to sleep".format(self.name))
             address = self.spatial.find_address("sleeping", as_list=True)
             action = memory.Action(
                 memory.Event(self.name, "is", "sleeping", address=address, emoji="😴"),
@@ -248,20 +270,21 @@ class Agent:
         # get concepts
         self.concepts = []
         for event in events[: self.percept_config["att_bandwidth"]]:
-            recent_events = {n.event: n for n in self.associate.retrieve_events()}
-            if event in recent_events:
-                self.concepts.append(recent_events[event])
+            recent_events = {n.describe: n for n in self.associate.retrieve_events()}
+            if event.describe in recent_events:
+                self.concepts.append(recent_events[event.describe])
             else:
                 chats = []
                 if event.fit(self.name, "chat with"):
                     node = self._add_concept(
-                        self.get_event(), "chat", filling=self.scratch.chat
+                        "chat", self.get_event(), filling=self.scratch.chat
                     )
-                    chats = [node.name]
-                node = self._add_concept(event, "event", filling=chats)
+                    chats = [node.node_id]
+                node = self._add_concept("event", event, filling=chats)
                 self._increase_poignancy(node.poignancy)
                 self.concepts.append(node)
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
+        self.logger.info("{} percept {} concepts".format(self.name, len(self.concepts)))
 
     def make_plan(self, agents):
         if not self.path and not self.actions:
@@ -271,11 +294,11 @@ class Agent:
     def reflect(self):
         if self.status["poignancy"]["current"] < self.think_config["poignancy_max"]:
             return
-        if (
-            not self.associate.retrieve_events()
-            and not self.associate.retrieve_thoughts()
-        ):
+        events = self.associate.retrieve_events() + self.associate.retrieve_thoughts()
+        if not events:
             return
+
+        self.logger.info("{} is reflecting...".format(self.name))
 
         self.status["poignancy"]["current"] = 0
         self.status["poignancy"]["num_event"] = 0
@@ -326,6 +349,7 @@ class Agent:
         return pathes[target][1:]
 
     def _determine_action(self):
+        self.logger.info("{} is determining action...".format(self.name))
         plan, de_plan = self.schedule.current_plan()
         describes = [plan["describe"], de_plan["describe"]]
         address = self.spatial.find_address(describes[0], as_list=True)
@@ -379,7 +403,7 @@ class Agent:
             return concept.event.subject in agents
 
         def _ignore(concept):
-            return any(i in concept.event.describe for i in ignore_words)
+            return any(i in concept.describe for i in ignore_words)
 
         if agents:
             priority = [i for i in self.concepts if _focus(i)]
@@ -424,6 +448,7 @@ class Agent:
             return False
         if not self.completion("decide_talk", self, other, focus):
             return False
+        self.logger.info("{} decides talk with {}".format(self.name, other.name))
         print("should chat with " + str(other))
         convo, duration_min = generate_convo(maze, init_persona, target_persona)
         convo_summary = generate_convo_summary(init_persona, convo)
@@ -442,52 +467,29 @@ class Agent:
             return False
         if not self.completion("decide_react", self, other, focus):
             return False
+        self.logger.info("{} decides react to {}".format(self.name, other.name))
 
     def _add_concept(
         self,
-        event,
         e_type,
-        desc=None,
-        keywords=None,
+        event,
+        describe=None,
+        create=None,
+        expire=None,
         filling=None,
-        created=None,
-        expiration=None,
     ):
-        embedding_pair, poignancy = self._evaluate_concept(event, e_type, desc)
-        if e_type == "event":
-            node = self.associate.add_event(
-                event,
-                embedding_pair,
-                poignancy,
-                keywords=keywords,
-                filling=filling,
-                created=created,
-                expiration=expiration,
-            )
-        elif e_type == "chat":
-            node = self.associate.add_chat(
-                event,
-                embedding_pair,
-                poignancy,
-                keywords=keywords,
-                filling=filling,
-                created=created,
-                expiration=expiration,
-            )
-        elif e_type == "thought":
-            node = self.associate.add_thought(
-                event,
-                embedding_pair,
-                poignancy,
-                keywords=keywords,
-                filling=filling,
-                created=created,
-                expiration=expiration,
-            )
-        return node
+        poignancy = self._evaluate_concept(event, e_type)
+        return self.associate.add_node(
+            e_type,
+            event,
+            describe or event.describe,
+            poignancy,
+            create=create,
+            expire=expire,
+            filling=filling,
+        )
 
-    def _evaluate_concept(self, event, e_type="event", desc=None):
-        desc = desc or event.describe
+    def _evaluate_concept(self, event, e_type="event"):
         if e_type == "event":
             poignancy = self._evaluate_event(event)
         elif e_type == "chat":
@@ -496,12 +498,7 @@ class Agent:
             poignancy = 5
         else:
             raise Exception("Unexpected event type " + str(e_type))
-        if desc in self.associate.embeddings:
-            return (desc, self.associate.embeddings[desc]), poignancy
-        # TMINFO debug only
-        # if self.llm_available():
-        #    return (desc, self._llm.embedding(desc)), poignancy
-        return (desc, None), poignancy
+        return poignancy
 
     def _evaluate_event(self, event):
         if event.fit(None, "is", "idle"):
@@ -535,27 +532,6 @@ class Agent:
         if not self._llm:
             return False
         return self._llm.is_available()
-
-    def completion(self, func_hint, *args, **kwargs):
-        assert hasattr(
-            self.scratch, "prompt_" + func_hint
-        ), "Can not find func prompt_{} from scratch".format(func_hint)
-        func = getattr(self.scratch, "prompt_" + func_hint)
-        prompt = func(*args, **kwargs)
-        title = "{}.{} @ {}".format(
-            self.name, func_hint, utils.get_timer().get_date("%H:%M:%S")
-        )
-        title = utils.split_line(title)
-        if self.llm_available():
-            output = self._llm.completion(**prompt, caller=func_hint)
-            msg = "{}<PROMPT>:\n{}\n\n<RESPONSE>:\n{}\n\n<OUTPUT>:\n{}\n".format(
-                title, prompt["prompt"], self._llm.meta_response, output
-            )
-            self.logger.debug(msg)
-            return output
-        output = prompt.get("failsafe")
-        self.logger.debug("{}<OUTPUT>:\n{}\n".format(title, output))
-        return output
 
     def to_dict(self):
         return {

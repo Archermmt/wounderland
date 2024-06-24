@@ -482,8 +482,11 @@ Step 1. {self.name} is {describe} at/using the {obj}.
 Step 2. Describe the {obj}'s state: {obj} is """
 
         def _callback(response):
-            pattern = "Describe the " + obj + "'s state: " + obj + " is (.+?)"
-            return parse_llm_output(response, pattern)
+            patterns = [
+                "Describe the " + obj + "'s state: " + obj + " is (.*)\.",
+                "Describe the " + obj + "'s state: " + obj + " is (.*)",
+            ]
+            return parse_llm_output(response, patterns)
 
         return {"prompt": prompt, "callback": _callback, "failsafe": "idle"}
 

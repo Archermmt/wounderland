@@ -3,6 +3,8 @@
 import os
 import logging
 from typing import Union
+from .timer import get_timer
+from .arguments import dump_dict
 
 
 class IOLogger(object):
@@ -28,20 +30,23 @@ class IOLogger(object):
             return print
         return self._printers.get(color, print)
 
+    def _prefix(self):
+        return "<{}>".format(get_timer().get_date("%H:%M:%S"))
+
     def info(self, msg):
         if self._level <= logging.INFO:
-            self._get_printer("green")("[INFO] " + str(msg))
+            self._get_printer("green")("[INFO]{}: {}".format(self._prefix(), msg))
 
     def debug(self, msg):
         if self._level <= logging.DEBUG:
-            self._get_printer("green")("[DEBUG] " + str(msg))
+            self._get_printer("green")("[DEBUG]{}: {}".format(self._prefix(), msg))
 
     def warning(self, msg):
         if self._level >= logging.WARN:
-            self._get_printer("yellow")("[WARNING] " + str(msg))
+            self._get_printer("yellow")("[WARNING]{}: {}".format(self._prefix(), msg))
 
     def error(self, msg):
-        self._get_printer("red")("[ERROR] " + str(msg))
+        self._get_printer("red")("[ERROR]{}: {}".format(self._prefix(), msg))
         raise Exception(msg)
 
 
@@ -117,4 +122,10 @@ def create_file_logger(
 
 
 def split_line(title, symbol="-", width=100):
-    return "{0}{1}{0}\n".format(symbol * 20, title.center(width - 40))
+    return "{0}{1}{0}".format(symbol * 20, title.center(width - 40))
+
+
+def block_msg(title, msg, symbol="-", width=100):
+    if isinstance(msg, dict):
+        msg = dump_dict(msg)
+    return "\n{}\n{}".format(split_line(title, symbol, width), msg)
