@@ -1,16 +1,17 @@
 """wounderland.prompt.scratch"""
 
 import random
+import datetime
 from jinja2 import Template
 from wounderland import utils
 from wounderland.model import parse_llm_output
 
 
 class Scratch:
-    def __init__(self, name, config, logger):
+    def __init__(self, name, currently, config):
         self.name = name
+        self.currently = currently
         self.config = config
-        self.logger = logger
 
     def _base_desc(self):
         return """Name: {0}
@@ -25,7 +26,7 @@ Current Date: {7}\n""".format(
             self.config["age"],
             self.config["innate"],
             self.config["learned"],
-            self.config["currently"],
+            self.currently,
             self.config["lifestyle"],
             self.config["daily_plan"],
             utils.get_timer().daily_format(),
@@ -598,3 +599,67 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             return response
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
+
+    def prompt_retrieve_plan(self, retrieved):
+        statements = [
+            n.create.strftime("%A %B %d -- %H:%M %p") + ": " + n.describe
+            for n in retrieved
+        ]
+        prompt = "[Statements]" + "\n" + "\n".join(statements) + "\n\n"
+        prompt += f"Given the statements above, is there anything that {self.name} should remember when planing for {utils.get_timer().get_date('%A %B %d')}?\n"
+        prompt += f"If there is any scheduling information, be as specific as possible (include date, time, and location if stated in the statement)\n\n"
+        prompt += f"Write the response from {self.name}'s perspective in lines, each line contains ONE thing to remember."
+
+        def _callback(response):
+            pattern = "^\d{1,2}\. (.*)\."
+            return parse_llm_output(response, pattern, mode="match_all")
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": [r.describe for r in random.choices(retrieved, k=10)],
+        }
+
+    def prompt_retrieve_thought(self, retrieved):
+        statements = [
+            n.create.strftime("%A %B %d -- %H:%M %p") + ": " + n.describe
+            for n in retrieved
+        ]
+        prompt = "[Statements]" + "\n" + "\n".join(statements) + "\n\n"
+        prompt += f"Given the statements above, how might we summarize {self.name}'s feelings up to now?\n\n"
+        prompt += f"Write the response from {self.name}'s perspective in ONE sentence."
+
+        def _callback(response):
+            return response
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": "{} should follow the schedule of yesterday".format(self.name),
+        }
+
+    def prompt_retrieve_currently(self, plan_note, thought_note):
+        time_stamp = (
+            utils.get_timer().get_date() - datetime.timedelta(days=1)
+        ).strftime("%A %B %d")
+        prompt = f"{self.name}'s status from {time_stamp}:\n"
+        prompt += f"{self.currently}\n\n"
+        prompt += f"{self.name} remember these things at the end of {time_stamp}:\n"
+        prompt += ". ".join(plan_note) + "\n\n"
+        prompt += f"{self.name}'s feeling at the end of {time_stamp}:\n"
+        prompt += thought_note + "\n\n"
+        prompt += f"It is now {utils.get_timer().get_date('%A %B %d')}. Given the above, write {self.name}'s status for {utils.get_timer().get_date('%A %B %d')} that reflects {self.name}'s thoughts at the end of {time_stamp}.\n"
+        prompt += (
+            f"Write this in third-person talking about {self.name} in ONE sentence. "
+        )
+        prompt += "Follow this format below:\nStatus: <new status>"
+
+        def _callback(response):
+            pattern = "^Status: (.*)\."
+            return parse_llm_output(response, pattern)
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": self.currently,
+        }

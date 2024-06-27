@@ -129,8 +129,16 @@ class LlamaIndex:
     def remove_nodes(self, node_ids, delete_from_docstore=True):
         self._index.delete_nodes(node_ids, delete_from_docstore=delete_from_docstore)
 
-    def retrieve(self, text, similarity_top_k=5, filters=None, node_ids=None):
-        return VectorIndexRetriever(
+    def retrieve(
+        self,
+        text,
+        similarity_top_k=5,
+        filters=None,
+        node_ids=None,
+        retriever_creator=None,
+    ):
+        retriever_creator = retriever_creator or VectorIndexRetriever
+        return retriever_creator(
             self._index,
             similarity_top_k=similarity_top_k,
             filters=filters,

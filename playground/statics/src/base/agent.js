@@ -24,6 +24,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.config = config;
         this.tile_size = tile_size;
         this.name = config.name;
+        this.currently = config.currently;
         this.urls = urls;
 
         // status
@@ -106,6 +107,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                         this.info[key] = value;
                     } else if (key in this.status) {
                         this.status[key] = value;
+                    } else if (key === "currently") {
+                        this.currently = value;
                     }
                 }
                 this.is_thinking = false;
@@ -155,6 +158,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     updateMsg(msg) {
         if (msg.display.profile) {
             msg.profile.status = utils.textBlock(this.getStatus());
+            msg.profile.currently = [this.currently];
         } else if (msg.display.memory) {
             msg.memory.associate = utils.textBlock(this.info.associate);
         } else if (msg.display.percept) {

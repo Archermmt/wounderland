@@ -46,11 +46,9 @@ class Game:
         agent = self.get_agent(name)
         plan = agent.think(status, self.agents)
         info = {
+            "currently": agent.scratch.currently,
             "associate": agent.associate.abstract(),
-            "concepts": {
-                "concept.{}".format(i): c.abstract()
-                for i, c in enumerate(agent.concepts)
-            },
+            "concepts": {c.node_id: c.abstract() for c in agent.concepts},
             "actions": {
                 "action.{}".format(i): a.abstract() for i, a in enumerate(agent.actions)
             },

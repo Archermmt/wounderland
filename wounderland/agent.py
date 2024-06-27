@@ -7,19 +7,7 @@ import datetime
 from functools import wraps
 from wounderland import memory, prompt, utils
 from wounderland.model.llm_model import create_llm_model
-
-
-def check_llm(ret=None):
-    def checker(func):
-        @wraps(func)
-        def inner_checker(agent, *args, **kwargs):
-            if not agent.llm_available():
-                return ret
-            return func(agent, *args, **kwargs)
-
-        return inner_checker
-
-    return checker
+from wounderland.memory.associate import Concept
 
 
 class Agent:
@@ -43,7 +31,7 @@ class Agent:
         self.concepts = []
 
         # prompt
-        self.scratch = prompt.Scratch(self.name, config["scratch"], self.logger)
+        self.scratch = prompt.Scratch(self.name, config["currently"], config["scratch"])
 
         # status
         self.status = {"poignancy": {"current": 0, "num_event": 0}}
@@ -70,9 +58,10 @@ class Agent:
     def abstract(self):
         des = {
             "name": self.name,
+            "currently": self.scratch.currently,
             "tile": self.maze.tile_at(self.coord).abstract(),
             "status": self.status,
-            "concepts": [c.abstract() for c in self.concepts],
+            "concepts": {c.node_id: c.abstract() for c in self.concepts},
             "actions": [a.abstract() for a in self.actions],
             "associate": self.associate.abstract(),
         }
@@ -121,13 +110,22 @@ class Agent:
     def make_schedule(self):
         if not self.schedule.scheduled():
             self.logger.info("{} is making schedule...".format(self.name))
+            # update currently
+            if self.associate.index.nodes_num > 0:
+                focus = [
+                    f"{self.name}'s plan for {utils.get_timer().daily_format()}.",
+                    f"Important recent events for {self.name}'s life.",
+                ]
+                retrieved = self.associate.retrieve_focus(focus)
+                plan_note = self.completion("retrieve_plan", retrieved)
+                thought_note = self.completion("retrieve_thought", retrieved)
+                self.scratch.currently = self.completion(
+                    "retrieve_currently", plan_note, thought_note
+                )
             # make init schedule
             self.schedule.create = utils.get_timer().get_date()
             wake_up = self.completion("wake_up")
             init_schedule = self.completion("schedule_init", wake_up)
-            if self.associate.index.nodes_num > 0:
-                print("should adjust daily schedule!!")
-                raise Exception("stop here!!")
             # make daily schedule
             hours = [str(i) + ":00 AM" for i in range(12)]
             hours += [str(i) + ":00 PM" for i in range(12)]
@@ -269,7 +267,7 @@ class Agent:
         events = list(sorted(events.keys(), key=lambda k: events[k]))
         # get concepts
         self.concepts = []
-        for event in events[: self.percept_config["att_bandwidth"]]:
+        for idx, event in enumerate(events[: self.percept_config["att_bandwidth"]]):
             recent_events = {n.describe: n for n in self.associate.retrieve_events()}
             if event.describe in recent_events:
                 self.concepts.append(recent_events[event.describe])
@@ -280,7 +278,14 @@ class Agent:
                         "chat", self.get_event(), filling=self.scratch.chat
                     )
                     chats = [node.node_id]
-                node = self._add_concept("event", event, filling=chats)
+                    self.concepts.append(node)
+                if event.object == "idle":
+                    poignancy = self._evaluate_concept(event, "event")
+                    node = Concept.from_event(
+                        "idle_" + str(idx), "event", event, poignancy=poignancy
+                    )
+                else:
+                    node = self._add_concept("event", event, filling=chats)
                 self._increase_poignancy(node.poignancy)
                 self.concepts.append(node)
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
@@ -539,5 +544,6 @@ class Agent:
             "status": self.status,
             "schedule": self.schedule.to_dict(),
             "associate": self.associate.to_dict(),
+            "currently": self.scratch.currently,
             "actions": [a.to_dict() for a in self.actions],
         }
