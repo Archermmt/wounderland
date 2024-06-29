@@ -84,12 +84,12 @@ Event: {}. Rate: """.format(
 
     def prompt_schedule_init(self, wake_up):
         prompt = self._base_desc()
-        prompt += """\n\nIn general, {}""".format(self.config["lifestyle"])
+        prompt += """\nIn general, {}""".format(self.config["lifestyle"])
         prompt += "\nToday is {}. Here is {}'s plan today in broad-strokes ".format(
             utils.get_timer().daily_format(), self.name
         )
-        prompt += "(with the time of the day. e.g., have a lunch at 12:00 pm, watch TV from 7 to 8 pm):"
-        prompt += "1) wake up and complete the morning routine at {}:00 am. 2)".format(
+        prompt += "(with the time of the day. e.g., eat breakfast at 7:00 AM, have a lunch at 12:00 PM, watch TV at 7:00 PM):\n"
+        prompt += "1) wake up and complete the morning routine at {}:00 AM. 2)".format(
             wake_up
         )
         prompt = self._format_output(
@@ -101,13 +101,13 @@ Event: {}. Rate: """.format(
             return parse_llm_output(response, patterns, mode="match_all")
 
         failsafe = [
-            "wake up and complete the morning routine at 6:00 am",
-            "eat breakfast at 7:00 am",
-            "read a book from 8:00 am to 12:00 pm",
-            "have lunch at 12:00 pm",
-            "take a nap from 1:00 pm to 4:00 pm",
-            "relax and watch TV from 7:00 pm to 8:00 pm",
-            "go to bed at 11:00 pm",
+            "wake up and complete the morning routine at 6:00 AM",
+            "eat breakfast at 7:00 AM",
+            "read a book at 8:00 AM",
+            "have lunch at 12:00 PM",
+            "take a nap at 1:00 PM",
+            "relax and watch TV at 7:00 PM",
+            "go to bed at 11:00 PM",
         ]
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
@@ -120,25 +120,13 @@ Event: {}. Rate: """.format(
         prompt += "\nHere the originally intended hourly breakdown of {}'s schedule today:\n".format(
             self.name
         )
-        prompt += " ".join(
-            ["{}) {}".format(idx + 1, sch) for idx, sch in enumerate(daily_schedule)]
-        )
+        prompt += "; ".join(daily_schedule)
         prompt += "\n\n" + "\n".join(
             [
                 "[{}] Activity: {} is {}".format(h, self.name, s)
                 for h, s in schedule[: wake_up + 1]
             ]
         )
-
-        def _callback(response):
-            patterns = [
-                "\[(\d{1,2}:00 AM)\] Activity: " + self.name + " is (.*)\.",
-                "\[(\d{1,2}:00 AM)\] Activity: " + self.name + " is (.*)",
-                "\[(\d{1,2}:00 PM)\] Activity: " + self.name + " is (.*)\.",
-                "\[(\d{1,2}:00 PM)\] Activity: " + self.name + " is (.*)",
-            ]
-            schedules = parse_llm_output(response, patterns, mode="match_all")
-            return {s[0]: s[1] for s in schedules}
 
         failsafe = {
             "6:00 AM": "wake up and complete the morning routine",
@@ -160,6 +148,22 @@ Event: {}. Rate: """.format(
             "10:00 PM": "prepare to sleep",
             "11:00 PM": "sleeping",
         }
+
+        def _callback(response):
+            patterns = [
+                "\[(\d{1,2}:\d{2} AM)\] Activity: " + self.name + " is (.*)\.",
+                "\[(\d{1,2}:\d{2} AM)\] Activity: " + self.name + " is (.*)",
+                "\[(\d{1,2}:\d{2} PM)\] Activity: " + self.name + " is (.*)\.",
+                "\[(\d{1,2}:\d{2} PM)\] Activity: " + self.name + " is (.*)",
+                "\[(\d{1,2}:\d{2} AM)\] Activity: " + self.name + " (.*)\.",
+                "\[(\d{1,2}:\d{2} AM)\] Activity: " + self.name + " (.*)",
+                "\[(\d{1,2}:\d{2} PM)\] Activity: " + self.name + " (.*)\.",
+                "\[(\d{1,2}:\d{2} PM)\] Activity: " + self.name + " (.*)",
+            ]
+            outputs = parse_llm_output(response, patterns, mode="match_all")
+            assert len(outputs) >= 5, "less than 5 schedules"
+            return {s[0]: s[1] for s in outputs}
+
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_schedule_decompose(self, plan, schedule):
@@ -167,8 +171,8 @@ Event: {}. Rate: """.format(
             start, end = schedule.plan_stamps(plan, time_format="%H:%M%p")
             return f'{start} ~ {end}, {self.name} is planning on {plan["describe"]}'
 
-        prompt = """Describe subtasks in 5 min increments. 
----
+        prompt = """Describe subtasks in 5 min increments.
+[Example]
 Name: Kelly Bronson
 Age: 35
 Backstory: Kelly always wanted to be a teacher, and now she teaches kindergarten. During the week, she dedicates herself to her students, but on the weekends, she likes to try out new restaurants and hang out with friends. She is very warm and friendly, and loves caring for others.
@@ -176,19 +180,18 @@ Personality: sweet, gentle, meticulous
 Location: Kelly is in an older condo that has the following areas: {kitchen, bedroom, dining, porch, office, bathroom, living room, hallway}.
 Currently: Kelly is a teacher during the school year. She teaches at the school but works on lesson plans at home. She is currently living alone in a single bedroom condo.
 Daily plan requirement: Kelly is planning to teach during the morning and work from home in the afternoon.s
+Today is Saturday May 10. From 08:00AM ~ 09:00AM, Kelly is planning on having breakfast, from 09:00AM ~ 10:00PM, Kelly is planning on working on the next day's kindergarten lesson plan, and from 10:00AM ~ 13PM, Kelly is planning on taking a break. 
+In 5 min increments, list the subtasks Kelly does when Kelly is working on the next day's kindergarten lesson plan from 09:00am ~ 10:00pm (total duration in minutes: 60):
 
-Today is Saturday May 10. From 08:00AM ~ 09:00AM, Kelly is planning on having breakfast, from 09:00AM ~ 12:00PM, Kelly is planning on working on the next day's kindergarten lesson plan, and from 12:00AM ~ 13PM, Kelly is planning on taking a break. 
-In 5 min increments, list the subtasks Kelly does when Kelly is working on the next day's kindergarten lesson plan from 09:00am ~ 12:00pm (total duration in minutes: 180):
-1) Kelly is reviewing the kindergarten curriculum standards. (duration: 15, left: 165)
-2) Kelly is brainstorming ideas for the lesson. (duration: 30, left: 135)
-3) Kelly is creating the lesson plan. (duration: 30, left: 105)
-4) Kelly is creating materials for the lesson. (duration: 30, left: 75)
-5) Kelly is taking a break. (duration: 15, left: 60)
-6) Kelly is reviewing the lesson plan. (duration: 30, left: 30)
-7) Kelly is making final changes to the lesson plan. (duration: 15, left: 15)
-8) Kelly is printing the lesson plan. (duration: 10, left: 5)
-9) Kelly is putting the lesson plan in her bag. (duration: 5, left: 0)
----\n"""
+<subtasks>:
+1) Kelly is reviewing the kindergarten curriculum standards. (duration: 15, left: 45)
+2) Kelly is brainstorming ideas for the lesson. (duration: 10, left: 35)
+3) Kelly is creating the lesson plan. (duration: 10, left: 25)
+8) Kelly is printing the lesson plan. (duration: 10, left: 15)
+9) Kelly is putting the lesson plan in her bag. (duration: 15, left: 0)
+
+Given example above, please list the subtasks of the following task.
+[TASK]\n"""
         prompt += self._base_desc()
         indices = range(
             max(plan["idx"] - 1, 0), min(plan["idx"] + 2, len(schedule.daily_schedule))
@@ -199,16 +202,15 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
         increment = max(int(plan["duration"] / 150) * 5, 5)
         prompt += f'\nIn {increment} min increments, list the subtasks {self.name} does when {self.name} is {plan["describe"]}'
         prompt += (
-            f' from {start} ~ {end} (total duration in minutes {plan["duration"]}):\n'
+            f' from {start} ~ {end} (total duration in minutes {plan["duration"]}):\n\n'
         )
+        prompt += "<subtasks>:\n"
         prompt += f"1) {self.name} is"
 
         def _callback(response):
             patterns = [
-                "\d{1,2}\) "
-                + self.name
-                + " is (.*) \(duration: (\d{1,2}), left: \d*\)",
-                self.name + " is (.*) \(duration: (\d{1,2}), left: \d*\)",
+                "\d{1,2}\) .* is (.*) \(duration: (\d{1,2}), left: \d*\)",
+                ".* is (.*) \(duration: (\d{1,2}), left: \d*\)",
             ]
             schedules = parse_llm_output(response, patterns, mode="match_all")
             schedules = [(s[0].strip("."), int(s[1])) for s in schedules]
@@ -285,12 +287,21 @@ Area options: <{{ areas|join(', ') }}>.
         )
 
         sectors = spatial.get_leaves(address)
+        arenas = {}
+        for sec in sectors:
+            arenas.update(
+                {a: sec for a in spatial.get_leaves(address + [sec]) if a not in arenas}
+            )
         failsafe = random.choice(sectors)
 
         def _callback(response):
             pattern = "For " + describes[1] + ", " + self.name + " .* area: <(.+?)>"
             sector = parse_llm_output(response, pattern)
-            return sector if sector in sectors else failsafe
+            if sector in sectors:
+                return sector
+            if sectors in arenas:
+                return arenas[sector]
+            return failsafe
 
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
@@ -352,7 +363,7 @@ Objects available: <{{ objects|join(', ') }}>
 Pick ONE most relevant object from the Objects available: {% if answer %}<{{ answer }}>{% else %}<{% endif %}"""
         )
 
-        prompt = "Task -- choose most relevant object from the Objects available for a task at hand."
+        prompt = "Task -- choose most relevant object from the Objects available for a task at hand.\n[Examples]"
         prompt += template.render(
             activity="sleep in bed",
             objects=["bed", "easel", "closet", "painting"],
@@ -388,6 +399,7 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
             objects=["phone", "charger", "bed", "nightstand"],
             answer="phone",
         )
+        prompt += "\nGiven the examples above, please choose most relevant object from the Objects available for a task at hand:"
         prompt += template.render(
             activity=describes[1], objects=spatial.get_leaves(address)
         )
@@ -406,6 +418,7 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
 
     def prompt_describe_emoji(self, describe):
         prompt = f"""Convert an action description to an emoji (important: use three or less emojis).\n
+[Examples]
 Action description: waking up and starting her morning routine (taking a shower)
 Emoji: 🛁🧖‍♀️
 Action description: having breakfast (making coffee)
@@ -416,6 +429,8 @@ Action description: exercising (going for a run)
 Emoji: 🏃‍♀️
 Action description: having breakfast (putting butter on her toast)
 Emoji: 🧈🍞
+
+Given the examples above, please convert the following action to an emoji (important: use three or less emojis):
 Action description: {describe}
 Emoji: """
 
@@ -425,7 +440,8 @@ Emoji: """
         return {"prompt": prompt, "callback": _callback, "failsafe": "🦁", "retry": 1}
 
     def prompt_describe_event(self, subject, describe):
-        prompt = f"""Task: Turn the input into (<subject>, <predicate>, <object>).\n
+        prompt = f"""Task: Turn the input into format (<subject>, <predicate>, <object>).\n
+[Examples]
 Input: Sam Johnson is eating breakfast. 
 Output: (<Dolores Murphy>, <eat>, <breakfast>) 
 --- 
@@ -444,6 +460,8 @@ Output: (<Percy Liang>, <teach>, <students>)
 Input: Merrie Morris is running on a treadmill. 
 Output: (<Merrie Morris>, <run>, <treadmill>)
 ---
+
+Given the examples above, please turn the input into format (<subject>, <predicate>, <object>):
 Input: {subject} is {describe}. 
 Output: (<{subject},"""
 
@@ -462,30 +480,30 @@ Output: (<{subject},"""
 
     def prompt_describe_object(self, obj, describe):
         prompt = f"""Task: We want to understand the state of an object that is being used by someone.\n
-Let's think step by step. 
-We want to know about oven's state. 
+[Examples]
+Let's think step by step to know about oven's state:
 Step 1. Sam Johnson is eating breakfast at/using the oven. 
 Step 2. Describe the cooking utensils's state: oven is being heated to cook breakfast
 ---
-Let's think step by step. 
-We want to know about computer's state. 
+Let's think step by step to know about computer's state:
 Step 1. Michael Bernstein is writing email at/using the computer. 
 Step 2. Describe the computer's state: computer is being used to write email
 ---
-Let's think step by step. 
-We want to know about sink's state. 
+Let's think step by step to know about sink's state:
 Step 1. Tom Kane is washing his face at/using the sink.
 Step 2. Describe the sink's state: sink is running with water
 ---
-Let's think step by step. 
-We want to know about {obj}'s state. 
+
+Given the examples above, let's think step by step to know about {obj}'s state:
 Step 1. {self.name} is {describe} at/using the {obj}.
 Step 2. Describe the {obj}'s state: {obj} is """
 
         def _callback(response):
             patterns = [
                 "Describe the " + obj + "'s state: " + obj + " is (.*)\.",
-                "Describe the " + obj + "'s state: " + obj + " is (.*)",
+                "Describe the " + obj + "'s state: " + obj + " is (.*)\.",
+                "Describe the " + obj + "'s state: .* is (.*)\.",
+                "Describe the " + obj + "'s state: .* is (.*)",
             ]
             return parse_llm_output(response, patterns)
 
@@ -520,7 +538,7 @@ Answer in "yes" or "no":
 """
 
         def _callback(response):
-            return response
+            return "yes" in response
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
 
@@ -531,7 +549,7 @@ Context: {{ context }}.
 Right now, it is {{ date }}. 
 {{ status }}.
 {{ name }} sees {{ o_status }}.
-My question: Let's think step by step. Of the following three options, what should {{ name }} do?
+My question: Let's think step by step. Of the following two options, what should {{ name }} do?
 Option 1: Wait on {{ action }} until {{ o_name }} is done {{ o_action }}
 Option 2: Continue on to {{ action }} now
 Reasoning: {{ reason }}
@@ -539,13 +557,13 @@ Reasoning: {{ reason }}
 """
         )
 
-        prompt = "Task -- given context and three options that a subject can take, determine which option is the most acceptable."
+        prompt = "Task -- given context and two options that a subject can take, determine which option is the most acceptable.\n[Examples]\n"
         reason = """Both Jane and Liz want to use the bathroom. 
 It would be strange for both Jane and Liz to use the bathroom at the same time. 
 So, since Liz is already using the bathroom, the best option for Jane is to wait on using the bathroom."""
         prompt += template.render(
             context="Jane is Liz's house mate. Jane and Liz exchanged a conversation about saying good morning at 07:05am, October 25, 2022",
-            date="07:09 am, October 25, 2022",
+            date="07:09 AM, October 25, 2022",
             name="Jane",
             o_name="Liz",
             status="Jane was on her way to using the bathroom right now",
@@ -560,7 +578,7 @@ Since Sam and Sarah need to use different areas, their actions do not conflict.
 So, since Sam and Sarah are going to be in different areas, Sam mcan continue on to eating his lunch now."""
         prompt += template.render(
             context="Sam is Sarah's friend. Sam and Sarah exchanged a conversation about favorite movies at 11pm, October 24, 2022",
-            date="12:40 pm, October 25, 2022",
+            date="12:40 PM, October 25, 2022",
             name="Sam",
             o_name="Sarah",
             status="Sam is on the way to study for his test",
@@ -584,9 +602,10 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
         )
         context += "\n" + ". ".join([c.describe for c in focus["thoughts"]])
 
+        prompt += "\nGiven the examples above, determine which option is the most acceptable for the following task:"
         prompt += template.render(
             context=context,
-            date=utils.get_timer().get_date("%B %d, %Y, %H:%M:%S %p"),
+            date=utils.get_timer().get_date("%B %d, %Y, %H:%M %p"),
             name=self.name,
             o_name=other.name,
             status=_status_des(agent),
@@ -599,6 +618,97 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             return response
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
+
+    def prompt_summarize_relation(self, other_name, retrieved):
+        prompt = (
+            "[Statements]" + "\n" + "\n".join([n.describe for n in retrieved]) + "\n\n"
+        )
+        prompt += f"Based on the statements above, summarize {self.name} and {other_name}'s relationship. What do they feel or know about each other?\n"
+        prompt = self._format_output(
+            prompt,
+            "sentence",
+            "Jane Doe is working on a project",
+            "The output should be a string that responds to the question.",
+        )
+
+        def _callback(response):
+            return response
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": self.name + " is looking at " + other_name,
+        }
+
+    def prompt_generate_utterance(self, agent, other, retrieved, chats):
+        pass_context, nodes = "", agent.associate.retrieve_chats(other.name)
+        for n in nodes:
+            delta = utils.get_timer().get_delta(n.create)
+            if delta > 480:
+                continue
+            pass_context += f"{delta} minutes ago, {agent.name} and {other.name} were already {n.event.descirbe} This context takes place after that conversation.\n"
+
+        address = agent.get_tile().get_address()
+
+        curr_context = (
+            f"{agent.name} "
+            + f"was {agent.get_curr_event().descirbe} "
+            + f"when {agent.name} "
+            + f"saw {other.name} "
+            + f"in the middle of {other.get_curr_event().descirbe}.\n"
+            + f"{agent.name} "
+            + "is initiating a conversation with "
+            + f"{other.name}."
+        )
+
+        conversation = "\n".join(["{}: {}".format(n, u) for n, u in chats])
+        conversation = (
+            conversation or "[The conversation has not started yet -- start it!]"
+        )
+
+        prompt = f"Context for the task:\n\nPART 1.\nHere is a brief description of {agent.name}:\n"
+        prompt += self._base_desc()
+        prompt += f"Here is the memory that is in {agent.name}'s head:"
+        prompt += "\n- " + "\n- ".join([n.describe for n in retrieved])
+        prompt += "\n\nPART 2. Past Context:\n" + pass_context
+        prompt += f"\n\nCurrent Location: {address[-2]} in {address[-1]}"
+        prompt += f"\n\nCurrent Context: {curr_context}"
+        prompt += f"\n\n{agent.name} and {other.name} are chatting. Here is their conversation so far:\n{conversation}"
+        prompt += f"\n---\nTask: Given the above, what should {agent.name} say to {other.name} next in the conversation? And did it end the conversation?"
+        prompt += "\n\nOutput format: Output a json of the following format:"
+        prompt += f"""{{
+    "{agent.name}": "{agent.name}'s utterance>",
+    "Did the conversation end with {agent.name}'s utterance?": "<json Boolean>"
+}}"""
+
+        def _callback(response):
+            return response
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": (
+                "It's nice talking with you, looking forward to next time!",
+                True,
+            ),
+        }
+
+    def prompt_summarize_chats(self, chats):
+        conversation = "\n".join(["{}: {}".format(n, u) for n, u in chats])
+        prompt = f"""Conversation: 
+{conversation}
+
+Summarize the conversation above in one sentence:
+This is a conversation about"""
+
+        def _callback(response):
+            return response
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": "general chatting",
+        }
 
     def prompt_retrieve_plan(self, retrieved):
         statements = [

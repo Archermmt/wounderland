@@ -56,8 +56,6 @@
             <div id="agent_profile" class="nes-container is-dark msg_box" v-show="agent.display.profile">
                 <p>Status:</p>
                 <p v-for="l in agent.profile.status" class="message">[[l]]</p><br>
-                <p>Currently:</p>
-                <p v-for="l in agent.profile.currently" class="message">[[l]]</p><br>
                 <p>Scratch:</p>
                 <p v-for="l in agent.profile.scratch" class="message">[[l]]</p><br>
             </div>
@@ -175,7 +173,7 @@
             display: { agent: false, user: false },
             agent: {
                 display: { profile: true, memory: false, percept: false, plan: false, stat: false },
-                profile: { status: [], currently: [], scratch: [] },
+                profile: { status: [], scratch: [] },
                 memory: { associate: [] },
                 percept: { concepts: [] },
                 plan: { actions: [], schedule: [] },

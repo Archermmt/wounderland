@@ -30,8 +30,10 @@ export default class Village extends Land {
             "config": {
                 "maze": { "path": root + "maze.json" },
                 "agent_base": { "path": root + "agent.json" },
-                "agents": {}
-            }
+                "agents": {},
+            },
+            "time": { "start": "20230213-9:30", "mode": "on_time" },
+            "think_parallel": false
         }
         const agents = ["Abigail Chen", "Adam Smith", "Arthur Burton", "Ayesha Khan", "Isabella Rodriguez", "Klaus Mueller", "Maria Lopez"];
         for (const agent of agents) {

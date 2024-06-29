@@ -14,8 +14,9 @@ class SimulateServer:
             if name not in config["agents"]:
                 continue
             config["agents"][name]["update"] = a_config
+        config["time"] = {"mode": "step"}
         if start:
-            config["time"] = {"start": start}
+            config["time"]["start"] = start
         config["keep_storage"] = self.ckpt.get("keep_storage", True)
         game = create_game(static_root, config, logger=utils.create_io_logger(verbose))
         game.reset_user("test", keys=self.ckpt["keys"])

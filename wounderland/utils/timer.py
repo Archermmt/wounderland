@@ -5,6 +5,8 @@ from .namespace import WounderMap, WounderKey
 
 
 def to_date(date_str, date_format="%Y%m%d-%H:%M:%S"):
+    if date_format == "%I:%M %p" and date_str.startswith("0:00"):
+        date_str = date_str.replace("0:00", "12:00")
     return datetime.datetime.strptime(date_str, date_format)
 
 
@@ -29,6 +31,10 @@ class Timer:
         self._start = datetime.datetime.now()
         self._offset = offset
         if start:
+            if "-" in start:
+                date = to_date(start, "%Y%m%d-%H:%M")
+                self._offset += (date - self._start).days * 24 * 60
+                start = start.split("-")[1]
             s_minute = daily_duration(to_date(start, "%H:%M"))
             self._offset += s_minute - daily_duration(self._start)
         self._rate = rate
@@ -47,6 +53,8 @@ class Timer:
             )
         elif self._mode == "step":
             delta = datetime.timedelta(minutes=self._offset)
+        else:
+            raise TypeError("Unexpected time mode " + str(self._mode))
         date = delta + self._start
         if date_format:
             return date.strftime(date_format)
@@ -69,9 +77,15 @@ class Timer:
     def daily_duration(self, mode="minute"):
         return daily_duration(self.get_date(), mode)
 
+    @property
+    def mode(self):
+        return self._mode
 
-def set_timer(start=None, offset=0, rate=1):
-    WounderMap.set(WounderKey.TIMER, Timer(start=start, offset=offset, rate=rate))
+
+def set_timer(start=None, offset=0, rate=1, mode="on_time"):
+    WounderMap.set(
+        WounderKey.TIMER, Timer(start=start, offset=offset, rate=rate, mode=mode)
+    )
     return WounderMap.get(WounderKey.TIMER)
 
 

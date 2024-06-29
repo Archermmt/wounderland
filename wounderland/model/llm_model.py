@@ -21,7 +21,7 @@ class LLMModel:
     def __init__(self, model, keys, config=None):
         self._model = model
         self._handle = self.setup(keys, config)
-        self._meta_response = ""
+        self._meta_responses = []
         self._summary = {"total": [0, 0, 0]}
 
     def embedding(self, text, retry=1):
@@ -49,17 +49,18 @@ class LLMModel:
         caller="llm_normal",
         **kwargs
     ):
-        response, self._meta_response = "", ""
+        response, self._meta_responses = "", []
         self._summary.setdefault(caller, [0, 0, 0])
         for _ in range(retry):
             try:
-                self._meta_response = self._completion(prompt, **kwargs)
+                meta_response = self._completion(prompt, **kwargs)
+                self._meta_responses.append(meta_response)
                 self._summary["total"][0] += 1
                 self._summary[caller][0] += 1
                 if callback:
-                    response = callback(self._meta_response)
+                    response = callback(meta_response)
                 else:
-                    response = self._meta_response
+                    response = meta_response
             except:
                 response = ""
                 continue
@@ -85,8 +86,8 @@ class LLMModel:
         return {"model": self._model, "summary": des}
 
     @property
-    def meta_response(self):
-        return self._meta_response
+    def meta_responses(self):
+        return self._meta_responses
 
     @classmethod
     def model_type(cls):
@@ -107,7 +108,7 @@ class OpenAILLMModel(LLMModel):
         )
         return response.data[0].embedding
 
-    def _completion(self, prompt, temperature=0.01):
+    def _completion(self, prompt, temperature=0.00001):
         messages = [{"role": "user", "content": prompt}]
         response = self._handle.chat.completions.create(
             model=self._model, messages=messages, temperature=temperature
@@ -140,7 +141,7 @@ class ZhipuAILLMModel(LLMModel):
         response = self._handle.embeddings.create(model="embedding-2", input=text)
         return response.data[0].embedding
 
-    def _completion(self, prompt, temperature=0.01):
+    def _completion(self, prompt, temperature=0.00001):
         messages = [{"role": "user", "content": prompt}]
         response = self._handle.chat.completions.create(
             model=self._model, messages=messages, temperature=temperature
@@ -190,7 +191,7 @@ class QIANFANLLMModel(LLMModel):
         response = json.loads(response.text)
         return response["data"][0]["embedding"]
 
-    def _completion(self, prompt, temperature=0.01):
+    def _completion(self, prompt, temperature=0.00001):
         import qianfan
 
         messages = [{"role": "user", "content": prompt}]
@@ -241,7 +242,7 @@ class SparkAILLMModel(LLMModel):
         handle["keys"] = {k: keys[k] for k in needed_keys}
         return handle
 
-    def _completion(self, prompt, temperature=0.01, streaming=False):
+    def _completion(self, prompt, temperature=0.00001, streaming=False):
         from sparkai.llm.llm import ChatSparkLLM
         from sparkai.core.messages import ChatMessage
 

@@ -24,11 +24,10 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.config = config;
         this.tile_size = tile_size;
         this.name = config.name;
-        this.currently = config.currently;
         this.urls = urls;
 
         // status
-        this.status = { state: "init", direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
+        this.status = { state: "init", currently: config.currently, direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
         this.info = { associate: {}, concepts: {}, actions: {}, schedule: {}, llm: {} };
 
         // add sprite
@@ -70,7 +69,10 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
         // emoji
         this.bubbles = {};
-        this.text_config = { font: Math.round(this.displayHeight * 0.6) + "px monospace" };
+        this.text_config = {
+            font: Math.round(this.displayHeight * 0.6) + "px monospace", fill: "#000000",
+            padding: { x: 4, y: 4 }
+        };
         this.bubbles[this.name] = scene.add.text(0, 0, "🦁", this.text_config);
 
         // set events
@@ -79,12 +81,17 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         }
         this.setControl(false);
 
-        this.is_thinking = false;
+        // flag for think
+        this.enable_think = false;
+    }
+
+    enableThink = () => {
+        this.enable_think = true;
     }
 
     think = () => {
-        if (!this.is_thinking) {
-            this.is_thinking = true;
+        if (this.enable_think) {
+            this.enable_think = false;
             this.status.state = "think";
             let callback = (info) => {
                 const plan = info.plan;
@@ -97,7 +104,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                 for (const [name, emoji] of Object.entries(plan.emojis)) {
                     if (!(name in this.bubbles)) {
                         let pos = coordToPosition(emoji.coord, this.tile_size);
-                        pos[1] = pos[1] - Math.round(this.displayHeight * 0.8);
+                        pos[1] = pos[1] - Math.round(this.displayHeight * 0.8) - 4;
                         this.bubbles[name] = this.scene.add.text(pos[0], pos[1], emoji.emoji, this.text_config);
                     }
                     this.bubbles[name].setText(emoji.emoji);
@@ -107,12 +114,9 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                         this.info[key] = value;
                     } else if (key in this.status) {
                         this.status[key] = value;
-                    } else if (key === "currently") {
-                        this.currently = value;
                     }
                 }
-                this.is_thinking = false;
-                this.scene.time.delayedCall(this.config.think.interval, this.think, [], this);
+                this.scene.time.delayedCall(this.config.think.interval, this.enableThink, [], this);
             }
             utils.jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
         }
@@ -120,7 +124,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
     move() {
         this.bubbles[this.name].x = this.body.position.x;
-        this.bubbles[this.name].y = this.body.position.y - Math.round(this.displayHeight * 0.8);
+        this.bubbles[this.name].y = this.body.position.y - Math.round(this.displayHeight * 0.8) - 4;
         if (!this.is_control) {
             if (this.status.path.length > 0) {
                 let next_pos = coordToPosition(this.status.path[0], this.tile_size);
@@ -158,7 +162,6 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     updateMsg(msg) {
         if (msg.display.profile) {
             msg.profile.status = utils.textBlock(this.getStatus());
-            msg.profile.currently = [this.currently];
         } else if (msg.display.memory) {
             msg.memory.associate = utils.textBlock(this.info.associate);
         } else if (msg.display.percept) {

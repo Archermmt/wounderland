@@ -129,6 +129,15 @@ class LlamaIndex:
     def remove_nodes(self, node_ids, delete_from_docstore=True):
         self._index.delete_nodes(node_ids, delete_from_docstore=delete_from_docstore)
 
+    def cleanup(self):
+        now, remove_ids = utils.get_timer().get_date(), []
+        for node_id, node in self._index.docstore.docs.items():
+            create = utils.to_date(node.metadata["create"])
+            expire = utils.to_date(node.metadata["expire"])
+            if create > now or expire < now:
+                remove_ids.append(node_id)
+        self.remove_nodes(remove_ids)
+
     def retrieve(
         self,
         text,

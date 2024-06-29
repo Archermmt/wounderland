@@ -82,7 +82,7 @@ class Agent:
         if self.think_config["mode"] == "llm" and not self._llm:
             self._llm = create_llm_model(**self.think_config["llm"], keys=user.keys)
         if self._llm and not self.associate.index.queryable:
-            self.associate.enable_query(self._llm)
+            self.associate.enable_index(self._llm)
         self.make_schedule()
 
     def remove_user(self):
@@ -97,10 +97,14 @@ class Agent:
         title, msg = "{}.{}".format(self.name, func_hint), {}
         if self.llm_available():
             output = self._llm.completion(**prompt, caller=func_hint)
-            msg = {
-                "<PROMPT>": "\n" + prompt["prompt"] + "\n",
-                "<RESPONSE>": "\n" + self._llm.meta_response + "\n",
-            }
+            responses = self._llm.meta_responses
+            msg = {"<PROMPT>": "\n" + prompt["prompt"] + "\n"}
+            msg.update(
+                {
+                    "<RESPONSE[{}/{}]>".format(idx, len(responses)): "\n" + r + "\n"
+                    for idx, r in enumerate(responses)
+                }
+            )
         else:
             output = prompt.get("failsafe")
         msg["<OUTPUT>"] = "\n" + str(output) + "\n"
@@ -112,16 +116,18 @@ class Agent:
             self.logger.info("{} is making schedule...".format(self.name))
             # update currently
             if self.associate.index.nodes_num > 0:
+                self.associate.cleanup_index()
                 focus = [
                     f"{self.name}'s plan for {utils.get_timer().daily_format()}.",
                     f"Important recent events for {self.name}'s life.",
                 ]
                 retrieved = self.associate.retrieve_focus(focus)
-                plan_note = self.completion("retrieve_plan", retrieved)
-                thought_note = self.completion("retrieve_thought", retrieved)
-                self.scratch.currently = self.completion(
-                    "retrieve_currently", plan_note, thought_note
-                )
+                if retrieved:
+                    plan_note = self.completion("retrieve_plan", retrieved)
+                    thought_note = self.completion("retrieve_thought", retrieved)
+                    self.scratch.currently = self.completion(
+                        "retrieve_currently", plan_note, thought_note
+                    )
             # make init schedule
             self.schedule.create = utils.get_timer().get_date()
             wake_up = self.completion("wake_up")
@@ -129,26 +135,22 @@ class Agent:
             # make daily schedule
             hours = [str(i) + ":00 AM" for i in range(12)]
             hours += [str(i) + ":00 PM" for i in range(12)]
-            daily_schedule = {}
+            seed = [(h, "sleeping") for h in hours[:wake_up]]
+            seed += [(h, "") for h in hours[wake_up:]]
+            schedule = {}
             for _ in range(self.schedule.max_try):
-                schedule = [(h, "sleeping") for h in hours[:wake_up]]
-                schedule += [(h, "") for h in hours[wake_up:]]
-                daily_schedule = self.completion(
-                    "schedule_daily", wake_up, schedule, init_schedule
+                schedule = {h: s for h, s in seed[:wake_up]}
+                schedule.update(
+                    self.completion("schedule_daily", wake_up, seed, init_schedule)
                 )
-                daily_schedule.update({h: s for h, s in schedule[:wake_up]})
-                if len(set(daily_schedule.values())) >= self.schedule.diversity:
+                if len(set(schedule.values())) >= self.schedule.diversity:
                     break
-            daily_schedule.update(
-                {k: "asleep" for k in hours if k not in daily_schedule}
-            )
-            prev = None
-            for hour in hours:
-                if daily_schedule[hour] == prev:
-                    self.schedule.daily_schedule[-1]["duration"] += 60
-                    continue
-                self.schedule.add_plan(daily_schedule[hour], 60)
-                prev = daily_schedule[hour]
+            schedule = {utils.to_date(k, "%I:%M %p"): v for k, v in schedule.items()}
+            schedule = {utils.daily_duration(k): v for k, v in schedule.items()}
+            starts = list(sorted(schedule.keys()))
+            for idx, start in enumerate(starts):
+                end = starts[idx + 1] if idx + 1 < len(starts) else 24 * 60
+                self.schedule.add_plan(schedule[start], end - start)
             event = memory.Event(
                 self.name, "plan", self.schedule.create.strftime("%A %B %d")
             )
@@ -374,11 +376,9 @@ class Agent:
             else:
                 kwargs["address"].append(self.completion("determine_arena", **kwargs))
             objs = self.spatial.get_leaves(kwargs["address"])
-            if len(objs) == 0:
-                kwargs["address"].append("<random>")
-            elif len(objs) == 1:
+            if len(objs) == 1:
                 kwargs["address"].append(objs[0])
-            else:
+            elif len(objs) > 1:
                 kwargs["address"].append(self.completion("determine_object", **kwargs))
             address = kwargs["address"]
 
@@ -449,16 +449,20 @@ class Agent:
         if o_act.act_type == "chat" or act.act_type == "chat":
             return False
         chats = self.associate.retrieve_chats(other.name)
-        if chats and utils.get_timer().get_delta(chats[0].expiration) < 60:
+        if chats and utils.get_timer().get_delta(chats[0].expire) < 60:
             return False
         if not self.completion("decide_talk", self, other, focus):
             return False
         self.logger.info("{} decides talk with {}".format(self.name, other.name))
-        print("should chat with " + str(other))
-        convo, duration_min = generate_convo(maze, init_persona, target_persona)
-        convo_summary = generate_convo_summary(init_persona, convo)
-        inserted_act = convo_summary
-        inserted_act_dur = duration_min
+        chats = []
+        for _ in range(8):
+            chats, end = self.generate_chats(other, chats)
+            if not end:
+                chats, end = other.generate_chats(self, chats)
+            if end:
+                break
+        chat_summary = self.completion("summarize_chats", chats)
+        duration_min = int(sum([len(c[1]) for c in chats]) / 240)
 
     def _react_to(self, other, focus):
         if self._skip_react(other):
@@ -473,6 +477,17 @@ class Agent:
         if not self.completion("decide_react", self, other, focus):
             return False
         self.logger.info("{} decides react to {}".format(self.name, other.name))
+
+    def generate_chats(self, other, chats):
+        retrieved = self.associate.retrieve_focus([other.name], 50)
+        relation = self.completion("summarize_relation", other.name, retrieved)
+        focus = [relation, other.get_curr_event().describe]
+        if len(chats) > 4:
+            focus.append("; ".join("{}: {}".format(n, t) for n, t in chats[-4:]))
+        retrieved = self.associate.retrieve_focus(focus, 15)
+        utt, end = self.completion("generate_utterance", self, other, retrieved, chats)
+        chats.append((self.name, utt))
+        return chats, end
 
     def _add_concept(
         self,
@@ -538,12 +553,18 @@ class Agent:
             return False
         return self._llm.is_available()
 
-    def to_dict(self):
-        return {
-            "coord": self.coord,
+    def to_dict(self, with_actions=False):
+        info = {
             "status": self.status,
             "schedule": self.schedule.to_dict(),
             "associate": self.associate.to_dict(),
             "currently": self.scratch.currently,
-            "actions": [a.to_dict() for a in self.actions],
         }
+        if with_actions:
+            info.update(
+                {
+                    "coord": self.coord,
+                    "actions": [a.to_dict() for a in self.actions],
+                }
+            )
+        return info

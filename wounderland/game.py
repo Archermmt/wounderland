@@ -57,8 +57,8 @@ class Game:
         }
         if agent.llm_available():
             info["llm"] = agent._llm.get_summary()
-        title = "{} @ {}".format(name, utils.get_timer().get_date("%H:%M:%S"))
-        self.logger.info("{}{}\n".format(utils.split_line(title), agent))
+        title = "{} @ {}".format(name, utils.get_timer().get_date("%Y%m%d-%H:%M:%S"))
+        self.logger.info("\n{}\n{}\n".format(utils.split_line(title), agent))
         return {"plan": plan, "info": info}
 
     def load_static(self, path):
@@ -66,8 +66,10 @@ class Game:
 
     def reset_user(self, name, keys, email=None):
         self.user = User(name, keys, email=email)
-        for _, agent in self.agents.items():
+        for a_name, agent in self.agents.items():
             agent.reset_user(self.user)
+            title = "{}.reset by User({})".format(a_name, name)
+            self.logger.info("\n{}\n{}\n".format(utils.split_line(title), agent))
 
     def remove_user(self):
         for _, agent in self.agents.items():

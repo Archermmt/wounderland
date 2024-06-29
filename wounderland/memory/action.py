@@ -24,8 +24,8 @@ class Action:
     def abstract(self):
         status = "{}[{}~{}]".format(
             "done" if self.finished() else "doing",
-            self.start.strftime("%H:%M"),
-            self.end.strftime("%H:%M"),
+            self.start.strftime("%Y%m%d-%H:%M"),
+            self.end.strftime("%Y%m%d-%H:%M"),
         )
         return {
             "status": status,
@@ -37,6 +37,8 @@ class Action:
         return utils.dump_dict(self.abstract())
 
     def finished(self):
+        if not self.duration:
+            return True
         if not self.event.address:
             return True
         return utils.get_timer().get_date() > self.end

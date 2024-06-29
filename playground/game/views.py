@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from wounderland.game import create_game, get_game
-from wounderland.utils import get_timer
+from wounderland.utils import get_timer, create_io_logger
 from .models import *
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,10 @@ def _remove_user():
 def start_game(request):
     if request.method == "POST":
         # TODO: use django logger
-        game = create_game(settings.STATICFILES_DIRS[0], json.loads(request.body))
+        logger = create_io_logger("info")
+        game = create_game(
+            settings.STATICFILES_DIRS[0], json.loads(request.body), logger=logger
+        )
         _reset_user(request.session.get("user", ""))
         if not game:
             return JsonResponse({"success": False, "error": "failed to create game"})

@@ -41,7 +41,7 @@ class Concept:
 
     def abstract(self):
         return {
-            "{}(P.{})".format(self.node_type, self.poignancy): self.event,
+            "{}(P.{})".format(self.node_type, self.poignancy): str(self.event),
             "describe": "{}[{} ~ {} @ {}]".format(
                 self.describe,
                 self.create.strftime("%m%d-%H:%M"),
@@ -80,6 +80,8 @@ class AssociateRetriever(BaseRetriever):
         """Retrieve nodes given query."""
 
         nodes = self._vector_retriever.retrieve(query_bundle)
+        if not nodes:
+            return []
         nodes = sorted(
             nodes, key=lambda n: utils.to_date(n.metadata["access"]), reverse=True
         )
@@ -126,7 +128,6 @@ class Associate:
         recency_weight=0.5,
         relevance_weight=3,
         importance_weight=2,
-        retrieve_max=30,
         memory=None,
     ):
         self._index_config = {"embedding": embedding, "path": path}
@@ -139,7 +140,6 @@ class Associate:
             "recency_weight": recency_weight,
             "relevance_weight": relevance_weight,
             "importance_weight": importance_weight,
-            "retrieve_max": retrieve_max,
         }
 
     def abstract(self):
@@ -151,9 +151,12 @@ class Associate:
     def __str__(self):
         return utils.dump_dict(self.abstract())
 
-    def enable_query(self, llm):
+    def enable_index(self, llm):
         self._index.save()
         self._index = LlamaIndex(**self._index_config, llm=llm)
+
+    def cleanup_index(self):
+        self._index.cleanup()
 
     def add_node(
         self,
@@ -209,9 +212,11 @@ class Associate:
     def retrieve_chats(self, name):
         return self._retrieve_nodes("chat", "chat with " + name)
 
-    def retrieve_focus(self, focus):
+    def retrieve_focus(self, focus, retrieve_max=30):
         def _create_retriever(*args, **kwargs):
-            return AssociateRetriever(self._retrieve_config, *args, **kwargs)
+            return AssociateRetriever(
+                self._retrieve_config, *args, **kwargs, retrieve_max=retrieve_max
+            )
 
         retrieved = {}
         node_ids = self.memory["event"] + self.memory["thought"]

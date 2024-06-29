@@ -22,7 +22,7 @@ export default class Land extends Phaser.Scene {
             }
         }
         // load config
-        this.game_config = {};
+        this.game_config = { "time": this.config.time };
         for (const [name, config] of Object.entries(this.config.config)) {
             if (name == "agents") {
                 this.game_config[name] = {};
@@ -35,16 +35,21 @@ export default class Land extends Phaser.Scene {
                 this.load.json('config.' + name, this.getAsset(config.path));
             }
         }
+        // set modes
+        this.think_parallel = this.config.think_parallel;
+        this.time_mode = this.config.time.mode;
+
         // start game
         this.game_status = { start: false };
         let callback = (info) => {
             this.game_status = info;
             if (this.game_status.start) {
                 for (const agent of Object.values(this.agents)) {
-                    agent.think();
+                    agent.enableThink();
                 }
             }
         }
+        console.log("Start game with think_parallel " + this.think_parallel + ", time_mode " + this.time_mode);
         utils.jsonRequest(this.urls.start_game, this.game_config, callback);
         // update time
         this.getTime();
@@ -80,12 +85,53 @@ export default class Land extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys()
         this.input.on('gameobjectdown', this.objClicked);
         this.on_config = false;
+
+        // queue for agent think
+        this.agent_queue = { waiting: [], thinking: [] };
+        for (const agent of Object.values(this.agents)) {
+            this.agent_queue.waiting.push(agent.name);
+        }
+    }
+
+    agent_think(agent_name) {
+        const agent = this.agents[agent_name];
+        if (agent.enable_think) {
+            agent.think();
+            const index = this.agent_queue.waiting.indexOf(agent.name);
+            this.agent_queue.waiting.splice(index, 1);
+            this.agent_queue.thinking.push(agent);
+        }
     }
 
     update() {
         if (this.game_status.start) {
             for (const agent of Object.values(this.agents)) {
                 agent.move();
+            }
+            if (this.think_parallel) {
+                for (const name of this.agent_queue.waiting) {
+                    this.agent_think(name);
+                }
+            } else if (this.agent_queue.waiting.length > 0) {
+                this.agent_think(this.agent_queue.waiting[0]);
+            }
+            if (this.agent_queue.waiting.length == 0) {
+                const isEnabled = (agent) => agent.enable_think;
+                if (this.agent_queue.thinking.every(isEnabled)) {
+                    for (const agent of this.agent_queue.thinking) {
+                        this.agent_queue.waiting.push(agent.name);
+                    }
+                    this.agent_queue.thinking = [];
+                    if (this.time_mode === "step") {
+                        console.log("Forward 5 mins for next loop...");
+                        this.game_status.start = false;
+                        let callback = (info) => {
+                            this.msg.user.time.current = info.time;
+                            this.game_status.start = true;
+                        }
+                        utils.jsonRequest(this.urls.get_time, { offset: 5 }, callback);
+                    }
+                }
             }
         }
         this.configPlayer();
