@@ -721,7 +721,11 @@ This is a conversation about"""
         return {
             "prompt": prompt,
             "callback": _callback,
-            "failsafe": ["Who am I"] * topk,
+            "failsafe": [
+                "Who is {}?".format(self.name),
+                "Where do {} lives?".format(self.name),
+                "What should {} do today?".format(self.name),
+            ],
         }
 
     def prompt_generate_insights(self, nodes, topk):
@@ -740,7 +744,7 @@ This is a conversation about"""
         return {
             "prompt": prompt,
             "callback": _callback,
-            "failsafe": ["I am hungry", [0]] * topk,
+            "failsafe": [["{} is thinking on what to do next".format(self.name), [nodes[0].node_id]]],
         }
 
     def prompt_retrieve_plan(self, retrieved):

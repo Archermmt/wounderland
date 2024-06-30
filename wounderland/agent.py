@@ -314,25 +314,16 @@ class Agent:
         nodes = sorted(nodes, key=lambda n: n.access, reverse=True)[
             : self.associate.max_importance
         ]
-        for n in nodes:
-            print("\n\nhas node " + str(n))
         focus = self.completion("generate_focus", nodes, 3)
         retrieved = self.associate.retrieve_focus(focus, reduce_all=False)
-        for text, r_nodes in retrieved.items():
-            print("\ntext {} has {} nodes".format(text, len(r_nodes)))
-            for idx, n in enumerate(r_nodes):
-                print("hes node[{}/{}]: {}".format(idx, len(r_nodes), n.describe))
         for r_nodes in retrieved.values():
             thoughts = self.completion("generate_insights", r_nodes, 5)
-            print("thoughts " + str(thoughts))
-            for thought, evidence in thoughts.items():
+            for thought, evidence in thoughts:
                 args = self.completion("describe_event", self.name, thought)
-                event = memory.Event(*args, address=self.get_tile().get_address)
-                print("event {} -> {}".format(thought, event))
+                event = memory.Event(*args, address=self.get_tile().get_address())
                 self._add_concept("thought", event, filling=evidence)
         self.status["poignancy"]["current"] = 0
         self.status["poignancy"]["num_event"] = 0
-        raise Exception("should reflect!!")
 
     def find_path(self, agents):
         if not self.is_awake():
