@@ -87,7 +87,7 @@ export default class Land extends Phaser.Scene {
         this.on_config = false;
 
         // queue for agent think
-        this.agent_queue = { waiting: [], thinking: [] };
+        this.agent_queue = { waiting: [], thinking: [], done: [] };
         for (const agent of Object.values(this.agents)) {
             this.agent_queue.waiting.push(agent.name);
         }
@@ -99,7 +99,7 @@ export default class Land extends Phaser.Scene {
             agent.think();
             const index = this.agent_queue.waiting.indexOf(agent.name);
             this.agent_queue.waiting.splice(index, 1);
-            this.agent_queue.thinking.push(agent);
+            this.agent_queue.thinking.push(agent.name);
         }
     }
 
@@ -112,25 +112,29 @@ export default class Land extends Phaser.Scene {
                 for (const name of this.agent_queue.waiting) {
                     this.agent_think(name);
                 }
-            } else if (this.agent_queue.waiting.length > 0) {
+            } else if (this.agent_queue.waiting.length > 0 && this.agent_queue.thinking.length == 0) {
                 this.agent_think(this.agent_queue.waiting[0]);
             }
-            if (this.agent_queue.waiting.length == 0) {
-                const isEnabled = (agent) => agent.enable_think;
-                if (this.agent_queue.thinking.every(isEnabled)) {
-                    for (const agent of this.agent_queue.thinking) {
-                        this.agent_queue.waiting.push(agent.name);
+            for (const name of this.agent_queue.thinking) {
+                const agent = this.agents[name];
+                if (!agent.thinking) {
+                    const index = this.agent_queue.thinking.indexOf(agent.name);
+                    this.agent_queue.thinking.splice(index, 1);
+                    this.agent_queue.done.push(agent.name);
+                }
+            }
+            if (this.agent_queue.done.length == this.agents.length) {
+                this.agent_queue.waiting = this.agent_queue.done
+                this.agent_queue.thinking = [];
+                this.agent_queue.done = [];
+                if (this.time_mode === "step") {
+                    console.log("Forward 5 mins for next loop...");
+                    this.game_status.start = false;
+                    let callback = (info) => {
+                        this.msg.user.time.current = info.time;
+                        this.game_status.start = true;
                     }
-                    this.agent_queue.thinking = [];
-                    if (this.time_mode === "step") {
-                        console.log("Forward 5 mins for next loop...");
-                        this.game_status.start = false;
-                        let callback = (info) => {
-                            this.msg.user.time.current = info.time;
-                            this.game_status.start = true;
-                        }
-                        utils.jsonRequest(this.urls.get_time, { offset: 5 }, callback);
-                    }
+                    utils.jsonRequest(this.urls.get_time, { offset: 5 }, callback);
                 }
             }
         }

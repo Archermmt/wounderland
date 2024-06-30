@@ -122,6 +122,9 @@ class Agent:
                     f"Important recent events for {self.name}'s life.",
                 ]
                 retrieved = self.associate.retrieve_focus(focus)
+                self.logger.info(
+                    "{} retrieved {} concepts".format(self.name, len(retrieved))
+                )
                 if retrieved:
                     plan_note = self.completion("retrieve_plan", retrieved)
                     thought_note = self.completion("retrieve_thought", retrieved)
@@ -152,7 +155,10 @@ class Agent:
                 end = starts[idx + 1] if idx + 1 < len(starts) else 24 * 60
                 self.schedule.add_plan(schedule[start], end - start)
             event = memory.Event(
-                self.name, "plan", self.schedule.create.strftime("%A %B %d")
+                self.name,
+                "plan",
+                self.schedule.create.strftime("%A %B %d"),
+                address=self.get_tile().get_address(),
             )
             thought = f"This is {self.name}'s plan for {event.object}: "
             thought += "; ".join(init_schedule)
@@ -230,7 +236,7 @@ class Agent:
                     emoji="🛌",
                 ),
                 duration=plan["duration"],
-                start=utils.daily_time(plan["start"]),
+                start=utils.get_timer().daily_time(plan["start"]),
             )
             self.actions = [action]
         if self.is_awake():
@@ -301,12 +307,29 @@ class Agent:
     def reflect(self):
         if self.status["poignancy"]["current"] < self.think_config["poignancy_max"]:
             return
-        events = self.associate.retrieve_events() + self.associate.retrieve_thoughts()
-        if not events:
+        nodes = self.associate.retrieve_events() + self.associate.retrieve_thoughts()
+        if not nodes:
             return
-
-        self.logger.info("{} is reflecting...".format(self.name))
-
+        self.logger.info("{} reflect with {} concepts...".format(self.name, len(nodes)))
+        nodes = sorted(nodes, key=lambda n: n.access, reverse=True)[
+            : self.associate.max_importance
+        ]
+        for n in nodes:
+            print("\n\nhas node " + str(n))
+        focus = self.completion("generate_focus", nodes, 3)
+        retrieved = self.associate.retrieve_focus(focus, reduce_all=False)
+        for text, r_nodes in retrieved.items():
+            print("\ntext {} has {} nodes".format(text, len(r_nodes)))
+            for idx, n in enumerate(r_nodes):
+                print("hes node[{}/{}]: {}".format(idx, len(r_nodes), n.describe))
+        for r_nodes in retrieved.values():
+            thoughts = self.completion("generate_insights", r_nodes, 5)
+            print("thoughts " + str(thoughts))
+            for thought, evidence in thoughts.items():
+                args = self.completion("describe_event", self.name, thought)
+                event = memory.Event(*args, address=self.get_tile().get_address)
+                print("event {} -> {}".format(thought, event))
+                self._add_concept("thought", event, filling=evidence)
         self.status["poignancy"]["current"] = 0
         self.status["poignancy"]["num_event"] = 0
         raise Exception("should reflect!!")
@@ -397,7 +420,7 @@ class Agent:
             event,
             obj_event,
             duration=de_plan["duration"],
-            start=utils.daily_time(de_plan["start"]),
+            start=utils.get_timer().daily_time(de_plan["start"]),
         )
 
     def _reaction(self, agents=None, ignore_words=None):
@@ -510,12 +533,10 @@ class Agent:
         )
 
     def _evaluate_concept(self, event, e_type="event"):
-        if e_type == "event":
+        if e_type in ("event", "thought"):
             poignancy = self._evaluate_event(event)
         elif e_type == "chat":
             poignancy = self._evaluate_chat(event)
-        elif e_type == "thought":
-            poignancy = 5
         else:
             raise Exception("Unexpected event type " + str(e_type))
         return poignancy

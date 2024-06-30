@@ -66,7 +66,7 @@ class Schedule:
 
     def plan_stamps(self, plan, time_format=None):
         def _to_date(minutes):
-            return utils.daily_time(minutes).strftime(time_format)
+            return utils.get_timer().daily_time(minutes).strftime(time_format)
 
         start, end = plan["start"], plan["start"] + plan["duration"]
         if time_format:

@@ -83,6 +83,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
         // flag for think
         this.enable_think = false;
+        this.thinking = false;
     }
 
     enableThink = () => {
@@ -90,7 +91,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     }
 
     think = () => {
-        if (this.enable_think) {
+        if (this.enable_think && !this.thinking) {
             this.enable_think = false;
             this.status.state = "think";
             let callback = (info) => {
@@ -116,8 +117,10 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                         this.status[key] = value;
                     }
                 }
+                this.thinking = false;
                 this.scene.time.delayedCall(this.config.think.interval, this.enableThink, [], this);
             }
+            this.thinking = true;
             utils.jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
         }
     }

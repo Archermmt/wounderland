@@ -22,6 +22,7 @@ class Concept:
         subject,
         predicate,
         object,
+        address,
         poignancy,
         create=None,
         expire=None,
@@ -30,7 +31,7 @@ class Concept:
         self.node_id = node_id
         self.describe = describe
         self.node_type = node_type
-        self.event = Event(subject, predicate, object)
+        self.event = Event(subject, predicate, object, address=address.split(":"))
         self.poignancy = poignancy
         self.create = utils.to_date(create) if create else utils.get_timer().get_date()
         if expire:
@@ -44,9 +45,9 @@ class Concept:
             "{}(P.{})".format(self.node_type, self.poignancy): str(self.event),
             "describe": "{}[{} ~ {} @ {}]".format(
                 self.describe,
-                self.create.strftime("%m%d-%H:%M"),
-                self.expire.strftime("%m%d-%H:%M"),
-                self.access.strftime("%m%d-%H:%M"),
+                self.create.strftime("%Y%m%d-%H:%M"),
+                self.expire.strftime("%Y%m%d-%H:%M"),
+                self.access.strftime("%Y%m%d-%H:%M"),
             ),
         }
 
@@ -66,6 +67,7 @@ class Concept:
             event.subject,
             event.predicate,
             event.object,
+            ":".join(event.address),
             poignancy,
         )
 
@@ -124,6 +126,7 @@ class Associate:
         embedding,
         retention=8,
         max_memory=-1,
+        max_importance=10,
         recency_decay=0.995,
         recency_weight=0.5,
         relevance_weight=3,
@@ -135,6 +138,7 @@ class Associate:
         self.memory = memory or {"event": [], "thought": [], "chat": []}
         self.retention = retention
         self.max_memory = max_memory
+        self.max_importance = max_importance
         self._retrieve_config = {
             "recency_decay": recency_decay,
             "recency_weight": recency_weight,
@@ -175,6 +179,7 @@ class Associate:
             "subject": event.subject,
             "predicate": event.predicate,
             "object": event.object,
+            "address": ":".join(event.address),
             "poignancy": poignancy,
             "create": create.strftime("%Y%m%d-%H:%M:%S"),
             "expire": expire.strftime("%Y%m%d-%H:%M:%S"),
@@ -190,6 +195,9 @@ class Associate:
 
     def to_concept(self, node):
         return Concept.from_node(node)
+
+    def find_concept(self, node_id):
+        return self.to_concept(self._index.find_node(node_id))
 
     def _retrieve_nodes(self, node_type, text=None):
         if text:
@@ -212,11 +220,10 @@ class Associate:
     def retrieve_chats(self, name):
         return self._retrieve_nodes("chat", "chat with " + name)
 
-    def retrieve_focus(self, focus, retrieve_max=30):
+    def retrieve_focus(self, focus, retrieve_max=30, reduce_all=True):
         def _create_retriever(*args, **kwargs):
-            return AssociateRetriever(
-                self._retrieve_config, *args, **kwargs, retrieve_max=retrieve_max
-            )
+            self._retrieve_config["retrieve_max"] = retrieve_max
+            return AssociateRetriever(self._retrieve_config, *args, **kwargs)
 
         retrieved = {}
         node_ids = self.memory["event"] + self.memory["thought"]
@@ -227,8 +234,16 @@ class Associate:
                 node_ids=node_ids,
                 retriever_creator=_create_retriever,
             )
-            retrieved.update({n.id_: n for n in nodes})
-        return [self.to_concept(v) for v in retrieved.values()]
+            if reduce_all:
+                retrieved.update({n.id_: n for n in nodes})
+            else:
+                retrieved[text] = nodes
+        if reduce_all:
+            return [self.to_concept(v) for v in retrieved.values()]
+        return {
+            text: [self.to_concept(n) for n in nodes]
+            for text, nodes, in retrieved.items()
+        }
 
     def get_relation(self, node):
         return {

@@ -10,11 +10,6 @@ def to_date(date_str, date_format="%Y%m%d-%H:%M:%S"):
     return datetime.datetime.strptime(date_str, date_format)
 
 
-def daily_time(duration):
-    base = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    return base + datetime.timedelta(minutes=duration)
-
-
 def daily_duration(date, mode="minute"):
     duration = date.hour % 24
     if mode == "hour":
@@ -32,8 +27,11 @@ class Timer:
         self._offset = offset
         if start:
             if "-" in start:
-                date = to_date(start, "%Y%m%d-%H:%M")
-                self._offset += (date - self._start).days * 24 * 60
+                date = to_date(start, "%Y%m%d-%H:%M").replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                today = self._start.replace(hour=0, minute=0, second=0, microsecond=0)
+                self._offset += (date - today).days * 24 * 60
                 start = start.split("-")[1]
             s_minute = daily_duration(to_date(start, "%H:%M"))
             self._offset += s_minute - daily_duration(self._start)
@@ -76,6 +74,10 @@ class Timer:
 
     def daily_duration(self, mode="minute"):
         return daily_duration(self.get_date(), mode)
+
+    def daily_time(self, duration):
+        base = self.get_date().replace(hour=0, minute=0, second=0, microsecond=0)
+        return base + datetime.timedelta(minutes=duration)
 
     @property
     def mode(self):

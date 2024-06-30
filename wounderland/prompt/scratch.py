@@ -359,11 +359,11 @@ Area options: <{{ areas|join(', ') }}>.
         template = Template(
             """\n-----
 Current activity: {{ activity }}
-Objects available: <{{ objects|join(', ') }}>
-Pick ONE most relevant object from the Objects available: {% if answer %}<{{ answer }}>{% else %}<{% endif %}"""
+Objects: <{{ objects|join(', ') }}>
+The most relevant object from the Objects is: {% if answer %}<{{ answer }}>{% else %}<{% endif %}"""
         )
 
-        prompt = "Task -- choose most relevant object from the Objects available for a task at hand.\n[Examples]"
+        prompt = "Task -- choose most relevant object from the Objects for a task at hand.\n[Examples]"
         prompt += template.render(
             activity="sleep in bed",
             objects=["bed", "easel", "closet", "painting"],
@@ -399,7 +399,7 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
             objects=["phone", "charger", "bed", "nightstand"],
             answer="phone",
         )
-        prompt += "\nGiven the examples above, please choose most relevant object from the Objects available for a task at hand:"
+        prompt += "\n\nGiven the examples above, please choose most relevant object from the Objects for a task at hand:"
         prompt += template.render(
             activity=describes[1], objects=spatial.get_leaves(address)
         )
@@ -408,9 +408,7 @@ Pick ONE most relevant object from the Objects available: {% if answer %}<{{ ans
         failsafe = random.choice(objects)
 
         def _callback(response):
-            pattern = (
-                "Pick ONE most relevant object from the Objects available: <(.+?)>"
-            )
+            pattern = "The most relevant object from the Objects is: <(.+?)>"
             obj = parse_llm_output(response, pattern)
             return obj if obj in objects else failsafe
 
@@ -708,6 +706,41 @@ This is a conversation about"""
             "prompt": prompt,
             "callback": _callback,
             "failsafe": "general chatting",
+        }
+
+    def prompt_generate_focus(self, nodes, topk):
+        prompt = "[Information]\n" + "\n".join(
+            ["{}. {}".format(idx, n.describe) for idx, n in enumerate(nodes)]
+        )
+        prompt += f"\n\nGiven the information above, what are {topk} most salient high-level questions?\n1. "
+
+        def _callback(response):
+            pattern = ["^\d{1}\. (.*)", "^\d{1} (.*)"]
+            return parse_llm_output(response, pattern, mode="match_all")
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": ["Who am I"] * topk,
+        }
+
+    def prompt_generate_insights(self, nodes, topk):
+        prompt = (
+            "[Statements]\n"
+            + "\n".join(
+                ["{}. {}".format(idx, n.describe) for idx, n in enumerate(nodes)]
+            )
+            + "\n\n"
+        )
+        prompt += f"What {topk} high-level insights can you infer from the above statements? (example format: insight (because of 1, 5, 3))\n1."
+
+        def _callback(response):
+            return response
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": ["I am hungry", [0]] * topk,
         }
 
     def prompt_retrieve_plan(self, retrieved):
