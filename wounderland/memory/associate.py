@@ -136,6 +136,7 @@ class Associate:
         self._index_config = {"embedding": embedding, "path": path}
         self._index = LlamaIndex(**self._index_config)
         self.memory = memory or {"event": [], "thought": [], "chat": []}
+        self.cleanup_index()
         self.retention = retention
         self.max_memory = max_memory
         self.max_importance = max_importance
@@ -160,7 +161,11 @@ class Associate:
         self._index = LlamaIndex(**self._index_config, llm=llm)
 
     def cleanup_index(self):
-        self._index.cleanup()
+        node_ids = self._index.cleanup()
+        self.memory = {
+            n_type: [n for n in nodes if n not in node_ids]
+            for n_type, nodes in self.memory.items()
+        }
 
     def add_node(
         self,
@@ -247,8 +252,9 @@ class Associate:
 
     def get_relation(self, node):
         return {
-            "events": self.retrieve_events(node.text),
-            "thoughts": self.retrieve_thoughts(node.text),
+            "node": node,
+            "events": self.retrieve_events(node.describe),
+            "thoughts": self.retrieve_thoughts(node.describe),
         }
 
     def to_dict(self):

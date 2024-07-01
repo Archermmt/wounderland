@@ -5,6 +5,12 @@
     123,
     57
   ],
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  },
   "currently": "Maria Lopez is working on her physics degree and streaming games on Twitch to make some extra money. She visits Hobbs Cafe for studying and eating just about everyday.",
   "scratch": {
     "age": 21,

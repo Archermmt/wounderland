@@ -49,15 +49,15 @@ class Game:
             "currently": agent.scratch.currently,
             "associate": agent.associate.abstract(),
             "concepts": {c.node_id: c.abstract() for c in agent.concepts},
-            "actions": {
-                "action.{}".format(i): a.abstract() for i, a in enumerate(agent.actions)
-            },
+            "action": agent.action.abstract(),
             "schedule": agent.schedule.abstract(),
             "address": agent.get_tile().get_address(as_list=False),
         }
         if agent.llm_available():
             info["llm"] = agent._llm.get_summary()
-        title = "{} @ {}".format(name, utils.get_timer().get_date("%Y%m%d-%H:%M:%S"))
+        title = "{}.summary @ {}".format(
+            name, utils.get_timer().get_date("%Y%m%d-%H:%M:%S")
+        )
         self.logger.info("\n{}\n{}\n".format(utils.split_line(title), agent))
         return {"plan": plan, "info": info}
 

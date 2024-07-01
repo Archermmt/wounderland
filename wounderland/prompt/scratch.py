@@ -89,8 +89,10 @@ Event: {}. Rate: """.format(
             utils.get_timer().daily_format(), self.name
         )
         prompt += "(with the time of the day. e.g., eat breakfast at 7:00 AM, have a lunch at 12:00 PM, watch TV at 7:00 PM):\n"
-        prompt += "1) wake up and complete the morning routine at {}:00 AM. 2)".format(
-            wake_up
+        prompt += (
+            "1) wake up and complete the morning routine at {}:00 AM.\n2) ".format(
+                wake_up
+            )
         )
         prompt = self._format_output(
             prompt, "lines", instruction="Each line consist of index and plan"
@@ -184,11 +186,11 @@ Today is Saturday May 10. From 08:00AM ~ 09:00AM, Kelly is planning on having br
 In 5 min increments, list the subtasks Kelly does when Kelly is working on the next day's kindergarten lesson plan from 09:00am ~ 10:00pm (total duration in minutes: 60):
 
 <subtasks>:
-1) Kelly is reviewing the kindergarten curriculum standards. (duration: 15, left: 45)
-2) Kelly is brainstorming ideas for the lesson. (duration: 10, left: 35)
-3) Kelly is creating the lesson plan. (duration: 10, left: 25)
-8) Kelly is printing the lesson plan. (duration: 10, left: 15)
-9) Kelly is putting the lesson plan in her bag. (duration: 15, left: 0)
+1) Kelly <is> reviewing the kindergarten curriculum standards. (duration: 15, left: 45)
+2) Kelly <is> brainstorming ideas for the lesson. (duration: 10, left: 35)
+3) Kelly <is> creating the lesson plan. (duration: 10, left: 25)
+8) Kelly <is> printing the lesson plan. (duration: 10, left: 15)
+9) Kelly <is> putting the lesson plan in her bag. (duration: 15, left: 0)
 
 Given example above, please list the subtasks of the following task.
 [TASK]\n"""
@@ -199,18 +201,18 @@ Given example above, please list the subtasks of the following task.
         prompt += f"\nToday is {utils.get_timer().daily_format()}. From "
         prompt += ", ".join([_plan_des(schedule.daily_schedule[i]) for i in indices])
         start, end = schedule.plan_stamps(plan, time_format="%H:%M%p")
-        increment = max(int(plan["duration"] / 150) * 5, 5)
+        increment = max(int(plan["duration"] / 100) * 5, 5)
         prompt += f'\nIn {increment} min increments, list the subtasks {self.name} does when {self.name} is {plan["describe"]}'
         prompt += (
             f' from {start} ~ {end} (total duration in minutes {plan["duration"]}):\n\n'
         )
         prompt += "<subtasks>:\n"
-        prompt += f"1) {self.name} is"
+        prompt += f"1) {self.name} <is> "
 
         def _callback(response):
             patterns = [
-                "\d{1,2}\) .* is (.*) \(duration: (\d{1,2}), left: \d*\)",
-                ".* is (.*) \(duration: (\d{1,2}), left: \d*\)",
+                "\d{1,2}\) .* <is> (.*) \(duration: (\d{1,2}), left: \d*\)",
+                ".* <is> (.*) \(duration: (\d{1,2}), left: \d*\)",
             ]
             schedules = parse_llm_output(response, patterns, mode="match_all")
             schedules = [(s[0].strip("."), int(s[1])) for s in schedules]
@@ -460,21 +462,25 @@ Output: (<Merrie Morris>, <run>, <treadmill>)
 ---
 
 Given the examples above, please turn the input into format (<subject>, <predicate>, <object>):
-Input: {subject} is {describe}. 
-Output: (<{subject},"""
+Input: {describe}.
+Output: (<"""
 
         def _callback(response):
-            patterns = ["\(<(.+?)>, <(.+?)>, <(.+?)>", "\(<(.+?)>, <(.+?)>"]
-            event = parse_llm_output(response, patterns)
-            if event[0] == subject:
-                return event
-            raise Exception("Can not make event for " + str(describe))
+            patterns = [
+                "\(<(.+?)>, <(.+?)>, <(.*)>\)\,",
+                "\(<(.+?)>, <(.+?)>, <(.*)>\)",
+                "\((.+?), (.+?), (.*)\)",
+            ]
+            outputs = parse_llm_output(response, patterns)
+            if not outputs[2]:
+                return failsafe
+            return outputs
 
-        return {
-            "prompt": prompt,
-            "callback": _callback,
-            "failsafe": (subject, "is", describe),
-        }
+        if describe.startswith(subject + " is "):
+            failsafe = (subject, "is", describe.replace(subject + " is ", ""))
+        else:
+            failsafe = (subject, "is", describe)
+        return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_describe_object(self, obj, describe):
         prompt = f"""Task: We want to understand the state of an object that is being used by someone.\n
@@ -507,14 +513,12 @@ Step 2. Describe the {obj}'s state: {obj} is """
 
         return {"prompt": prompt, "callback": _callback, "failsafe": "idle"}
 
-    def prompt_decide_talk(self, agent, other, focus):
+    def prompt_decide_talk(self, agent, other, focus, chats):
         def _status_des(agent):
-            act_desc = agent.get_curr_event().describe
-            if not agent.path and "waiting" not in act_desc:
-                return f"{agent.name} is already {act_desc}"
-            if "waiting" in act_desc:
-                return f"{agent.name} is {act_desc}"
-            return f"{agent.name} is on the way to {act_desc}"
+            event = agent.get_event()
+            if agent.path:
+                return f"{agent.name} is on the way to {event.predicate} {event.object}"
+            return event.describe
 
         context = ". ".join(
             [c.describe for c in focus["events"] if c.event.predicate == "was"]
@@ -522,9 +526,8 @@ Step 2. Describe the {obj}'s state: {obj} is """
         context += "\n" + ". ".join([c.describe for c in focus["thoughts"]])
         date_str = utils.get_timer().get_date("%B %d, %Y, %H:%M:%S %p")
         chat_history = ""
-        last_chats = agent.associate.retrieve_chats(other.name)
-        if last_chats:
-            chat_history = f" {self.name} and {other.name} last chatted at {last_chats[0].created} about {last_chats[0].describe}"
+        if chats:
+            chat_history = f" {self.name} and {other.name} last chatted at {chats[0].create} about {chats[0].describe}"
         a_des, o_des = _status_des(agent), _status_des(other)
         prompt = f"""Task -- given context, determine whether the subject will initiate a conversation with another.
 Context: {context}
@@ -536,11 +539,11 @@ Answer in "yes" or "no":
 """
 
         def _callback(response):
-            return "yes" in response
+            return "yes" in response or "Yes" in response
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
 
-    def prompt_decide_react(self, agent, other, focus):
+    def prompt_decide_wait(self, agent, other, focus):
         template = Template(
             """\n-----
 Context: {{ context }}. 
@@ -618,15 +621,17 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
 
     def prompt_summarize_relation(self, other_name, retrieved):
-        prompt = (
-            "[Statements]" + "\n" + "\n".join([n.describe for n in retrieved]) + "\n\n"
+        prompt = "[Statements]\n"
+        prompt += "\n".join(
+            ["{}. {}".format(idx, n.describe) for idx, n in enumerate(retrieved)]
         )
-        prompt += f"Based on the statements above, summarize {self.name} and {other_name}'s relationship. What do they feel or know about each other?\n"
+        prompt += f"\n\nBased on the statements above, summarize {self.name} and {other_name}'s relationship (e.g., Tom and Jeo are friends, Elin and John are playing games). What do they feel or know about each other?\n"
+        # prompt += f"\n{self.name} and {other_name} are "
         prompt = self._format_output(
             prompt,
             "sentence",
-            "Jane Doe is working on a project",
-            "The output should be a string that responds to the question.",
+            "Jane and Tom are friends",
+            "The output should be ONE sentence that describe the relationship.",
         )
 
         def _callback(response):
@@ -644,16 +649,17 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             delta = utils.get_timer().get_delta(n.create)
             if delta > 480:
                 continue
-            pass_context += f"{delta} minutes ago, {agent.name} and {other.name} were already {n.event.descirbe} This context takes place after that conversation.\n"
+            pass_context += f"{delta} minutes ago, {agent.name} and {other.name} were already {n.event.describe} This context takes place after that conversation.\n"
 
         address = agent.get_tile().get_address()
+        a_event, o_event = agent.get_event(), other.get_event()
 
         curr_context = (
             f"{agent.name} "
-            + f"was {agent.get_curr_event().descirbe} "
+            + f"was {a_event.predicate} {a_event.object} "
             + f"when {agent.name} "
             + f"saw {other.name} "
-            + f"in the middle of {other.get_curr_event().descirbe}.\n"
+            + f"in the middle of {o_event.predicate} {o_event.object}.\n"
             + f"{agent.name} "
             + "is initiating a conversation with "
             + f"{other.name}."
@@ -664,20 +670,17 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             conversation or "[The conversation has not started yet -- start it!]"
         )
 
-        prompt = f"Context for the task:\n\nPART 1.\nHere is a brief description of {agent.name}:\n"
+        prompt = f"Context for the task:\n\nPART 1. Abstract of {agent.name}\nHere is a brief description of {agent.name}:\n"
         prompt += self._base_desc()
-        prompt += f"Here is the memory that is in {agent.name}'s head:"
+        prompt += f"\nHere is the memory that is in {agent.name}'s head:"
         prompt += "\n- " + "\n- ".join([n.describe for n in retrieved])
-        prompt += "\n\nPART 2. Past Context:\n" + pass_context
+        prompt += "\n\nPART 2. Past Context\n" + pass_context
         prompt += f"\n\nCurrent Location: {address[-2]} in {address[-1]}"
         prompt += f"\n\nCurrent Context: {curr_context}"
         prompt += f"\n\n{agent.name} and {other.name} are chatting. Here is their conversation so far:\n{conversation}"
-        prompt += f"\n---\nTask: Given the above, what should {agent.name} say to {other.name} next in the conversation? And did it end the conversation?"
-        prompt += "\n\nOutput format: Output a json of the following format:"
-        prompt += f"""{{
-    "{agent.name}": "{agent.name}'s utterance>",
-    "Did the conversation end with {agent.name}'s utterance?": "<json Boolean>"
-}}"""
+        prompt += f"\n---\nTask: Given the context above, what should {agent.name} say to {other.name} next in the conversation? And did it end the conversation?"
+        prompt += "\n\nOutput a json of the following format:\n"
+        prompt += f"""{{"{agent.name}": "{agent.name}'s utterance>","End the conversation?": "<json Boolean>"}}"""
 
         def _callback(response):
             return response
@@ -739,12 +742,30 @@ This is a conversation about"""
         prompt += f"What {topk} high-level insights can you infer from the above statements? (example format: insight (because of 1, 5, 3))\n1."
 
         def _callback(response):
-            return response
+            patterns = [
+                "^\d{1}\. (.*)\. \(Because of (.*)\)",
+                "^\d{1}\. (.*)\. \(because of (.*)\)",
+            ]
+            insights, outputs = [], parse_llm_output(
+                response, patterns, mode="match_all"
+            )
+            if outputs:
+                for insight, reason in outputs:
+                    indices = [int(e.strip()) for e in reason.split(",")]
+                    node_ids = [nodes[i].node_id for i in indices if i < len(nodes)]
+                    insights.append([insight, node_ids])
+                return insights
+            raise Exception("Can not find insights")
 
         return {
             "prompt": prompt,
             "callback": _callback,
-            "failsafe": [["{} is thinking on what to do next".format(self.name), [nodes[0].node_id]]],
+            "failsafe": [
+                [
+                    "{} is thinking on what to do next".format(self.name),
+                    [nodes[0].node_id],
+                ]
+            ],
         }
 
     def prompt_retrieve_plan(self, retrieved):

@@ -5,6 +5,12 @@
     126,
     46
   ],
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  },
   "currently": "Klaus Mueller is writing a research paper on the effects of gentrification in low-income communities.",
   "scratch": {
     "age": 20,

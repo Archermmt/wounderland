@@ -115,6 +115,9 @@ class LlamaIndex:
         self._index.insert_nodes([node])
         return node
 
+    def has_node(self, node_id):
+        return node_id in self._index.docstore.docs
+
     def find_node(self, node_id):
         return self._index.docstore.docs[node_id]
 
@@ -137,6 +140,7 @@ class LlamaIndex:
             if create > now or expire < now:
                 remove_ids.append(node_id)
         self.remove_nodes(remove_ids)
+        return remove_ids
 
     def retrieve(
         self,

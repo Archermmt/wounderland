@@ -9,7 +9,7 @@ class Action:
     def __init__(
         self,
         event,
-        obj_event,
+        obj_event=None,
         act_type="action",
         start=None,
         duration=0,
@@ -27,11 +27,10 @@ class Action:
             self.start.strftime("%Y%m%d-%H:%M"),
             self.end.strftime("%Y%m%d-%H:%M"),
         )
-        return {
-            "status": status,
-            "event({})".format(self.act_type): str(self.event),
-            "object": str(self.obj_event),
-        }
+        info = {"status": status, "event({})".format(self.act_type): str(self.event)}
+        if self.obj_event:
+            info["object"] = str(self.obj_event)
+        return info
 
     def __str__(self):
         return utils.dump_dict(self.abstract())
