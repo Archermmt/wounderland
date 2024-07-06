@@ -143,7 +143,6 @@ class Maze:
                         0 < c[0] < self.maze_width - 1
                         and 0 < c[1] < self.maze_height - 1
                         and map[c[1]][c[0]] == 0
-                        and not self.tile_at(c).collision
                         and c not in visited
                     ):
                         map[c[1]][c[0]] = map[f[1]][f[0]] + 1
@@ -193,13 +192,16 @@ class Maze:
             coords = list(product(list(range(*x_range)), list(range(*y_range))))
         return [self.tile_at(c) for c in coords]
 
-    def get_around(self, coord):
-        return [
+    def get_around(self, coord, no_collision=True):
+        coords = [
             (coord[0] - 1, coord[1]),
             (coord[0] + 1, coord[1]),
             (coord[0], coord[1] - 1),
             (coord[0], coord[1] + 1),
         ]
+        if no_collision:
+            coords = [c for c in coords if not self.tile_at(c).collision]
+        return coords
 
     def get_address_tiles(self, address):
         addr = ":".join(address)

@@ -45,7 +45,7 @@ class Action:
     def to_dict(self):
         return {
             "event": self.event.to_dict(),
-            "obj_event": self.obj_event.to_dict(),
+            "obj_event": self.obj_event.to_dict() if self.obj_event else None,
             "act_type": self.act_type,
             "start": self.start.strftime("%Y%m%d-%H:%M:%S"),
             "duration": self.duration,
@@ -54,6 +54,7 @@ class Action:
     @classmethod
     def from_dict(cls, config):
         config["event"] = Event.from_dict(config["event"])
-        config["obj_event"] = Event.from_dict(config["obj_event"])
+        if config.get("obj_event"):
+            config["obj_event"] = Event.from_dict(config["obj_event"])
         config["start"] = utils.to_date(config["start"])
         return cls(**config)

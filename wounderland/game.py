@@ -54,6 +54,7 @@ class Game:
             "currently": agent.scratch.currently,
             "associate": agent.associate.abstract(),
             "concepts": {c.node_id: c.abstract() for c in agent.concepts},
+            "chats": agent.chats,
             "action": agent.action.abstract(),
             "schedule": agent.schedule.abstract(),
             "address": agent.get_tile().get_address(as_list=False),

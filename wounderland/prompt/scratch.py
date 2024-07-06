@@ -44,7 +44,7 @@ Current Date: {7}\n""".format(
 
     def prompt_poignancy_event(self, event):
         prompt = self._base_desc()
-        prompt += """\nOn the scale of 1 to 10, where 1 is purely mundane (e.g., brushing teeth, making bed) and 10 is extremely poignant (e.g., a break up, college acceptance), rate the likely poignancy of the following event for {}.
+        prompt += f"""\nOn the scale of 1 to 10, where 1 is purely mundane (e.g., brushing teeth, making bed) and 10 is extremely poignant (e.g., a break up, college acceptance), rate the likely poignancy of the following event for {self.name}.
 Each event should ONLY be rate with ONE integer on the scale of 1 to 10.
 -----
 Event: brushing teeth. Rate: 1
@@ -55,12 +55,31 @@ Event: a break up. Rate: 10
 -----
 Event: college acceptance. Rate: 10
 -----
-Event: {}. Rate: """.format(
-            self.name, event.get_describe()
-        )
+Event: {event.get_describe()}. Rate: """
 
         def _callback(response):
             pattern = "Event: .*\. Rate: (\d{1,2})"
+            return int(parse_llm_output(response, pattern, "match_last"))
+
+        return {
+            "prompt": prompt,
+            "callback": _callback,
+            "failsafe": random.choice(list(range(10))) + 1,
+        }
+
+    def prompt_poignancy_chat(self, event):
+        prompt = self._base_desc()
+        prompt += f"""\nOn the scale of 1 to 10, where 1 is purely mundane (e.g., routine morning greetings) and 10 is extremely poignant (e.g., a conversation about breaking up, a fight), rate the likely poignancy of the following conversation for {self.name}.
+Each Conversation should ONLY be rate with ONE integer on the scale of 1 to 10.
+-----
+Conversation: routine morning greetings. Rate: 1
+-----
+Conversation: a conversation about breaking up, a fight. Rate: 10
+-----
+Conversation: {event.get_describe()}. Rate: """
+
+        def _callback(response):
+            pattern = "Conversation: .*\. Rate: (\d{1,2})"
             return int(parse_llm_output(response, pattern, "match_last"))
 
         return {
@@ -255,10 +274,10 @@ Given example above, please list the subtasks of the following task.
                 new_plan.append("[{} ~".format(action.end.strftime("%H:%M")))
 
         org_plan, new_plan = "\n".join(org_plan), "\n".join(new_plan)
-        prompt = f"""Here was {self.name}!'s originally planned schedule from {start} to {end}. 
+        prompt = f"""Here was {self.name}'s originally planned schedule from {start} to {end}. 
 {org_plan}\n
-But {self.name} unexpectedly end up the following event for {action.duration} minutes:\n{action.event.get_describe(False)}.
-Revise {self.name}'s schedule from {start} to {end} accordingly (it has to end by {end}). 
+But {self.name} unexpectedly end up with the following event for {action.duration} minutes:\n{action.event.get_describe()}.
+\nRevise {self.name}'s schedule from {start} to {end} accordingly (it has to end by {end}). 
 The revised schedule:
 {new_plan}"""
 
@@ -683,7 +702,8 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
 
-    def prompt_summarize_relation(self, other_name, nodes):
+    def prompt_summarize_relation(self, agent, other_name):
+        nodes = agent.associate.retrieve_focus([other_name], 50)
         prompt = "[Statements]\n"
         prompt += "\n".join(
             ["{}. {}".format(idx, n.describe) for idx, n in enumerate(nodes)]
@@ -706,8 +726,13 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             "failsafe": self.name + " is looking at " + other_name,
         }
 
-    def prompt_generate_chat(self, agent, other, nodes, chats):
-        pass_context, chat_nodes = "", agent.associate.retrieve_chats(other.name)
+    def prompt_generate_chat(self, agent, other, relation, chats):
+        focus = [relation, other.get_event().get_describe()]
+        if len(chats) > 4:
+            focus.append("; ".join("{}: {}".format(n, t) for n, t in chats[-4:]))
+        nodes = agent.associate.retrieve_focus(focus, 15)
+        chat_nodes = agent.associate.retrieve_chats(other.name)
+        pass_context = ""
         for n in chat_nodes:
             delta = utils.get_timer().get_delta(n.create)
             if delta > 480:
@@ -736,7 +761,7 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
         prompt += f"\nHere is the memory that is in {agent.name}'s head:"
         prompt += "\n- " + "\n- ".join([n.describe for n in nodes])
         prompt += "\n\nPART 2. Past Context\n" + pass_context
-        prompt += f"\n\nCurrent Location: {address[-2]} in {address[-1]}"
+        prompt += f"\n\nCurrent Location: {address[-1]} in {address[-2]}"
         prompt += f"\n\nCurrent Context: {curr_context}"
         prompt += f"\n\n{agent.name} and {other.name} are chatting. Here is their conversation so far:\n{conversation}"
         prompt += f"\n---\nTask: Given the context above, what should {agent.name} say to {other.name} next in the conversation? And did it end the conversation?"

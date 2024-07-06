@@ -12,7 +12,6 @@ from wounderland.memory.associate import Concept
 class Agent:
     def __init__(self, config, maze, logger):
         self.name = config["name"]
-        self.storage_root = config["storage_root"]
         self.maze = maze
         self._llm = None
         self.logger = logger
@@ -26,17 +25,16 @@ class Agent:
         self.spatial = memory.Spatial(**config["spatial"])
         self.schedule = memory.Schedule(**config["schedule"])
         self.associate = memory.Associate(
-            os.path.join(self.storage_root, "associate"), **config["associate"]
+            os.path.join(config["storage_root"], "associate"), **config["associate"]
         )
-        self.concepts = []
-        self.chats = []
+        self.concepts, self.chats = [], config.get("chats", [])
 
         # prompt
         self.scratch = prompt.Scratch(self.name, config["currently"], config["scratch"])
 
         # status
-        self.status = {"poignancy": {"current": 0, "num_event": 0}}
-        self.status = utils.update_dict(self.status, config.get("status", {}))
+        status = {"poignancy": {"current": 0}}
+        self.status = utils.update_dict(status, config.get("status", {}))
         self.plan = config.get("plan", {})
 
         # action and events
@@ -61,6 +59,7 @@ class Agent:
             "tile": self.maze.tile_at(self.coord).abstract(),
             "status": self.status,
             "concepts": {c.node_id: c.abstract() for c in self.concepts},
+            "chats": self.chats,
             "action": self.action.abstract(),
             "associate": self.associate.abstract(),
         }
@@ -125,18 +124,18 @@ class Agent:
                     "{} retrieved {} concepts".format(self.name, len(retrieved))
                 )
                 if retrieved:
-                    plan_note = self.completion("retrieve_plan", retrieved)
-                    thought_note = self.completion("retrieve_thought", retrieved)
+                    plan = self.completion("retrieve_plan", retrieved)
+                    thought = self.completion("retrieve_thought", retrieved)
                     self.scratch.currently = self.completion(
-                        "retrieve_currently", plan_note, thought_note
+                        "retrieve_currently", plan, thought
                     )
             # make init schedule
             self.schedule.create = utils.get_timer().get_date()
             wake_up = self.completion("wake_up")
             init_schedule = self.completion("schedule_init", wake_up)
             # make daily schedule
-            hours = [str(i) + ":00 AM" for i in range(12)]
-            hours += [str(i) + ":00 PM" for i in range(12)]
+            hours = [f"{i}:00 AM" for i in range(12)]
+            hours += [f"{i}:00 PM" for i in range(12)]
             seed = [(h, "sleeping") for h in hours[:wake_up]]
             seed += [(h, "") for h in hours[wake_up:]]
             schedule = {}
@@ -147,15 +146,19 @@ class Agent:
                 )
                 if len(set(schedule.values())) >= self.schedule.diversity:
                     break
-            schedule = {utils.to_date(k, "%I:%M %p"): v for k, v in schedule.items()}
-            schedule = {utils.daily_duration(k): v for k, v in schedule.items()}
+
+            def _to_duration(date_str):
+                return utils.daily_duration(utils.to_date(date_str, "%I:%M %p"))
+
+            schedule = {_to_duration(k): v for k, v in schedule.items()}
             starts = list(sorted(schedule.keys()))
             for idx, start in enumerate(starts):
                 end = starts[idx + 1] if idx + 1 < len(starts) else 24 * 60
                 self.schedule.add_plan(schedule[start], end - start)
             schedule_time = self.schedule.create.strftime("%A %B %d")
-            thought = f"This is {self.name}'s plan for {schedule_time}: "
-            thought += "; ".join(init_schedule)
+            thought = "This is {}'s plan for {}: {}".format(
+                self.name, schedule_time, "; ".join(init_schedule)
+            )
             event = memory.Event(
                 self.name,
                 "plan",
@@ -188,6 +191,15 @@ class Agent:
             plan["decompose"] = decompose
         return self.schedule.current_plan()
 
+    def revise_schedule(self, event, start, duration, act_type="event"):
+        self.action = memory.Action(
+            event, act_type=act_type, start=start, duration=duration
+        )
+        plan, _ = self.schedule.current_plan()
+        plan["decompose"] = self.completion(
+            "schedule_revise", self.action, self.schedule
+        )
+
     def move(self, coord, path=None):
         events = {}
 
@@ -197,7 +209,9 @@ class Agent:
                 return {}
             if not tile.update_events(self.get_event()):
                 tile.add_event(self.get_event())
-            self.maze.update_obj(coord, self.get_event(False))
+            obj_event = self.get_event(False)
+            if obj_event:
+                self.maze.update_obj(coord, obj_event)
             return {e: coord for e in tile.get_events()}
 
         if self.is_awake():
@@ -271,32 +285,24 @@ class Agent:
                     events[event] = dist
         events = list(sorted(events.keys(), key=lambda k: events[k]))
         # get concepts
-        self.concepts, valid_concepts = [], 0
+        self.concepts, valid_num = [], 0
         for idx, event in enumerate(events[: self.percept_config["att_bandwidth"]]):
             recent_events = set(n.describe for n in self.associate.retrieve_events())
             if event.get_describe() not in recent_events:
-                chats = []
-                if event.fit(self.name, "chat with"):
-                    node = self._add_concept(
-                        "chat", self.get_event(), filling=self.scratch.chat
-                    )
-                    chats = [node.node_id]
-                    self.concepts.append(node)
                 if event.object == "idle":
                     poignancy = self._evaluate_concept(event, "event")
                     node = Concept.from_event(
                         "idle_" + str(idx), "event", event, poignancy=poignancy
                     )
                 else:
-                    valid_concepts += 1
-                    node = self._add_concept("event", event, filling=chats)
-                self._increase_poignancy(node.poignancy)
+                    valid_num += 1
+                    node_type = "chat" if event.fit(self.name, "chat with") else "event"
+                    node = self._add_concept(node_type, event)
+                self.status["poignancy"]["current"] += node.poignancy
                 self.concepts.append(node)
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
         self.logger.info(
-            "{} percept {}/{} concepts".format(
-                self.name, valid_concepts, len(self.concepts)
-            )
+            "{} percept {}/{} concepts".format(self.name, valid_num, len(self.concepts))
         )
 
     def make_plan(self, agents):
@@ -326,6 +332,7 @@ class Agent:
         nodes = sorted(nodes, key=lambda n: n.access, reverse=True)[
             : self.associate.max_importance
         ]
+        # summary thought
         focus = self.completion("reflect_focus", nodes, 3)
         retrieved = self.associate.retrieve_focus(focus, reduce_all=False)
         for r_nodes in retrieved.values():
@@ -340,14 +347,11 @@ class Agent:
                     continue
                 node = self.associate.retrieve_chats(name)[-1]
                 evidence.append(node.node_id)
-            print("should summary chats " + str(self.chats))
             thought = self.completion("reflect_chat_planing", self.chats)
             _add_thought(f"For {self.name}'s planning: {thought}", evidence)
             thought = self.completion("reflect_chat_memory", self.chats)
             _add_thought(f"{self.name} {thought}", evidence)
-            raise Exception("stop here!!")
         self.status["poignancy"]["current"] = 0
-        self.status["poignancy"]["num_event"] = 0
         self.chats = []
 
     def find_path(self, agents):
@@ -361,15 +365,7 @@ class Agent:
         if address[0] == "<waiting>":
             return []
         if address[0] == "<persona>":
-            other = agents[address[1]]
-            tgt = other.coord
-            coords = [
-                [tgt[0] - 1, tgt[1]],
-                [tgt[0] + 1, tgt[1]],
-                [tgt[0], tgt[1] - 1],
-                [tgt[0], tgt[1] + 1],
-            ]
-            target_tiles = [c for c in coords if not self.maze.tile_at(c).collision]
+            target_tiles = self.maze.get_around(agents[address[1]].coord)
         elif address[-1] == "<random>":
             target_tiles = self.maze.get_address_tiles(address[:-1])
         else:
@@ -445,7 +441,7 @@ class Agent:
             return concept.event.subject in agents
 
         def _ignore(concept):
-            return any(i in concept.get_describe(False) for i in ignore_words)
+            return any(i in concept.describe for i in ignore_words)
 
         if agents:
             priority = [i for i in self.concepts if _focus(i)]
@@ -458,6 +454,7 @@ class Agent:
         if not focus or focus.event.subject not in agents:
             return
         other, focus = agents[focus.event.subject], self.associate.get_relation(focus)
+
         if self._chat_with(other, focus):
             return True
         if self._wait_other(other, focus):
@@ -492,11 +489,20 @@ class Agent:
             return False
         self.logger.info("{} decides chat with {}".format(self.name, other.name))
         start, chats = utils.get_timer().get_date(), []
-        relations = [self.get_relation(other), other.get_relation(self)]
+        relations = [
+            self.completion("summarize_relation", self, other.name),
+            other.completion("summarize_relation", other, self.name),
+        ]
         for _ in range(self.chat_iter):
-            chats, end = self.generate_chats(other, relations[0], chats)
+            utt, end = self.completion(
+                "generate_chat", self, other, relations[0], chats
+            )
+            chats.append((self.name, utt))
             if not end:
-                chats, end = other.generate_chats(self, relations[1], chats)
+                utt, end = other.completion(
+                    "generate_chat", other, self, relations[1], chats
+                )
+                chats.append((other.name, utt))
             if end:
                 break
         self.logger.info(
@@ -509,10 +515,10 @@ class Agent:
         self.chats.extend(chats)
         chat_summary = self.completion("summarize_chats", chats)
         duration = int(sum([len(c[1]) for c in chats]) / 240)
-        self.create_chat_action(
+        self.schedule_chat(
             chat_summary, start, duration, other, ["<persona>", other.name]
         )
-        other.create_chat_action(chat_summary, start, duration, self)
+        other.schedule_chat(chat_summary, start, duration, self)
         return True
 
     def _wait_other(self, other, focus):
@@ -530,31 +536,14 @@ class Agent:
         event = memory.Event(
             self.name,
             "waiting to start",
-            self.get_curr_event().get_describe(False),
-            address=["<waiting>"] + self.get_tile().get_address(),
+            self.get_event().get_describe(False),
+            address=["<waiting>"] + self.get_event().address,
             emoji="⌛",
         )
-        self.action = memory.Action(event, start=start, duration=duration)
-        plan, _ = self.schedule.current_plan()
-        plan["decompose"] = self.completion(
-            "schedule_revise", self.action, self.schedule
-        )
+        self.revise_schedule(event, start, duration)
 
-    def get_relation(self, other):
-        retrieved = self.associate.retrieve_focus([other.name], 50)
-        return self.completion("summarize_relation", other.name, retrieved)
-
-    def generate_chats(self, other, relation, chats):
-        focus = [relation, other.get_event().get_describe()]
-        if len(chats) > 4:
-            focus.append("; ".join("{}: {}".format(n, t) for n, t in chats[-4:]))
-        retrieved = self.associate.retrieve_focus(focus, 15)
-        utt, end = self.completion("generate_chat", self, other, retrieved, chats)
-        chats.append((self.name, utt))
-        return chats, end
-
-    def create_chat_action(self, chats_summary, start, duration, other, address=None):
-        c_event = memory.Event(
+    def schedule_chat(self, chats_summary, start, duration, other, address=None):
+        event = memory.Event(
             self.name,
             "chat with",
             other.name,
@@ -562,15 +551,7 @@ class Agent:
             address=address or self.get_tile().get_address(),
             emoji="💬",
         )
-        self.action = memory.Action(
-            c_event, act_type="chat", start=start, duration=duration
-        )
-        plan, _ = self.schedule.current_plan()
-        plan["decompose"] = self.completion(
-            "schedule_revise", self.action, self.schedule
-        )
-        print("schedule " + str(self.schedule))
-        raise Exception("should decompose task for action " + str(self.action))
+        self.revise_schedule(event, start, duration, act_type="chat")
 
     def _add_concept(
         self,
@@ -580,7 +561,12 @@ class Agent:
         expire=None,
         filling=None,
     ):
-        poignancy = self._evaluate_concept(event, e_type)
+        if event.fit(None, "is", "idle"):
+            poignancy = 1
+        elif e_type == "chat":
+            poignancy = self.completion("poignancy_chat", event)
+        else:
+            poignancy = self.completion("poignancy_event", event)
         return self.associate.add_node(
             e_type,
             event,
@@ -589,29 +575,6 @@ class Agent:
             expire=expire,
             filling=filling,
         )
-
-    def _evaluate_concept(self, event, e_type="event"):
-        if e_type in ("event", "thought"):
-            poignancy = self._evaluate_event(event)
-        elif e_type == "chat":
-            poignancy = self._evaluate_chat(event)
-        else:
-            raise Exception("Unexpected event type " + str(e_type))
-        return poignancy
-
-    def _evaluate_event(self, event):
-        if event.fit(None, "is", "idle"):
-            return 1
-        return self.completion("poignancy_event", event)
-
-    def _evaluate_chat(self, event):
-        print("should evaluare chat " + str(event))
-        raise Exception("stop here!!")
-        return 1
-
-    def _increase_poignancy(self, score):
-        self.status["poignancy"]["current"] += score
-        self.status["poignancy"]["num_event"] += 1
 
     def get_tile(self):
         return self.maze.tile_at(self.coord)
@@ -636,6 +599,7 @@ class Agent:
             "status": self.status,
             "schedule": self.schedule.to_dict(),
             "associate": self.associate.to_dict(),
+            "chats": self.chats,
             "currently": self.scratch.currently,
         }
         if with_action:

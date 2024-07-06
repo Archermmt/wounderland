@@ -63,6 +63,8 @@
             <div id="agent_memory" class="nes-container is-dark msg_box" v-show="agent.display.memory">
                 <p>Associate:</p>
                 <p v-for="l in agent.memory.associate" class="message">[[l]]</p><br>
+                <p>Chats:</p>
+                <p v-for="l in agent.memory.chats" class="message">[[l]]</p><br>
             </div>
 
             <div id="agent_percept" class="nes-container is-dark msg_box" v-show="agent.display.percept">
@@ -174,7 +176,7 @@
             agent: {
                 display: { profile: true, memory: false, percept: false, plan: false, stat: false },
                 profile: { status: [], scratch: [] },
-                memory: { associate: [] },
+                memory: { associate: [], chats: [] },
                 percept: { concepts: [] },
                 plan: { actions: [], schedule: [] },
                 stat: { llm: [] }

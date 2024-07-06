@@ -53,7 +53,7 @@ class SimulateServer:
         timer = utils.get_timer()
         move_num = step * 30
         for i in range(self.start_step, self.start_step + step):
-            title = "Simulate Step[{}/{}]".format(i, step)
+            title = "Simulate Step[{}/{}]".format(i, self.start_step + step)
             self.logger.info("\n" + utils.split_line(title, "="))
             for name, status in self.agent_status.items():
                 plan = self.game.agent_think(name, status)["plan"]
@@ -75,7 +75,7 @@ class SimulateServer:
                 {
                     "time": timer.get_date("%Y%m%d-%H:%M"),
                     "keep_storage": True,
-                    "step": i,
+                    "step": i + 1,
                 }
             )
             with open("ckpt_{}.json".format(i), "w") as f:

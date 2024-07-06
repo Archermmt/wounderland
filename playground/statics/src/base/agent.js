@@ -9,7 +9,7 @@ function positionToCoord(position, tile_size) {
 }
 
 export default class Agent extends Phaser.GameObjects.Sprite {
-    constructor(scene, config, tile_size, urls) {
+    constructor(scene, config, tile_size, urls, broadcast_agents) {
         super(scene, 0, 0, config.name);
         let coord = [0, 0];
         if (config.coord) {
@@ -25,10 +25,11 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.tile_size = tile_size;
         this.name = config.name;
         this.urls = urls;
+        this.broadcast_agents = broadcast_agents;
 
         // status
         this.status = { state: "init", currently: config.currently, direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
-        this.info = { associate: {}, concepts: {}, actions: {}, schedule: {}, llm: {} };
+        this.info = { associate: {}, chats: [], concepts: {}, actions: {}, schedule: {}, llm: {} };
 
         // add sprite
         scene.add.existing(this);
@@ -83,6 +84,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
         // flag for think
         this.enable_think = false;
+        this.enable_move = true;
         this.thinking = false;
     }
 
@@ -97,6 +99,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             let callback = (info) => {
                 const plan = info.plan;
                 this.status.path = plan.path;
+                this.broadcast_agents(true);
                 if (this.status.path.length > 0) {
                     this.status.state = "move";
                 } else {
@@ -121,6 +124,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                 this.scene.time.delayedCall(this.config.think.interval, this.enableThink, [], this);
             }
             this.thinking = true;
+            this.broadcast_agents(false);
             utils.jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
         }
     }
@@ -129,7 +133,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.bubbles[this.name].x = this.body.position.x;
         this.bubbles[this.name].y = this.body.position.y - Math.round(this.displayHeight * 0.8) - 4;
         if (!this.is_control) {
-            if (this.status.path.length > 0) {
+            if (this.status.path.length > 0 && this.enable_move) {
                 let next_pos = coordToPosition(this.status.path[0], this.tile_size);
                 if (this.body.position.x == next_pos[0] && this.body.position.y == next_pos[1]) {
                     this.status.path = this.status.path.slice(1);
@@ -167,6 +171,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             msg.profile.status = utils.textBlock(this.getStatus());
         } else if (msg.display.memory) {
             msg.memory.associate = utils.textBlock(this.info.associate);
+            msg.memory.chats = this.info.chats;
         } else if (msg.display.percept) {
             msg.percept.concepts = utils.textBlock(this.info.concepts);
         } else if (msg.display.plan) {
