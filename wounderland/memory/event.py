@@ -14,16 +14,16 @@ class Event:
         self.subject = subject
         self.predicate = predicate or "is"
         self.object = object or "idle"
-        self.describe = describe or "{} {} {}".format(
-            self.subject, self.predicate, self.object
-        )
+        self._describe = describe or ""
         self.address = address or []
         self.emoji = emoji or ""
 
     def __str__(self):
         des = "{} <{}> {}".format(self.subject, self.predicate, self.object)
+        if self._describe:
+            des += "({})".format(self._describe)
         if self.emoji:
-            des += "({})".format(self.emoji)
+            des += "[{}]".format(self.emoji)
         if self.address:
             des += " @ " + ":".join(self.address)
         return des
@@ -34,7 +34,7 @@ class Event:
                 self.subject,
                 self.predicate,
                 self.object,
-                self.describe,
+                self._describe,
                 ":".join(self.address),
             )
         )
@@ -47,12 +47,10 @@ class Event:
     def update(self, predicate=None, object=None, describe=None):
         self.predicate = predicate or "is"
         self.object = object or "idle"
-        self.describe = describe or "{} {} {}".format(
-            self.subject, self.predicate, self.object
-        )
+        self._describe = describe or self._describe
 
     def to_id(self):
-        return (self.subject, self.predicate, self.object, self.describe)
+        return (self.subject, self.predicate, self.object, self._describe)
 
     def fit(self, subject=None, predicate=None, object=None):
         if subject and self.subject != subject:
@@ -68,10 +66,21 @@ class Event:
             "subject": self.subject,
             "predicate": self.predicate,
             "object": self.object,
-            "describe": self.describe,
+            "describe": self._describe,
             "address": self.address,
             "emoji": self.emoji,
         }
+
+    def get_describe(self, with_subject=True):
+        describe = self._describe or "{} {}".format(self.predicate, self.object)
+        subject = ""
+        if with_subject:
+            if self.subject not in describe:
+                subject = self.subject + " "
+        else:
+            if describe.startswith(self.subject + " "):
+                describe = describe[len(self.subject) + 1 :]
+        return "{}{}".format(subject, describe)
 
     @classmethod
     def from_dict(cls, config):

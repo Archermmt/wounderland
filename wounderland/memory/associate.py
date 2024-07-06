@@ -29,9 +29,10 @@ class Concept:
         access=None,
     ):
         self.node_id = node_id
-        self.describe = describe
         self.node_type = node_type
-        self.event = Event(subject, predicate, object, address=address.split(":"))
+        self.event = Event(
+            subject, predicate, object, describe=describe, address=address.split(":")
+        )
         self.poignancy = poignancy
         self.create = utils.to_date(create) if create else utils.get_timer().get_date()
         if expire:
@@ -43,8 +44,7 @@ class Concept:
     def abstract(self):
         return {
             "{}(P.{})".format(self.node_type, self.poignancy): str(self.event),
-            "describe": "{}[{} ~ {} @ {}]".format(
-                self.describe,
+            "duration": "{} ~ {} (access: {})".format(
                 self.create.strftime("%Y%m%d-%H:%M"),
                 self.expire.strftime("%Y%m%d-%H:%M"),
                 self.access.strftime("%Y%m%d-%H:%M"),
@@ -54,6 +54,10 @@ class Concept:
     def __str__(self):
         return utils.dump_dict(self.abstract())
 
+    @property
+    def describe(self):
+        return self.event.get_describe()
+
     @classmethod
     def from_node(cls, node):
         return cls(node.text, node.id_, **node.metadata)
@@ -61,7 +65,7 @@ class Concept:
     @classmethod
     def from_event(cls, node_id, node_type, event, poignancy):
         return cls(
-            event.describe,
+            event.get_describe(),
             node_id,
             node_type,
             event.subject,
@@ -171,7 +175,6 @@ class Associate:
         self,
         node_type,
         event,
-        describe,
         poignancy,
         create=None,
         expire=None,
@@ -190,7 +193,7 @@ class Associate:
             "expire": expire.strftime("%Y%m%d-%H:%M:%S"),
             "access": create.strftime("%Y%m%d-%H:%M:%S"),
         }
-        node = self._index.add_node(describe, metadata)
+        node = self._index.add_node(event.get_describe(), metadata)
         memory = self.memory[node_type]
         memory.insert(0, node.id_)
         if len(memory) >= self.max_memory > 0:

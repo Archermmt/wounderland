@@ -10,11 +10,12 @@ class SimulateServer:
         self.static_root = static_root
         self.ckpt = utils.load_dict(ckpt_file)
         self.ckpt.setdefault("agents", {})
+        self.start_step = self.ckpt.get("step", 0)
         for name, a_config in self.ckpt["agents"].items():
             if name not in config["agents"]:
                 continue
             config["agents"][name]["update"] = a_config
-        config["time"] = {"mode": "step", "start": start or self.ckpt.get("time", "")}
+        config["time"] = {"start": start or self.ckpt.get("time", "")}
         config["keep_storage"] = self.ckpt.get("keep_storage", True)
         game = create_game(static_root, config, logger=utils.create_io_logger(verbose))
         game.reset_user("test", keys=self.ckpt["keys"])
@@ -51,7 +52,7 @@ class SimulateServer:
     def simulate(self, step, stride=0):
         timer = utils.get_timer()
         move_num = step * 30
-        for i in range(step):
+        for i in range(self.start_step, self.start_step + step):
             title = "Simulate Step[{}/{}]".format(i, step)
             self.logger.info("\n" + utils.split_line(title, "="))
             for name, status in self.agent_status.items():
@@ -71,7 +72,11 @@ class SimulateServer:
             if stride > 0:
                 timer.forward(stride)
             self.ckpt.update(
-                {"time": timer.get_date("%Y%m%d-%H:%M"), "keep_storage": True}
+                {
+                    "time": timer.get_date("%Y%m%d-%H:%M"),
+                    "keep_storage": True,
+                    "step": i,
+                }
             )
             with open("ckpt_{}.json".format(i), "w") as f:
                 f.write(json.dumps(self.ckpt, indent=2))

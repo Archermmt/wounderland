@@ -20,6 +20,7 @@ class Agent:
         # agent config
         self.percept_config = config["percept"]
         self.think_config = config["think"]
+        self.chat_iter = config.get("chat_iter", 8)
 
         # memory
         self.spatial = memory.Spatial(**config["spatial"])
@@ -28,6 +29,7 @@ class Agent:
             os.path.join(self.storage_root, "associate"), **config["associate"]
         )
         self.concepts = []
+        self.chats = []
 
         # prompt
         self.scratch = prompt.Scratch(self.name, config["currently"], config["scratch"])
@@ -151,18 +153,19 @@ class Agent:
             for idx, start in enumerate(starts):
                 end = starts[idx + 1] if idx + 1 < len(starts) else 24 * 60
                 self.schedule.add_plan(schedule[start], end - start)
+            schedule_time = self.schedule.create.strftime("%A %B %d")
+            thought = f"This is {self.name}'s plan for {schedule_time}: "
+            thought += "; ".join(init_schedule)
             event = memory.Event(
                 self.name,
                 "plan",
-                self.schedule.create.strftime("%A %B %d"),
+                schedule_time,
+                describe=thought,
                 address=self.get_tile().get_address(),
             )
-            thought = f"This is {self.name}'s plan for {event.object}: "
-            thought += "; ".join(init_schedule)
             self._add_concept(
                 "thought",
                 event,
-                describe=thought,
                 expire=self.schedule.create + datetime.timedelta(days=30),
             )
         # decompose current plan
@@ -268,12 +271,10 @@ class Agent:
                     events[event] = dist
         events = list(sorted(events.keys(), key=lambda k: events[k]))
         # get concepts
-        self.concepts = []
+        self.concepts, valid_concepts = [], 0
         for idx, event in enumerate(events[: self.percept_config["att_bandwidth"]]):
-            recent_events = {n.describe: n for n in self.associate.retrieve_events()}
-            if event.describe in recent_events:
-                self.concepts.append(recent_events[event.describe])
-            else:
+            recent_events = set(n.describe for n in self.associate.retrieve_events())
+            if event.get_describe() not in recent_events:
                 chats = []
                 if event.fit(self.name, "chat with"):
                     node = self._add_concept(
@@ -287,21 +288,35 @@ class Agent:
                         "idle_" + str(idx), "event", event, poignancy=poignancy
                     )
                 else:
+                    valid_concepts += 1
                     node = self._add_concept("event", event, filling=chats)
                 self._increase_poignancy(node.poignancy)
                 self.concepts.append(node)
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
-        self.logger.info("{} percept {} concepts".format(self.name, len(self.concepts)))
+        self.logger.info(
+            "{} percept {}/{} concepts".format(
+                self.name, valid_concepts, len(self.concepts)
+            )
+        )
 
     def make_plan(self, agents):
-        if self.path:
-            return
         if self._reaction(agents):
+            return
+        if self.path:
             return
         if self.action.finished():
             self.action = self._determine_action()
 
     def reflect(self):
+        def _add_thought(thought, evidence=None):
+            event = self.completion(
+                "describe_event",
+                self.name,
+                thought,
+                address=self.get_tile().get_address(),
+            )
+            return self._add_concept("thought", event, filling=evidence)
+
         if self.status["poignancy"]["current"] < self.think_config["poignancy_max"]:
             return
         nodes = self.associate.retrieve_events() + self.associate.retrieve_thoughts()
@@ -311,16 +326,29 @@ class Agent:
         nodes = sorted(nodes, key=lambda n: n.access, reverse=True)[
             : self.associate.max_importance
         ]
-        focus = self.completion("generate_focus", nodes, 3)
+        focus = self.completion("reflect_focus", nodes, 3)
         retrieved = self.associate.retrieve_focus(focus, reduce_all=False)
         for r_nodes in retrieved.values():
-            thoughts = self.completion("generate_insights", r_nodes, 5)
+            thoughts = self.completion("reflect_insights", r_nodes, 5)
             for thought, evidence in thoughts:
-                args = self.completion("describe_event", self.name, thought)
-                event = memory.Event(*args, address=self.get_tile().get_address())
-                self._add_concept("thought", event, describe=thought, filling=evidence)
+                _add_thought(thought, evidence)
+        # summary chats
+        if self.chats:
+            recorded, evidence = set(), []
+            for name, _ in self.chats:
+                if name == self.name or name in recorded:
+                    continue
+                node = self.associate.retrieve_chats(name)[-1]
+                evidence.append(node.node_id)
+            print("should summary chats " + str(self.chats))
+            thought = self.completion("reflect_chat_planing", self.chats)
+            _add_thought(f"For {self.name}'s planning: {thought}", evidence)
+            thought = self.completion("reflect_chat_memory", self.chats)
+            _add_thought(f"{self.name} {thought}", evidence)
+            raise Exception("stop here!!")
         self.status["poignancy"]["current"] = 0
         self.status["poignancy"]["num_event"] = 0
+        self.chats = []
 
     def find_path(self, agents):
         if not self.is_awake():
@@ -334,17 +362,14 @@ class Agent:
             return []
         if address[0] == "<persona>":
             other = agents[address[1]]
-            path = self.maze.find_path(self.coord, other.coord)
-            if len(path) <= 2:
-                target_tiles = [path[0]]
-            else:
-                targets = [path[len(path) // 2], path[len(path) // 2 + 1]]
-                if len(self.maze.find_path(self.coord, targets[0])) <= len(
-                    self.maze.find_path(self.coord, targets[1])
-                ):
-                    target_tiles = [targets[0]]
-                else:
-                    target_tiles = [targets[1]]
+            tgt = other.coord
+            coords = [
+                [tgt[0] - 1, tgt[1]],
+                [tgt[0] + 1, tgt[1]],
+                [tgt[0], tgt[1] - 1],
+                [tgt[0], tgt[1] + 1],
+            ]
+            target_tiles = [c for c in coords if not self.maze.tile_at(c).collision]
         elif address[-1] == "<random>":
             target_tiles = self.maze.get_address_tiles(address[:-1])
         else:
@@ -398,10 +423,9 @@ class Agent:
         # create action && object events
         def _make_event(subject, describe):
             emoji = self.completion("describe_emoji", describe)
-            args = self.completion(
-                "describe_event", subject, subject + " is " + describe
+            return self.completion(
+                "describe_event", subject, subject + " is " + describe, address, emoji
             )
-            return memory.Event(*args, address=address, emoji=emoji)
 
         event = _make_event(self.name, describes[-1])
         obj_describe = self.completion("describe_object", address[-1], describes[-1])
@@ -421,7 +445,7 @@ class Agent:
             return concept.event.subject in agents
 
         def _ignore(concept):
-            return any(i in concept.describe for i in ignore_words)
+            return any(i in concept.get_describe(False) for i in ignore_words)
 
         if agents:
             priority = [i for i in self.concepts if _focus(i)]
@@ -442,9 +466,9 @@ class Agent:
 
     def _skip_react(self, other):
         def _skip(event):
-            if not event.address or "sleeping" in event.describe:
+            if not event.address or "sleeping" in event.get_describe(False):
                 return True
-            if "<waiting>" in event.address:
+            if event.predicate == "waiting to start":
                 return True
             return False
 
@@ -457,27 +481,37 @@ class Agent:
     def _chat_with(self, other, focus):
         if self._skip_react(other):
             return False
+        if other.path:
+            return False
         if self.action.act_type == "chat" or other.action.act_type == "chat":
             return False
         chats = self.associate.retrieve_chats(other.name)
         if chats and utils.get_timer().get_delta(chats[0].expire) < 60:
             return False
-        if not self.completion("decide_talk", self, other, focus, chats):
+        if not self.completion("decide_chat", self, other, focus, chats):
             return False
-        self.logger.info("{} decides talk with {}".format(self.name, other.name))
+        self.logger.info("{} decides chat with {}".format(self.name, other.name))
         start, chats = utils.get_timer().get_date(), []
-        for _ in range(8):
-            chats, end = self.generate_chats(other, chats)
+        relations = [self.get_relation(other), other.get_relation(self)]
+        for _ in range(self.chat_iter):
+            chats, end = self.generate_chats(other, relations[0], chats)
             if not end:
-                chats, end = other.generate_chats(self, chats)
+                chats, end = other.generate_chats(self, relations[1], chats)
             if end:
                 break
+        self.logger.info(
+            "{} and {} has chats\n  {}".format(
+                self.name,
+                other.name,
+                "\n  ".join(["{}: {}".format(n, c) for n, c in chats]),
+            )
+        )
+        self.chats.extend(chats)
         chat_summary = self.completion("summarize_chats", chats)
         duration = int(sum([len(c[1]) for c in chats]) / 240)
-        print("[TMINFO] chat_summary " + str(chat_summary))
-        print("[TMINFO] duration " + str(duration))
-        raise Exception("stop here!!")
-        self.create_chat_action(chat_summary, start, duration, other)
+        self.create_chat_action(
+            chat_summary, start, duration, other, ["<persona>", other.name]
+        )
         other.create_chat_action(chat_summary, start, duration, self)
         return True
 
@@ -485,8 +519,6 @@ class Agent:
         if self._skip_react(other):
             return False
         if not self.path:
-            return False
-        if other.get_event().predicate == "waiting to start":
             return False
         if self.get_event().address != other.get_tile().get_address():
             return False
@@ -498,42 +530,52 @@ class Agent:
         event = memory.Event(
             self.name,
             "waiting to start",
-            self.get_curr_event().describe,
+            self.get_curr_event().get_describe(False),
             address=["<waiting>"] + self.get_tile().get_address(),
             emoji="⌛",
         )
         self.action = memory.Action(event, start=start, duration=duration)
-        raise Exception("should add react for wait")
+        plan, _ = self.schedule.current_plan()
+        plan["decompose"] = self.completion(
+            "schedule_revise", self.action, self.schedule
+        )
 
-    def generate_chats(self, other, chats):
+    def get_relation(self, other):
         retrieved = self.associate.retrieve_focus([other.name], 50)
-        relation = self.completion("summarize_relation", other.name, retrieved)
-        focus = [relation, other.get_event().describe]
+        return self.completion("summarize_relation", other.name, retrieved)
+
+    def generate_chats(self, other, relation, chats):
+        focus = [relation, other.get_event().get_describe()]
         if len(chats) > 4:
             focus.append("; ".join("{}: {}".format(n, t) for n, t in chats[-4:]))
         retrieved = self.associate.retrieve_focus(focus, 15)
-        utt, end = self.completion("generate_utterance", self, other, retrieved, chats)
+        utt, end = self.completion("generate_chat", self, other, retrieved, chats)
         chats.append((self.name, utt))
         return chats, end
 
-    def create_chat_action(self, chats_summary, start, duration, other):
+    def create_chat_action(self, chats_summary, start, duration, other, address=None):
         c_event = memory.Event(
             self.name,
             "chat with",
             other.name,
-            address=["<persona>", other.name],
+            describe=chats_summary,
+            address=address or self.get_tile().get_address(),
             emoji="💬",
         )
         self.action = memory.Action(
             c_event, act_type="chat", start=start, duration=duration
         )
+        plan, _ = self.schedule.current_plan()
+        plan["decompose"] = self.completion(
+            "schedule_revise", self.action, self.schedule
+        )
+        print("schedule " + str(self.schedule))
         raise Exception("should decompose task for action " + str(self.action))
 
     def _add_concept(
         self,
         e_type,
         event,
-        describe=None,
         create=None,
         expire=None,
         filling=None,
@@ -542,7 +584,6 @@ class Agent:
         return self.associate.add_node(
             e_type,
             event,
-            describe or event.describe,
             poignancy,
             create=create,
             expire=expire,

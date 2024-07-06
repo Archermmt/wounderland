@@ -31,7 +31,9 @@ class IOLogger(object):
         return self._printers.get(color, print)
 
     def _prefix(self):
-        return "<{}>".format(get_timer().get_date("%Y%m%d-%H:%M:%S"))
+        return "<{}({})>".format(
+            get_timer().get_date("%Y%m%d-%H:%M:%S"), get_timer().mode
+        )
 
     def info(self, msg):
         if self._level <= logging.INFO:

@@ -35,13 +35,28 @@ class Timer:
                 start = start.split("-")[1]
             s_minute = daily_duration(to_date(start, "%H:%M"))
             self._offset += s_minute - daily_duration(self._start)
+        self._freeze_offset = None
         self._rate = rate
 
     def forward(self, offset):
-        self._offset += offset
+        if self._freeze_offset:
+            self._freeze_offset += offset
+        else:
+            self._offset += offset
 
     def speedup(self, rate):
         self._rate = rate
+
+    def freeze(self):
+        if self._mode == "on_time":
+            self._freeze_offset = self._offset
+            self._offset = (self.get_date() - self._start).total_seconds() // 60
+            self._mode = "step"
+
+    def unfreeze(self):
+        if self._mode == "step":
+            self._offset, self._freeze_offset = self._freeze_offset, None
+            self._mode = "on_time"
 
     def get_date(self, date_format=""):
         if self._mode == "on_time":

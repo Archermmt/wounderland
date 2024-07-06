@@ -16,6 +16,7 @@ class Game:
 
     def __init__(self, static_root, config, logger=None):
         self.static_root = static_root
+        self.think_mode = config.get("think_mode", "freeze_think")
         self.logger = logger or utils.IOLogger()
         self.maze = Maze(self.load_static(config["maze"]["path"]), self.logger)
         self.agents = {}
@@ -44,7 +45,11 @@ class Game:
 
     def agent_think(self, name, status):
         agent = self.get_agent(name)
+        if self.think_mode == "freeze_think":
+            utils.get_timer().freeze()
         plan = agent.think(status, self.agents)
+        if self.think_mode == "freeze_think":
+            utils.get_timer().unfreeze()
         info = {
             "currently": agent.scratch.currently,
             "associate": agent.associate.abstract(),
