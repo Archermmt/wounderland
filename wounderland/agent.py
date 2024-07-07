@@ -33,7 +33,7 @@ class Agent:
         self.scratch = prompt.Scratch(self.name, config["currently"], config["scratch"])
 
         # status
-        status = {"poignancy": {"current": 0}}
+        status = {"poignancy": 0}
         self.status = utils.update_dict(status, config.get("status", {}))
         self.plan = config.get("plan", {})
 
@@ -290,15 +290,14 @@ class Agent:
             recent_events = set(n.describe for n in self.associate.retrieve_events())
             if event.get_describe() not in recent_events:
                 if event.object == "idle":
-                    poignancy = self._evaluate_concept(event, "event")
                     node = Concept.from_event(
-                        "idle_" + str(idx), "event", event, poignancy=poignancy
+                        "idle_" + str(idx), "event", event, poignancy=1
                     )
                 else:
                     valid_num += 1
                     node_type = "chat" if event.fit(self.name, "chat with") else "event"
                     node = self._add_concept(node_type, event)
-                self.status["poignancy"]["current"] += node.poignancy
+                self.status["poignancy"] += node.poignancy
                 self.concepts.append(node)
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
         self.logger.info(
@@ -323,7 +322,7 @@ class Agent:
             )
             return self._add_concept("thought", event, filling=evidence)
 
-        if self.status["poignancy"]["current"] < self.think_config["poignancy_max"]:
+        if self.status["poignancy"] < self.think_config["poignancy_max"]:
             return
         nodes = self.associate.retrieve_events() + self.associate.retrieve_thoughts()
         if not nodes:
@@ -351,7 +350,7 @@ class Agent:
             _add_thought(f"For {self.name}'s planning: {thought}", evidence)
             thought = self.completion("reflect_chat_memory", self.chats)
             _add_thought(f"{self.name} {thought}", evidence)
-        self.status["poignancy"]["current"] = 0
+        self.status["poignancy"] = 0
         self.chats = []
 
     def find_path(self, agents):

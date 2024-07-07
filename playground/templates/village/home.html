@@ -64,7 +64,18 @@
                 <p>Associate:</p>
                 <p v-for="l in agent.memory.associate" class="message">[[l]]</p><br>
                 <p>Chats:</p>
-                <p v-for="l in agent.memory.chats" class="message">[[l]]</p><br>
+                <div v-for="l in agent.memory.chats">
+                    <div v-show="l.name == 'self'">
+                        <p class="nes-balloon from-left nes-pointer is-dark">
+                            [[l.name]] : [[l.chat]]
+                        </p>
+                    </div>
+                    <div v-show="l.name != 'self'">
+                        <p class="nes-balloon from-right nes-pointer is-dark">
+                            [[l.name]] : [[l.chat]]
+                        </p>
+                    </div>
+                </div><br>
             </div>
 
             <div id="agent_percept" class="nes-container is-dark msg_box" v-show="agent.display.percept">
@@ -73,8 +84,8 @@
             </div>
 
             <div id="agent_plan" class="nes-container is-dark msg_box" v-show="agent.display.plan">
-                <p>Actions:</p>
-                <p v-for="l in agent.plan.actions" class="message">[[l]]</p><br>
+                <p>Action:</p>
+                <p v-for="l in agent.plan.action" class="message">[[l]]</p><br>
                 <p>Schedule:</p>
                 <p v-for="l in agent.plan.schedule" class="message">[[l]]</p><br>
             </div>
@@ -161,12 +172,14 @@
             urls: {
                 start_game: "{% url 'start_game' %}",
                 agent_think: "{% url 'agent_think' %}",
+                agent_save: "{% url 'agent_save' %}",
                 get_time: "{% url 'get_time' %}",
                 user_login: "{% url 'user_login' %}",
                 user_logout: "{% url 'user_logout' %}",
                 user_add_key: "{% url 'user_add_key' %}",
             },
             agents: ctx.agents,
+            agent_portaits: {},
             player: {
                 update: {},
                 player: "",
@@ -178,7 +191,7 @@
                 profile: { status: [], scratch: [] },
                 memory: { associate: [], chats: [] },
                 percept: { concepts: [] },
-                plan: { actions: [], schedule: [] },
+                plan: { action: [], schedule: [] },
                 stat: { llm: [] }
             },
             user: {

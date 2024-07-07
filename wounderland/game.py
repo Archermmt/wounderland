@@ -54,10 +54,14 @@ class Game:
             "currently": agent.scratch.currently,
             "associate": agent.associate.abstract(),
             "concepts": {c.node_id: c.abstract() for c in agent.concepts},
-            "chats": agent.chats,
+            "chats": [
+                {"name": "self" if n == agent.name else n, "chat": c}
+                for n, c in agent.chats
+            ],
             "action": agent.action.abstract(),
             "schedule": agent.schedule.abstract(),
             "address": agent.get_tile().get_address(as_list=False),
+            "record": agent.status["poignancy"] == 0,
         }
         if agent.llm_available():
             info["llm"] = agent._llm.get_summary()
@@ -73,6 +77,7 @@ class Game:
     def reset_user(self, name, keys, email=None):
         self.user = User(name, keys, email=email)
         for a_name, agent in self.agents.items():
+            self.logger.info("Reseting user({}) for {}...".format(name, a_name))
             agent.reset_user(self.user)
             title = "{}.reset by User({})".format(a_name, name)
             self.logger.info("\n{}\n{}\n".format(utils.split_line(title), agent))

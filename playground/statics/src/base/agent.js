@@ -29,7 +29,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
 
         // status
         this.status = { state: "init", currently: config.currently, direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
-        this.info = { associate: {}, chats: [], concepts: {}, actions: {}, schedule: {}, llm: {} };
+        this.info = { associate: {}, chats: [], concepts: {}, action: {}, schedule: {}, llm: {} };
+        this.record = false;
 
         // add sprite
         scene.add.existing(this);
@@ -118,6 +119,8 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                         this.info[key] = value;
                     } else if (key in this.status) {
                         this.status[key] = value;
+                    } else if (key === "record") {
+                        this.record = value;
                     }
                 }
                 this.thinking = false;
@@ -126,6 +129,13 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             this.thinking = true;
             this.broadcast_agents(false);
             utils.jsonRequest(this.urls.agent_think, { name: this.name, status: this.getStatus() }, callback);
+        }
+        if (this.record) {
+            console.log("Recording agent " + this.name);
+            let callback = (info) => {
+                this.record = false;
+            }
+            utils.jsonRequest(this.urls.agent_save, { name: this.name }, callback);
         }
     }
 
@@ -175,7 +185,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         } else if (msg.display.percept) {
             msg.percept.concepts = utils.textBlock(this.info.concepts);
         } else if (msg.display.plan) {
-            msg.plan.actions = utils.textBlock(this.info.actions);
+            msg.plan.action = utils.textBlock(this.info.action);
             msg.plan.schedule = utils.textBlock(this.info.schedule);
         } else if (msg.display.stat) {
             msg.stat.llm = utils.textBlock(this.info.llm);

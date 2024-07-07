@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from wounderland.game import create_game, get_game
-from wounderland.utils import get_timer, create_io_logger
+from wounderland.utils import set_timer, get_timer, create_io_logger, update_dict
 from .models import *
 
 logger = logging.getLogger(__name__)
@@ -56,9 +56,16 @@ def start_game(request):
     if request.method == "POST":
         # TODO: use django logger
         logger = create_io_logger("info")
-        game = create_game(
-            settings.STATICFILES_DIRS[0], json.loads(request.body), logger=logger
-        )
+        data = json.loads(request.body)
+        timer = set_timer(**data.get("time", {}))
+        if data.get("keep_storage", True):
+            for name in data["agents"]:
+                data["agents"][name] = update_dict(
+                    data["agents"][name], Agent.get_last(name, timer.get_date())
+                )
+        else:
+            Agent.objects.all().delete()
+        game = create_game(settings.STATICFILES_DIRS[0], data, logger=logger)
         _reset_user(request.session.get("user", ""))
         if not game:
             return JsonResponse({"success": False, "error": "failed to create game"})
@@ -75,6 +82,17 @@ def agent_think(request):
     return JsonResponse(
         {"success": True, "info": {"name": "any", "path": [], "emojis": {}}}
     )
+
+
+@csrf_exempt
+def agent_save(request):
+    game, timer = get_game(), get_timer()
+    if request.method == "POST" and game:
+        data = json.loads(request.body)
+        agent_info = game.get_agent(data["name"]).to_dict(with_action=False)
+        agent = Agent.from_dict(data["name"], timer.get_date(), **agent_info)
+        return JsonResponse({"success": True, "info": {"name": agent.name}})
+    return JsonResponse({"success": False, "error": "not a valid request"})
 
 
 @csrf_exempt

@@ -33,7 +33,8 @@ export default class Village extends Land {
                 "agents": {},
             },
             "time": { "start": "20230213-9:30", "mode": "on_time" },
-            "think_parallel": false
+            "think_parallel": false,
+            "keep_storage": false
         }
         const agents = ["Abigail Chen", "Adam Smith", "Arthur Burton", "Ayesha Khan", "Isabella Rodriguez", "Klaus Mueller", "Maria Lopez"];
         for (const agent of agents) {

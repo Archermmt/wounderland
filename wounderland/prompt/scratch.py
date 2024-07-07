@@ -241,7 +241,7 @@ Given example above, please list the subtasks of the following task.
                 schedules.append((plan["describe"], left))
             return schedules
 
-        failsafe = [(plan["describe"], 30) for _ in range(int(plan["duration"] / 30))]
+        failsafe = [(plan["describe"], 10) for _ in range(int(plan["duration"] / 10))]
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
 
     def prompt_schedule_revise(self, action, schedule):

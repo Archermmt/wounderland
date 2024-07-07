@@ -22,7 +22,8 @@ export default class Land extends Phaser.Scene {
             }
         }
         // load config
-        this.game_config = { "time": this.config.time };
+        keep_storage = this.config.keep_storage || true;
+        this.game_config = { "time": this.config.time, "keep_storage": keep_storage };
         for (const [name, config] of Object.entries(this.config.config)) {
             if (name == "agents") {
                 this.game_config[name] = {};
@@ -68,6 +69,7 @@ export default class Land extends Phaser.Scene {
             this.agents[name] = new Agent(this, agent_config, maze_config.tile_size, this.msg.urls, this.broadcast_agents);
             for (const agent of Object.values(this.agents)) {
                 this.agents[name].addCollider(agent);
+                this.msg.agent_portaits[name] = agent.portrait;
             }
         }
         // add colliders
@@ -103,7 +105,7 @@ export default class Land extends Phaser.Scene {
         }
     }
 
-    broadcast_agents(enable_move) {
+    broadcast_agents = (enable_move) => {
         for (const agent of Object.values(this.agents)) {
             agent.enable_move = enable_move;
         }

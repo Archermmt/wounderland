@@ -279,6 +279,7 @@ gallery/how_to/work_with_microtvm/micro_tvmc.py
 
 # Databank
 *.sqlite3
+*migrations
 
 # Keys && test
 .env

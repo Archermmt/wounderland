@@ -1,3 +1,4 @@
+import json
 from django.db import models
 
 # Create your models here.
@@ -32,6 +33,57 @@ class User(models.Model):
             {"key": k.key, "create": k.create_time.strftime("%Y%m%d-%H:%M")}
             for k in self.llmkey_set.all()
         ]
+
+
+class Agent(models.Model):
+    name = models.CharField(max_length=100)
+    record = models.DateTimeField(auto_now=True)
+    status = models.TextField(max_length=500)
+    schedule = models.TextField(max_length=5000)
+    associate = models.TextField(max_length=500)
+    chats = models.TextField(max_length=5000)
+    currently = models.TextField(max_length=500)
+    extra = models.TextField(max_length=5000)
+
+    def to_dict(self):
+        info = {
+            "name": self.name,
+            "status": json.loads(self.status),
+            "schedule": json.loads(self.schedule),
+            "associate": json.loads(self.associate),
+            "chats": json.loads(self.chats),
+            "currently": self.currently,
+        }
+        if self.extra:
+            info.update(json.loads(self.extra))
+        return info
+
+    def __str__(self):
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def get_last(cls, name, date):
+        agent = cls.objects.filter(name=name, record__lt=date).order_by("-record")
+        if not agent:
+            return {}
+        return agent.to_dict()
+
+    @classmethod
+    def from_dict(
+        cls, name, record, status, schedule, associate, chats, currently, **extra
+    ):
+        agent = cls(
+            name=name,
+            record=record,
+            status=json.dumps(status),
+            schedule=json.dumps(schedule),
+            associate=json.dumps(associate),
+            chats=json.dumps(chats),
+            currently=currently,
+            extra=json.dumps(extra),
+        )
+        agent.save()
+        return agent
 
 
 class LLMKey(models.Model):
