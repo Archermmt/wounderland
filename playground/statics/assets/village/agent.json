@@ -92,6 +92,5 @@
     "schedule": {
         "max_try": 3,
         "diversity": 5
-    },
-    "scratch": {}
+    }
 }

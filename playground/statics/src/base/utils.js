@@ -38,18 +38,22 @@ export function recursiveUpdate(base_dict, new_dict) {
     if (!base_dict) {
         return new_dict;
     }
+    if (!new_dict) {
+        return base_dict;
+    }
+    let clone_base_dict = JSON.parse(JSON.stringify(base_dict));
     for (const [key, info] of Object.entries(new_dict)) {
-        if (key in base_dict) {
-            if (base_dict[key].constructor == Object && info.constructor == Object) {
-                base_dict[key] = recursiveUpdate(base_dict[key], info);
+        if (key in clone_base_dict) {
+            if (clone_base_dict[key].constructor == Object && info.constructor == Object) {
+                clone_base_dict[key] = recursiveUpdate(clone_base_dict[key], info);
             } else {
-                base_dict[key] = info;
+                clone_base_dict[key] = info;
             }
         } else {
-            base_dict[key] = info
+            clone_base_dict[key] = info;
         }
     }
-    return base_dict;
+    return clone_base_dict;
 }
 
 export default { jsonRequest, textBlock, recursiveUpdate }

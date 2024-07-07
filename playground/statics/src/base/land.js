@@ -22,7 +22,7 @@ export default class Land extends Phaser.Scene {
             }
         }
         // load config
-        keep_storage = this.config.keep_storage || true;
+        const keep_storage = this.config.keep_storage || true;
         this.game_config = { "time": this.config.time, "keep_storage": keep_storage };
         for (const [name, config] of Object.entries(this.config.config)) {
             if (name == "agents") {
@@ -47,6 +47,7 @@ export default class Land extends Phaser.Scene {
             if (this.game_status.start) {
                 for (const agent of Object.values(this.agents)) {
                     agent.enableThink();
+                    agent.status.state = "thinkable";
                 }
             }
         }
@@ -72,6 +73,7 @@ export default class Land extends Phaser.Scene {
                 this.msg.agent_portaits[name] = agent.portrait;
             }
         }
+
         // add colliders
         for (const layer of Object.values(this.maze.layers)) {
             if (layer.info.collision) {

@@ -28,7 +28,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.broadcast_agents = broadcast_agents;
 
         // status
-        this.status = { state: "init", currently: config.currently, direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
+        this.status = { state: "initialized", currently: config.currently, direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
         this.info = { associate: {}, chats: [], concepts: {}, action: {}, schedule: {}, llm: {} };
         this.record = false;
 
@@ -96,16 +96,12 @@ export default class Agent extends Phaser.GameObjects.Sprite {
     think = () => {
         if (this.enable_think && !this.thinking) {
             this.enable_think = false;
-            this.status.state = "think";
+            this.status.state = "thinking";
             let callback = (info) => {
                 const plan = info.plan;
                 this.status.path = plan.path;
                 this.broadcast_agents(true);
-                if (this.status.path.length > 0) {
-                    this.status.state = "move";
-                } else {
-                    this.status.state = "action";
-                }
+                this.status.state = "planed";
                 for (const [name, emoji] of Object.entries(plan.emojis)) {
                     if (!(name in this.bubbles)) {
                         let pos = coordToPosition(emoji.coord, this.tile_size);
@@ -143,6 +139,9 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.bubbles[this.name].x = this.body.position.x;
         this.bubbles[this.name].y = this.body.position.y - Math.round(this.displayHeight * 0.8) - 4;
         if (!this.is_control) {
+            if (!this.enable_move && this.status.state === "moving") {
+                this.status.state = "moving(freezed)";
+            }
             if (this.status.path.length > 0 && this.enable_move) {
                 let next_pos = coordToPosition(this.status.path[0], this.tile_size);
                 if (this.body.position.x == next_pos[0] && this.body.position.y == next_pos[1]) {
@@ -154,9 +153,10 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                     }
                 }
                 if (next_pos.length > 0) {
+                    this.status.state = "moving";
                     this.positionMove(next_pos);
                 } else {
-                    this.status.state = "action";
+                    this.status.state = "in action";
                 }
             }
             return;

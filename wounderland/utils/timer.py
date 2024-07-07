@@ -51,10 +51,10 @@ class Timer:
         if self._mode == "on_time":
             self._freeze_offset = self._offset
             self._offset = (self.get_date() - self._start).total_seconds() // 60
-            self._mode = "step"
+            self._mode = "freeze"
 
     def unfreeze(self):
-        if self._mode == "step":
+        if self._mode == "freeze":
             self._offset, self._freeze_offset = self._freeze_offset, None
             self._mode = "on_time"
 
@@ -64,7 +64,7 @@ class Timer:
             delta = (date - self._start) * self._rate + datetime.timedelta(
                 minutes=self._offset
             )
-        elif self._mode == "step":
+        elif self._mode == "freeze":
             delta = datetime.timedelta(minutes=self._offset)
         else:
             raise TypeError("Unexpected time mode " + str(self._mode))

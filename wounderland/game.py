@@ -77,7 +77,6 @@ class Game:
     def reset_user(self, name, keys, email=None):
         self.user = User(name, keys, email=email)
         for a_name, agent in self.agents.items():
-            self.logger.info("Reseting user({}) for {}...".format(name, a_name))
             agent.reset_user(self.user)
             title = "{}.reset by User({})".format(a_name, name)
             self.logger.info("\n{}\n{}\n".format(utils.split_line(title), agent))

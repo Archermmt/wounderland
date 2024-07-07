@@ -81,10 +81,11 @@ class Agent:
             self._llm = create_llm_model(**self.think_config["llm"], keys=user.keys)
         if self._llm and not self.associate.index.queryable:
             self.associate.enable_index(self._llm)
-        self.make_schedule()
+        # self.make_schedule()
 
     def remove_user(self):
-        self._llm = None
+        if self.llm_available():
+            self._llm.disable()
 
     def completion(self, func_hint, *args, **kwargs):
         assert hasattr(
@@ -108,6 +109,74 @@ class Agent:
         msg["<OUTPUT>"] = "\n" + str(output) + "\n"
         self.logger.debug(utils.block_msg(title, msg))
         return output
+
+    def think(self, status, agents):
+        events = self.move(status["coord"], status.get("path"))
+        plan, _ = self.make_schedule()
+        if plan["describe"] == "sleeping" and self.is_awake():
+            self.logger.info("{} is going to sleep...".format(self.name))
+            address = self.spatial.find_address("sleeping", as_list=True)
+            self.action = memory.Action(
+                memory.Event(self.name, "is", "sleeping", address=address, emoji="😴"),
+                memory.Event(
+                    address[-1],
+                    "used by",
+                    self.name,
+                    address=address,
+                    emoji="🛌",
+                ),
+                duration=plan["duration"],
+                start=utils.get_timer().daily_time(plan["start"]),
+            )
+        if self.is_awake():
+            self.percept()
+            self.make_plan(agents)
+            self.reflect()
+        emojis = {}
+        if self.action:
+            emojis[self.name] = {"emoji": self.get_event().emoji, "coord": self.coord}
+        for eve, coord in events.items():
+            if eve.subject in agents:
+                continue
+            emojis[":".join(eve.address)] = {"emoji": eve.emoji, "coord": coord}
+        self.plan = {
+            "name": self.name,
+            "path": self.find_path(agents),
+            "emojis": emojis,
+        }
+        return self.plan
+
+    def move(self, coord, path=None):
+        events = {}
+
+        def _update_tile(coord):
+            tile = self.maze.tile_at(coord)
+            if not self.action:
+                return {}
+            if not tile.update_events(self.get_event()):
+                tile.add_event(self.get_event())
+            obj_event = self.get_event(False)
+            if obj_event:
+                self.maze.update_obj(coord, obj_event)
+            return {e: coord for e in tile.get_events()}
+
+        if self.is_awake():
+            if self.coord and self.coord != coord:
+                tile = self.get_tile()
+                tile.remove_events(subject=self.name)
+                if tile.has_address("game_object"):
+                    addr = tile.get_address("game_object")
+                    self.maze.update_obj(
+                        self.coord, memory.Event(addr[-1], address=addr)
+                    )
+                events.update({e: self.coord for e in tile.get_events()})
+            if not path:
+                events.update(_update_tile(coord))
+            self.coord = coord
+            self.path = path or []
+        elif self.coord:
+            events.update(_update_tile(self.coord))
+        return events
 
     def make_schedule(self):
         if not self.schedule.scheduled():
@@ -199,74 +268,6 @@ class Agent:
         plan["decompose"] = self.completion(
             "schedule_revise", self.action, self.schedule
         )
-
-    def move(self, coord, path=None):
-        events = {}
-
-        def _update_tile(coord):
-            tile = self.maze.tile_at(coord)
-            if not self.action:
-                return {}
-            if not tile.update_events(self.get_event()):
-                tile.add_event(self.get_event())
-            obj_event = self.get_event(False)
-            if obj_event:
-                self.maze.update_obj(coord, obj_event)
-            return {e: coord for e in tile.get_events()}
-
-        if self.is_awake():
-            if self.coord and self.coord != coord:
-                tile = self.get_tile()
-                tile.remove_events(subject=self.name)
-                if tile.has_address("game_object"):
-                    addr = tile.get_address("game_object")
-                    self.maze.update_obj(
-                        self.coord, memory.Event(addr[-1], address=addr)
-                    )
-                events.update({e: self.coord for e in tile.get_events()})
-            if not path:
-                events.update(_update_tile(coord))
-            self.coord = coord
-            self.path = path or []
-        elif self.coord:
-            events.update(_update_tile(self.coord))
-        return events
-
-    def think(self, status, agents):
-        events = self.move(status["coord"], status.get("path"))
-        plan, _ = self.make_schedule()
-        if plan["describe"] == "sleeping" and self.is_awake():
-            self.logger.info("{} is going to sleep...".format(self.name))
-            address = self.spatial.find_address("sleeping", as_list=True)
-            self.action = memory.Action(
-                memory.Event(self.name, "is", "sleeping", address=address, emoji="😴"),
-                memory.Event(
-                    address[-1],
-                    "used by",
-                    self.name,
-                    address=address,
-                    emoji="🛌",
-                ),
-                duration=plan["duration"],
-                start=utils.get_timer().daily_time(plan["start"]),
-            )
-        if self.is_awake():
-            self.percept()
-            self.make_plan(agents)
-            self.reflect()
-        emojis = {}
-        if self.action:
-            emojis[self.name] = {"emoji": self.get_event().emoji, "coord": self.coord}
-        for eve, coord in events.items():
-            if eve.subject in agents:
-                continue
-            emojis[":".join(eve.address)] = {"emoji": eve.emoji, "coord": coord}
-        self.plan = {
-            "name": self.name,
-            "path": self.find_path(agents),
-            "emojis": emojis,
-        }
-        return self.plan
 
     def percept(self):
         scope = self.maze.get_scope(self.coord, self.percept_config)

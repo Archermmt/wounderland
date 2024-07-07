@@ -23,6 +23,7 @@ class LLMModel:
         self._handle = self.setup(keys, config)
         self._meta_responses = []
         self._summary = {"total": [0, 0, 0]}
+        self._enabled = True
 
     def embedding(self, text, retry=1):
         response = None
@@ -77,13 +78,16 @@ class LLMModel:
         )
 
     def is_available(self):
-        return self._summary["total"][2] <= 10
+        return self._enabled and self._summary["total"][2] <= 10
 
     def get_summary(self):
         des = {}
         for k, v in self._summary.items():
             des[k] = "S:{},F:{}/R:{}".format(v[1], v[2], v[0])
         return {"model": self._model, "summary": des}
+
+    def disable(self):
+        self._enabled = False
 
     @property
     def meta_responses(self):
