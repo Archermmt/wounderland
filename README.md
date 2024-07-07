@@ -19,3 +19,26 @@ To test the agents in village, 2 ways are provided:
         1.3.3 Refresh the page, and you'll see agents walking around on time (calling llm service takes some time, so the agent may "freezed" when other agent thinking). You can check the agent status from "Agent" board.
 
 2. simulate locally
+2.1 prepare a ckpt.json file for simulate, it should looks like:
+    {
+        "keys": {
+            "OPENAI_API_KEY": "",
+            "QIANFAN_AK": "$YOUR_AK",
+            "QIANFAN_SK": "$YOUR_SK",
+            "ZHIPUAI_API_KEY": ""
+        },
+        "keep_storage": false,
+        "agents": {},
+        "time": "20230213-09:30"
+    }
+    meaning of kwargs:
+    keys: keys for calling llm service
+    keep_storage: whether to use stored memory
+    time: start time for simulation
+2.2 start the simulation:
+    cd tests
+    python test_village.py --step 20 --verbose debug --stride 10 --checkpoint ckpt.json
+    arguments:
+    step: how many steps to simulate
+    stride: how many minutes to forward after each step, e.g 9:00->9:10->9:20 if stride=10
+    ckeckpoint: from which checkpoint the simulation starts

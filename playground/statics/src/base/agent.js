@@ -100,7 +100,6 @@ export default class Agent extends Phaser.GameObjects.Sprite {
             let callback = (info) => {
                 const plan = info.plan;
                 this.status.path = plan.path;
-                this.broadcast_agents(true);
                 this.status.state = "planed";
                 for (const [name, emoji] of Object.entries(plan.emojis)) {
                     if (!(name in this.bubbles)) {
@@ -120,6 +119,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                     }
                 }
                 this.thinking = false;
+                this.broadcast_agents(true);
                 this.scene.time.delayedCall(this.config.think.interval, this.enableThink, [], this);
             }
             this.thinking = true;

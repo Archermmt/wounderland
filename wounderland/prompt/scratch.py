@@ -376,12 +376,15 @@ Area options: <{{ areas|join(', ') }}>.
         failsafe = random.choice(sectors)
 
         def _callback(response):
-            pattern = "For " + describes[1] + ", " + self.name + " .* area: <(.+?)>"
+            pattern = self.name + " .* area: <(.+?)>"
             sector = parse_llm_output(response, pattern)
             if sector in sectors:
                 return sector
-            if sectors in arenas:
+            if sector in arenas:
                 return arenas[sector]
+            for s in sectors:
+                if sector.startswith(s):
+                    return s
             return failsafe
 
         return {"prompt": prompt, "callback": _callback, "failsafe": failsafe}
@@ -480,7 +483,6 @@ The most relevant object from the Objects is: {% if answer %}<{{ answer }}>{% el
             objects=["phone", "charger", "bed", "nightstand"],
             answer="phone",
         )
-        prompt += "\n\nGiven the examples above, please choose most relevant object from the Objects for a task at hand:"
         prompt += template.render(
             activity=describes[1], objects=spatial.get_leaves(address)
         )

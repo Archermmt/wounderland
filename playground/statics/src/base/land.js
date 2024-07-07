@@ -100,6 +100,7 @@ export default class Land extends Phaser.Scene {
     agent_think(agent_name) {
         const agent = this.agents[agent_name];
         if (agent.enable_think) {
+            console.log("Agent " + agent.name + " start thinking...");
             agent.think();
             const index = this.agent_queue.waiting.indexOf(agent.name);
             this.agent_queue.waiting.splice(index, 1);
