@@ -100,7 +100,7 @@ export default class Land extends Phaser.Scene {
     agent_think(agent_name) {
         const agent = this.agents[agent_name];
         if (agent.enable_think) {
-            console.log("Agent " + agent.name + " start thinking...");
+            //console.log("Agent " + agent.name + " start thinking...");
             agent.think();
             const index = this.agent_queue.waiting.indexOf(agent.name);
             this.agent_queue.waiting.splice(index, 1);
@@ -134,12 +134,12 @@ export default class Land extends Phaser.Scene {
                     this.agent_queue.done.push(agent.name);
                 }
             }
-            if (this.agent_queue.done.length == this.agents.length) {
+            if (this.agent_queue.done.length == Object.keys(this.agents).length) {
                 this.agent_queue.waiting = this.agent_queue.done
                 this.agent_queue.thinking = [];
                 this.agent_queue.done = [];
                 if (this.time_mode === "step") {
-                    console.log("Forward 5 mins for next loop...");
+                    //console.log("Forward 5 mins for next loop...");
                     this.game_status.start = false;
                     let callback = (info) => {
                         this.msg.user.time.current = info.time;

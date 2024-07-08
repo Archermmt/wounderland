@@ -541,11 +541,11 @@ Output: (<Percy Liang>, <teach>, <students>)
 Input: Merrie Morris is running on a treadmill. 
 Output: (<Merrie Morris>, <run>, <treadmill>)
 ---
-
-Given the examples above, please turn the input into format (<subject>, <predicate>, <object>):
 Input: {describe}.
 Output: (<"""
 
+        # TMINFO debug only
+        # Given the examples above, please turn the input into format (<subject>, <predicate>, <object>):
         e_describe = describe
         if e_describe.startswith(subject + " is "):
             e_describe = e_describe.replace(subject + " is ", "")
@@ -618,9 +618,9 @@ Context: {context}
 Right now, it is {date_str}.{chat_history}
 {a_des}\n{o_des}\n
 Question: Would {self.name} initiate a conversation with {other.name}? \n
-Reasoning: Let's think step by step.
 Answer in "yes" or "no":
 """
+        # Reasoning: Let's think step by step.
 
         def _callback(response):
             return "yes" in response or "Yes" in response
@@ -675,7 +675,7 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
         )
 
         def _status_des(agent):
-            event, loc = agent.get_curr_event(), ""
+            event, loc = agent.get_event(), ""
             if event.address:
                 loc = " at {} in {}".format(event.address[-1], event.address[-2])
             if not agent.path:
@@ -700,7 +700,7 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
         )
 
         def _callback(response):
-            return response
+            return "Option 1" in response
 
         return {"prompt": prompt, "callback": _callback, "failsafe": False}
 
@@ -711,7 +711,6 @@ So, since Sam and Sarah are going to be in different areas, Sam mcan continue on
             ["{}. {}".format(idx, n.describe) for idx, n in enumerate(nodes)]
         )
         prompt += f"\n\nBased on the statements above, summarize {self.name} and {other_name}'s relationship (e.g., Tom and Jeo are friends, Elin and John are playing games). What do they feel or know about each other?\n"
-        # prompt += f"\n{self.name} and {other_name} are "
         prompt = self._format_output(
             prompt,
             "sentence",
@@ -847,14 +846,22 @@ Summarize the conversation above in one short sentence without comma:
             patterns = [
                 "^\d{1}\. (.*)\. \(Because of (.*)\)",
                 "^\d{1}\. (.*)\. \(because of (.*)\)",
+                "^Insight \d{1}: (.*)\. \(Because of (.*)\)",
+                "^Insight \d{1}: (.*)\. \(because of (.*)\)",
+                "^\d{1}\. (.*)\.",
+                "^Insight \d{1}: (.*)\.",
             ]
             insights, outputs = [], parse_llm_output(
                 response, patterns, mode="match_all"
             )
             if outputs:
-                for insight, reason in outputs:
-                    indices = [int(e.strip()) for e in reason.split(",")]
-                    node_ids = [nodes[i].node_id for i in indices if i < len(nodes)]
+                for output in outputs:
+                    if len(output) == 1:
+                        insight, node_ids = output, []
+                    elif len(output) == 2:
+                        insight, reason = output
+                        indices = [int(e.strip()) for e in reason.split(",")]
+                        node_ids = [nodes[i].node_id for i in indices if i < len(nodes)]
                     insights.append([insight, node_ids])
                 return insights
             raise Exception("Can not find insights")

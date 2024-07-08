@@ -37,6 +37,9 @@ class Agent:
         self.status = utils.update_dict(status, config.get("status", {}))
         self.plan = config.get("plan", {})
 
+        # record
+        self.last_record = utils.get_timer().daily_duration()
+
         # action and events
         if "action" in config:
             self.action = memory.Action.from_dict(config["action"])

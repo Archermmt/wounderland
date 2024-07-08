@@ -50,7 +50,7 @@ class LLMModel:
         caller="llm_normal",
         **kwargs
     ):
-        response, self._meta_responses = "", []
+        response, self._meta_responses = None, []
         self._summary.setdefault(caller, [0, 0, 0])
         for _ in range(retry):
             try:
@@ -63,11 +63,11 @@ class LLMModel:
                 else:
                     response = meta_response
             except:
-                response = ""
+                response = None
                 continue
-            if response:
+            if response is not None:
                 break
-        pos = 1 if response else 2
+        pos = 2 if response is None else 1
         self._summary["total"][pos] += 1
         self._summary[caller][pos] += 1
         return response or failsafe

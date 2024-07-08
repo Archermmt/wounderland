@@ -28,7 +28,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         this.broadcast_agents = broadcast_agents;
 
         // status
-        this.status = { state: "initialized", currently: config.currently, direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
+        this.status = { state: "setup", currently: config.currently, direction: "stop", speed: config.move.speed, coord: coord, address: "", path: [] };
         this.info = { associate: {}, chats: [], concepts: {}, action: {}, schedule: {}, llm: {} };
         this.record = false;
 
@@ -72,9 +72,13 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         // emoji
         this.bubbles = {};
         this.text_config = {
-            font: Math.round(this.displayHeight * 0.6) + "px monospace", fill: "#000000",
-            padding: { x: 4, y: 4 }
+            font: Math.round(this.displayHeight * 0.6) + "px monospace",
+            fill: "#000000",
+            padding: { x: 4, y: 4 },
+            border: "solid",
+            borderRadius: "10px"
         };
+        // backgroundColor: "#ffffff"
         this.bubbles[this.name] = scene.add.text(0, 0, "🦁", this.text_config);
 
         // set events
@@ -97,6 +101,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         if (this.enable_think && !this.thinking) {
             this.enable_think = false;
             this.status.state = "thinking";
+            this.bubbles[this.name].setText("🤔");
             let callback = (info) => {
                 const plan = info.plan;
                 this.status.path = plan.path;

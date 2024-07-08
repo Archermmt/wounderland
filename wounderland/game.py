@@ -17,6 +17,7 @@ class Game:
     def __init__(self, static_root, config, logger=None):
         self.static_root = static_root
         self.think_mode = config.get("think_mode", "freeze_think")
+        self.record_iterval = config.get("record_iterval", 30)
         self.logger = logger or utils.IOLogger()
         self.maze = Maze(self.load_static(config["maze"]["path"]), self.logger)
         self.agents = {}
@@ -61,8 +62,14 @@ class Game:
             "action": agent.action.abstract(),
             "schedule": agent.schedule.abstract(),
             "address": agent.get_tile().get_address(as_list=False),
-            "record": agent.status["poignancy"] == 0,
         }
+        if (
+            utils.get_timer().daily_duration() - agent.last_record
+        ) > self.record_iterval:
+            info["record"] = True
+            agent.last_record = utils.get_timer().daily_duration()
+        else:
+            info["record"] = False
         if agent.llm_available():
             info["llm"] = agent._llm.get_summary()
         title = "{}.summary @ {}".format(
