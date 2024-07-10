@@ -32,7 +32,7 @@ export default class Village extends Land {
                 "agent_base": { "path": root + "agent.json" },
                 "agents": {},
             },
-            "time": { "start": "20230213-9:30", "mode": "on_time" },
+            "start": "20230213-9:30",
             "think_parallel": false,
             "keep_storage": false
         }

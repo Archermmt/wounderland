@@ -22,8 +22,9 @@ export default class Land extends Phaser.Scene {
             }
         }
         // load config
+        const start = this.config.start || "";
         const keep_storage = this.config.keep_storage || true;
-        this.game_config = { "time": this.config.time, "keep_storage": keep_storage };
+        this.game_config = { "time": { "start": start }, "keep_storage": keep_storage };
         for (const [name, config] of Object.entries(this.config.config)) {
             if (name == "agents") {
                 this.game_config[name] = {};
@@ -38,7 +39,6 @@ export default class Land extends Phaser.Scene {
         }
         // set modes
         this.think_parallel = this.config.think_parallel;
-        this.time_mode = this.config.time.mode;
 
         // start game
         this.game_status = { start: false };
@@ -51,7 +51,7 @@ export default class Land extends Phaser.Scene {
                 }
             }
         }
-        console.log("Start game with think_parallel " + this.think_parallel + ", time_mode " + this.time_mode);
+        console.log("Start game with think_parallel " + this.think_parallel);
         utils.jsonRequest(this.urls.start_game, this.game_config, callback);
         // update time
         this.getTime();
@@ -138,15 +138,6 @@ export default class Land extends Phaser.Scene {
                 this.agent_queue.waiting = this.agent_queue.done
                 this.agent_queue.thinking = [];
                 this.agent_queue.done = [];
-                if (this.time_mode === "step") {
-                    //console.log("Forward 5 mins for next loop...");
-                    this.game_status.start = false;
-                    let callback = (info) => {
-                        this.msg.user.time.current = info.time;
-                        this.game_status.start = true;
-                    }
-                    utils.jsonRequest(this.urls.get_time, { offset: 5 }, callback);
-                }
             }
         }
         this.configPlayer();

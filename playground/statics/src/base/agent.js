@@ -72,14 +72,15 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         // emoji
         this.bubbles = {};
         this.text_config = {
-            font: Math.round(this.displayHeight * 0.6) + "px monospace",
+            font: Math.round(this.displayHeight * 0.4) + "px monospace",
             fill: "#000000",
             padding: { x: 4, y: 4 },
             border: "solid",
-            borderRadius: "10px"
+            borderRadius: "10px",
         };
-        // backgroundColor: "#ffffff"
-        this.bubbles[this.name] = scene.add.text(0, 0, "🦁", this.text_config);
+        let agent_text_config = JSON.parse(JSON.stringify(this.text_config));
+        agent_text_config.backgroundColor = "#ffffff";
+        this.bubbles[this.name] = scene.add.text(0, 0, "⚙️", agent_text_config);
 
         // set events
         if (config.interactive || true) {
@@ -109,7 +110,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
                 for (const [name, emoji] of Object.entries(plan.emojis)) {
                     if (!(name in this.bubbles)) {
                         let pos = coordToPosition(emoji.coord, this.tile_size);
-                        pos[1] = pos[1] - Math.round(this.displayHeight * 0.8) - 4;
+                        pos[1] = pos[1] - Math.round(this.displayHeight * 1.6) - 4;
                         this.bubbles[name] = this.scene.add.text(pos[0], pos[1], emoji.emoji, this.text_config);
                     }
                     this.bubbles[name].setText(emoji.emoji);

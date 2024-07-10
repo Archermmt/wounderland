@@ -84,7 +84,6 @@ class Agent:
             self._llm = create_llm_model(**self.think_config["llm"], keys=user.keys)
         if self._llm and not self.associate.index.queryable:
             self.associate.enable_index(self._llm)
-        # self.make_schedule()
 
     def remove_user(self):
         if self.llm_available():
@@ -98,6 +97,7 @@ class Agent:
         prompt = func(*args, **kwargs)
         title, msg = "{}.{}".format(self.name, func_hint), {}
         if self.llm_available():
+            self.logger.info("{} -> {}".format(self.name, func_hint))
             output = self._llm.completion(**prompt, caller=func_hint)
             responses = self._llm.meta_responses
             msg = {"<PROMPT>": "\n" + prompt["prompt"] + "\n"}
@@ -301,7 +301,7 @@ class Agent:
                     valid_num += 1
                     node_type = "chat" if event.fit(self.name, "chat with") else "event"
                     node = self._add_concept(node_type, event)
-                self.status["poignancy"] += node.poignancy
+                    self.status["poignancy"] += node.poignancy
                 self.concepts.append(node)
         self.concepts = [c for c in self.concepts if c.event.subject != self.name]
         self.logger.info(
@@ -331,7 +331,14 @@ class Agent:
         nodes = self.associate.retrieve_events() + self.associate.retrieve_thoughts()
         if not nodes:
             return
-        self.logger.info("{} reflect with {} concepts...".format(self.name, len(nodes)))
+        self.logger.info(
+            "{} reflect(P{}/{}) with {} concepts...".format(
+                self.name,
+                self.status["poignancy"],
+                self.think_config["poignancy_max"],
+                len(nodes),
+            )
+        )
         nodes = sorted(nodes, key=lambda n: n.access, reverse=True)[
             : self.associate.max_importance
         ]

@@ -146,9 +146,9 @@
 
             <div id="user_time" class="nes-container is-dark msg_box" v-show="user.display.time">
                 <button type="submit" class="nes-btn is-warning" style="width:8vw"
-                    @click="userTimeBackward()">-30min</button>
+                    @click="userTimeBackward()">-10min</button>
                 <button type="submit" class="nes-btn is-warning" style="width:8vw"
-                    @click="userTimeForward()">+30min</button>
+                    @click="userTimeForward()">+10min</button>
                 <button type="submit" class="nes-btn is-warning" style="width:8vw" @click="userTimeSpeedup()">X
                     [[user.time.rate]]</button>
             </div>
@@ -278,10 +278,10 @@
                 this.userEmpty("keys");
             },
             userTimeBackward: function () {
-                this.user.time.update["offset"] = -30;
+                this.user.time.update["offset"] = -10;
             },
             userTimeForward: function () {
-                this.user.time.update["offset"] = 30;
+                this.user.time.update["offset"] = 10;
             },
             userTimeSpeedup: function () {
                 this.user.time.rate *= 2;
