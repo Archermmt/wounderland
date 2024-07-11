@@ -58,7 +58,7 @@ Event: college acceptance. Rate: 10
 Event: {event.get_describe()}. Rate: """
 
         def _callback(response):
-            pattern = "Event: .*\. Rate: (\d{1,2})"
+            pattern = ["Event: .*\. Rate: (\d{1,2})", "Rate: (\d{1,2})"]
             return int(parse_llm_output(response, pattern, "match_last"))
 
         return {

@@ -284,4 +284,5 @@ gallery/how_to/work_with_microtvm/micro_tvmc.py
 # Keys && test
 .env
 ckpt*.json
+record*.json
 playground/statics/storage
