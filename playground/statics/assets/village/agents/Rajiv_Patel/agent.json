@@ -2,9 +2,110 @@
   "name": "Rajiv Patel",
   "portrait": "assets/village/agents/Rajiv_Patel/portrait.png",
   "coord": [
-    57,
-    74
+    26,
+    18
   ],
-  "scratch": {},
-  "spatial": {}
+  "currently": "Rajiv Patel is preparing for his first solo show. He mostly works from the artists' co-living space. Also, he recently got into playing the guitar.",
+  "scratch": {
+    "age": 27,
+    "innate": "patient, reliable, cheerful",
+    "learned": "Rajiv Patel is a painter who wants live quietly and paint while enjoying his everyday life.",
+    "lifestyle": "Rajiv Patel goes to bed around midnight, awakes up around 9am, eats dinner around 5pm.",
+    "daily_plan": ""
+  },
+  "spatial": {
+    "living_area": [
+      [
+        "the Ville",
+        "artist's co-living space",
+        "Rajiv Patel's room"
+      ]
+    ],
+    "tree": {
+      "the Ville": {
+        "artist's co-living space": {
+          "Rajiv Patel's room": [
+            "bed",
+            "easel",
+            "closet",
+            "guitar"
+          ],
+          "Rajiv Patel's bathroom": [
+            "shower",
+            "bathroom sink",
+            "toilet"
+          ],
+          "kitchen": [
+            "refrigerator",
+            "toaster",
+            "kitchen sink",
+            "cooking area"
+          ],
+          "common room": [
+            "common room table",
+            "common room sofa"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        },
+        "Oak Hill College": {
+          "hallway": []
+        },
+        "Dorm for Oak Hill College": {
+          "common room": [
+            "common room sofa",
+            "pool table",
+            "common room table"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "behind the pharmacy counter"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        }
+      }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  }
 }

@@ -5,28 +5,22 @@
     123,
     57
   ],
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
-    }
-  },
   "currently": "Maria Lopez is working on her physics degree and streaming games on Twitch to make some extra money. She visits Hobbs Cafe for studying and eating just about everyday.",
   "scratch": {
     "age": 21,
-    "daily_plan": "Maria Lopez spends at least 3 hours a day Twitch streaming or gaming.",
     "innate": "energetic, enthusiastic, inquisitive",
     "learned": "Maria Lopez is a student at Oak Hill College studying physics and a part time Twitch game streamer who loves to connect with people and explore new ideas.",
-    "lifestyle": "Maria Lopez goes to bed around 2am, awakes up around 9am, eats dinner around 6pm. She likes to hang out at Hobbs Cafe if it's before 6pm."
+    "lifestyle": "Maria Lopez goes to bed around midnight, awakes up around 10am, eats dinner around 7pm.",
+    "daily_plan": "Maria Lopez spends at least 6 hours a day Twitch streaming or gaming."
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Dorm for Oak Hill College",
         "Maria Lopez's room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Oak Hill College": {
@@ -113,6 +107,12 @@
           ]
         }
       }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
     }
   }
 }

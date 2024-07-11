@@ -5,28 +5,22 @@
     126,
     46
   ],
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
-    }
-  },
   "currently": "Klaus Mueller is writing a research paper on the effects of gentrification in low-income communities.",
   "scratch": {
     "age": 20,
-    "daily_plan": "Klaus Mueller goes to the library at Oak Hill College early in the morning, spends his days writing, and eats at Hobbs Cafe.",
     "innate": "kind, inquisitive, passionate",
     "learned": "Klaus Mueller is a student at Oak Hill College studying sociology. He is passionate about social justice and loves to explore different perspectives.",
-    "lifestyle": "Klaus Mueller goes to bed around 11pm, awakes up around 7am, eats dinner around 5pm."
+    "lifestyle": "Klaus Mueller goes to bed around 11pm, awakes up around 7am, eats dinner around 5pm.",
+    "daily_plan": "Klaus Mueller goes to the library at Oak Hill College early in the morning, spends his days writing, and eats at Hobbs Cafe."
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Dorm for Oak Hill College",
         "Klaus Mueller's room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Oak Hill College": {
@@ -112,6 +106,12 @@
           ]
         }
       }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
     }
   }
 }

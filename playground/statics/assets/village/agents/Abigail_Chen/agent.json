@@ -8,19 +8,19 @@
   "currently": "Abigail Chen is working on an animation project for a client. She is also experimenting with different tools and techniques to create interactive art.",
   "scratch": {
     "age": 25,
-    "daily_plan": "",
     "innate": "open-minded, curious, determined",
     "learned": "Abigail Chen is a digital artist and animator who loves to explore how technology can be used to express ideas. She is always looking for new ways to combine art and technology.",
-    "lifestyle": "Abigail Chen goes to bed around midnight, awakes up around 8am, eats dinner around 6pm."
+    "lifestyle": "Abigail Chen goes to bed around midnight, awakes up around 8am, eats dinner around 6pm.",
+    "daily_plan": ""
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "artist's co-living space",
         "Abigail Chen's room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "artist's co-living space": {
@@ -99,6 +99,12 @@
           ]
         }
       }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
     }
   }
 }

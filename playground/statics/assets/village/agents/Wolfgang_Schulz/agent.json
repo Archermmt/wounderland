@@ -2,9 +2,117 @@
   "name": "Wolfgang Schulz",
   "portrait": "assets/village/agents/Wolfgang_Schulz/portrait.png",
   "coord": [
-    57,
-    74
+    107,
+    62
   ],
-  "scratch": {},
-  "spatial": {}
+  "currently": "Wolfgang Schulz is training for his next competition and studying for his exams. He is also looking for ways to make his studies more efficient.",
+  "scratch": {
+    "age": 21,
+    "innate": "Hardworking, passionate, dedicated",
+    "learned": "Wolfgang Schulz is a student at Oak Hill College studying chemistry and a student athlete. He is very dedicated to both his academics and his sport.",
+    "lifestyle": "Wolfgang Schulz goes to bed around 9pm, awakes up around 5am, eats dinner around 6pm.",
+    "daily_plan": "Wolfgang Schulz goes for a run at the part in the morning, studies during the day, and exercises at his room at night "
+  },
+  "spatial": {
+    "living_area": [
+      [
+        "the Ville",
+        "Dorm for Oak Hill College",
+        "Wolfgang Schulz's room"
+      ]
+    ],
+    "tree": {
+      "the Ville": {
+        "Oak Hill College": {
+          "hallway": [],
+          "library": [
+            "library sofa",
+            "library table",
+            "bookshelf"
+          ],
+          "classroom": [
+            "blackboard",
+            "classroom podium",
+            "classroom student seating"
+          ]
+        },
+        "Dorm for Oak Hill College": {
+          "garden": [
+            "dorm garden"
+          ],
+          "Wolfgang Schulz's room": [
+            "desk",
+            "bed",
+            "game console",
+            "lifting weight",
+            "closet"
+          ],
+          "woman's bathroom": [
+            "toilet",
+            "shower",
+            "bathroom sink"
+          ],
+          "common room": [
+            "common room sofa",
+            "pool table",
+            "common room table"
+          ],
+          "man's bathroom": [
+            "shower",
+            "bathroom sink",
+            "toilet"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "behind the pharmacy counter"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        }
+      }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  }
 }

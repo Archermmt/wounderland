@@ -2,9 +2,110 @@
   "name": "Hailey Johnson",
   "portrait": "assets/village/agents/Hailey_Johnson/portrait.png",
   "coord": [
-    57,
-    74
+    26,
+    32
   ],
-  "scratch": {},
-  "spatial": {}
+  "currently": "Hailey Johnson is writing a novel about a group of artists living in a co-living space. She is also planning to start a podcast.",
+  "scratch": {
+    "age": 30,
+    "innate": "imaginative, energetic, resourceful",
+    "learned": "Hailey Johnson is a writer who is always looking for new ways to tell stories. She loves to immerse herself in different cultures and explore their literature.",
+    "lifestyle": "Hailey Johnson goes to bed around 2am, awakes up around 10am, eats dinner around 6pm.",
+    "daily_plan": ""
+  },
+  "spatial": {
+    "living_area": [
+      [
+        "the Ville",
+        "artist's co-living space",
+        "Hailey Johnson's room"
+      ]
+    ],
+    "tree": {
+      "the Ville": {
+        "artist's co-living space": {
+          "Hailey Johnson's room": [
+            "closet",
+            "easel",
+            "desk",
+            "bed"
+          ],
+          "Hailey Johnson's bathroom": [
+            "shower",
+            "bathroom sink",
+            "toilet"
+          ],
+          "kitchen": [
+            "refrigerator",
+            "toaster",
+            "kitchen sink",
+            "cooking area"
+          ],
+          "common room": [
+            "common room table",
+            "common room sofa"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        },
+        "Oak Hill College": {
+          "hallway": []
+        },
+        "Dorm for Oak Hill College": {
+          "common room": [
+            "common room sofa",
+            "pool table",
+            "common room table"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "behind the pharmacy counter"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        }
+      }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  }
 }

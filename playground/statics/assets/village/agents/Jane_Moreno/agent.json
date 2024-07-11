@@ -2,9 +2,98 @@
   "name": "Jane Moreno",
   "portrait": "assets/village/agents/Jane_Moreno/portrait.png",
   "coord": [
-    57,
+    72,
     74
   ],
-  "scratch": {},
-  "spatial": {}
+  "currently": "Jane Moreno is living with her husband, Tom Moreno, who is a shop keeper at The Willow Market and Pharmacy.",
+  "scratch": {
+    "age": 46,
+    "innate": "friendly, helpful, organized",
+    "learned": "Jane Moreno is a housewife who loves to take care of her family. She is always looking for new ways to make life easier and more enjoyable for everyone.",
+    "lifestyle": "Jane Moreno goes to bed around 10pm, awakes up around 6am, eats dinner around 6pm.",
+    "daily_plan": ""
+  },
+  "spatial": {
+    "living_area": [
+      [
+        "the Ville",
+        "Moreno family's house",
+        "Tom and Jane Moreno's bedroom"
+      ]
+    ],
+    "tree": {
+      "the Ville": {
+        "Moreno family's house": {
+          "common room": [
+            "shelf",
+            "common room table",
+            "harp"
+          ],
+          "Tom and Jane Moreno's bedroom": [
+            "closet",
+            "desk",
+            "bed"
+          ],
+          "empty bedroom": [
+            "bed",
+            "closet",
+            "guitar"
+          ],
+          "garden": [
+            "house garden",
+            "garden chair"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "behind the pharmacy counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        }
+      }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  }
 }

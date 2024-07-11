@@ -2,9 +2,110 @@
   "name": "Latoya Williams",
   "portrait": "assets/village/agents/Latoya_Williams/portrait.png",
   "coord": [
-    57,
-    74
+    16,
+    18
   ],
-  "scratch": {},
-  "spatial": {}
+  "currently": "Latoya Williams is creating a series of photography inspired by her travels. She mostly works from the artists' co-living space. Latoya is also curious about who will be running for the local mayor election next month and that is a central topic in her conversations with others.",
+  "scratch": {
+    "age": 25,
+    "innate": "organized, logical, attentive",
+    "learned": "Latoya Williams is a digital photographer who has a keen eye for details. She is very organized and analytical when it comes to her art.",
+    "lifestyle": "Latoya Williams goes to bed around 10pm, awakes up around 6am, eats dinner around 17:30pm.",
+    "daily_plan": ""
+  },
+  "spatial": {
+    "living_area": [
+      [
+        "the Ville",
+        "artist's co-living space",
+        "Latoya Williams's room"
+      ]
+    ],
+    "tree": {
+      "the Ville": {
+        "artist's co-living space": {
+          "Latoya Williams's room": [
+            "bed",
+            "desk",
+            "shelf",
+            "closet"
+          ],
+          "Latoya Williams's bathroom": [
+            "shower",
+            "bathroom sink",
+            "toilet"
+          ],
+          "kitchen": [
+            "refrigerator",
+            "toaster",
+            "kitchen sink",
+            "cooking area"
+          ],
+          "common room": [
+            "common room table",
+            "common room sofa"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        },
+        "Oak Hill College": {
+          "hallway": []
+        },
+        "Dorm for Oak Hill College": {
+          "common room": [
+            "common room sofa",
+            "pool table",
+            "common room table"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "behind the pharmacy counter"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        }
+      }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  }
 }

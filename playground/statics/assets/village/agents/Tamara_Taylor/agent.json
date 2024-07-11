@@ -2,9 +2,101 @@
   "name": "Tamara Taylor",
   "portrait": "assets/village/agents/Tamara_Taylor/portrait.png",
   "coord": [
-    57,
+    54,
     74
   ],
-  "scratch": {},
-  "spatial": {}
+  "currently": "Tamara Taylor lives with a housemate, Carmen Ortiz, and is working on a new series of children's books. She is also working on a comic book series for adults.",
+  "scratch": {
+    "age": 30,
+    "innate": "imaginative, patient, kind",
+    "learned": "Tamara Taylor is a children's book author who loves to create stories that capture the imaginations of young readers. She is very patient and kind when it comes to her work.",
+    "lifestyle": "Tamara Taylor goes to bed around 10pm, awakes up around 6am, eats dinner around 6pm.",
+    "daily_plan": ""
+  },
+  "spatial": {
+    "living_area": [
+      [
+        "the Ville",
+        "Tamara Taylor and Carmen Ortiz's house",
+        "Tamara Taylor's room"
+      ]
+    ],
+    "tree": {
+      "the Ville": {
+        "Tamara Taylor and Carmen Ortiz's house": {
+          "Tamara Taylor's room": [
+            "closet",
+            "desk",
+            "bed"
+          ],
+          "common room": [
+            "shelf",
+            "common room table"
+          ],
+          "bathroom": [
+            "toilet",
+            "shower",
+            "bathroom sink"
+          ],
+          "Carmen Ortiz's room": [
+            "bed",
+            "closet",
+            "guitar"
+          ],
+          "garden": [
+            "house garden"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "behind the pharmacy counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        }
+      }
+    }
+  },
+  "think": {
+    "mode": "llm",
+    "llm": {
+      "model": "Yi-34B-Chat"
+    }
+  }
 }
