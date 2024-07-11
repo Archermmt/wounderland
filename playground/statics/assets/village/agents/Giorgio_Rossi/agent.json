@@ -1,3 +1,10 @@
 {
-  "name": "Giorgio_Rossi"
+  "name": "Giorgio Rossi",
+  "portrait": "assets/village/agents/Giorgio_Rossi/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

@@ -1,3 +1,10 @@
 {
-  "name": "Yuriko_Yamamoto"
+  "name": "Yuriko Yamamoto",
+  "portrait": "assets/village/agents/Yuriko_Yamamoto/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

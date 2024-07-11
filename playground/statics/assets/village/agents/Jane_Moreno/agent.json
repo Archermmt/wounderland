@@ -1,3 +1,10 @@
 {
-  "name": "Jane_Moreno"
+  "name": "Jane Moreno",
+  "portrait": "assets/village/agents/Jane_Moreno/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

@@ -1,3 +1,10 @@
 {
-  "name": "Tamara_Taylor"
+  "name": "Tamara Taylor",
+  "portrait": "assets/village/agents/Tamara_Taylor/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

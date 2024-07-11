@@ -1,3 +1,94 @@
 {
-  "name": "Carmen_Ortiz"
+  "name": "Carmen Ortiz",
+  "portrait": "assets/village/agents/Carmen_Ortiz/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "currently": "Carmen Ortiz is managing Harvey Oak Supply Store and lives with a housemate, Tamara Taylor. She is also working on expanding her shop online.",
+  "scratch": {
+    "age": 33,
+    "daily_plan": "Carmen opens Harvey Oak Supply Store at 8am, stands behind its counter, and closes it at 6pm, at which point, she likes to go to The Rose and Crown Pub to relax",
+    "innate": "friendly, outgoing, helpful",
+    "learned": "Carmen Ortiz is a shopkeeper at Harvey Oak Supply Store who loves to help people find the supplies they need. She is always looking for ways to make her customers feel welcome.",
+    "lifestyle": "Carmen Ortiz goes to bed around 11pm, awakes up around 7am, eats dinner around 8pm."
+  },
+  "spatial": {
+    "living_area": [
+      "the Ville",
+      "Tamara Taylor and Carmen Ortiz's house",
+      "Carmen Ortiz's room"
+    ],
+    "tree": {
+      "the Ville": {
+        "Tamara Taylor and Carmen Ortiz's house": {
+          "Tamara Taylor's room": [
+            "closet",
+            "desk",
+            "bed"
+          ],
+          "common room": [
+            "shelf",
+            "common room table"
+          ],
+          "bathroom": [
+            "toilet",
+            "shower",
+            "bathroom sink"
+          ],
+          "Carmen Ortiz's room": [
+            "bed",
+            "closet",
+            "guitar"
+          ],
+          "garden": [
+            "house garden"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "behind the pharmacy counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        }
+      }
+    }
+  }
 }

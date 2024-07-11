@@ -1,3 +1,10 @@
 {
-  "name": "Jennifer_Moore"
+  "name": "Jennifer Moore",
+  "portrait": "assets/village/agents/Jennifer_Moore/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

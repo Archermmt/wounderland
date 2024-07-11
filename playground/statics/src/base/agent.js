@@ -72,7 +72,7 @@ export default class Agent extends Phaser.GameObjects.Sprite {
         // emoji
         this.bubbles = {};
         this.text_config = {
-            font: Math.round(this.displayHeight * 0.4) + "px monospace",
+            font: Math.round(this.displayHeight * 0.6) + "px monospace",
             fill: "#000000",
             padding: { x: 4, y: 4 },
             border: "solid",

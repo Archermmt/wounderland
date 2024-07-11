@@ -1,3 +1,10 @@
 {
-  "name": "Sam_Moore"
+  "name": "Sam Moore",
+  "portrait": "assets/village/agents/Sam_Moore/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

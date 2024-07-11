@@ -1,3 +1,10 @@
 {
-  "name": "Mei_Lin"
+  "name": "Mei Lin",
+  "portrait": "assets/village/agents/Mei_Lin/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

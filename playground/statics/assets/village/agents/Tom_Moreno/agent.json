@@ -1,3 +1,10 @@
 {
-  "name": "Tom_Moreno"
+  "name": "Tom Moreno",
+  "portrait": "assets/village/agents/Tom_Moreno/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

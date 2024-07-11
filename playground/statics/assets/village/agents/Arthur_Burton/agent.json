@@ -1,11 +1,87 @@
 {
   "name": "Arthur Burton",
   "portrait": "assets/village/agents/Arthur_Burton/portrait.png",
+  "coord": [
+    53,
+    14
+  ],
   "currently": "Arthur Burton is running a beloved bar in the town that's been around for 10 years. He is also learning more about mixology and create unique cocktails.",
   "describe": {
+    "age": 42,
+    "daily_plan": "Arthur Burton opens The Rose and Crown Pub at 5pm everyday, and stands at the counter until 10pm, at which point he closes the bar.",
     "innate": "friendly, outgoing, generous",
     "learned": "Arthur Burton is a bartender and bar owner of The Rose and Crown Pub who loves to make people feel welcome. He is always looking for ways to make his customers feel special.",
-    "lifestyle": "Arthur Burton goes to bed around midnight, awakes up around 7am, eats dinner around 4pm.",
-    "living_area": "the Ville:Arthur Burton's apartment:main room"
+    "lifestyle": "Arthur Burton goes to bed around midnight, awakes up around 7am, eats dinner around 4pm."
+  },
+  "spatial": {
+    "address": {
+      "living_area": [
+        "the Ville",
+        "Arthur Burton's apartment",
+        "main room"
+      ]
+    },
+    "tree": {
+      "the Ville": {
+        "Arthur Burton's apartment": {
+          "main room": [
+            "bed",
+            "guitar",
+            "desk",
+            "refrigerator",
+            "closet",
+            "shelf"
+          ]
+        },
+        "The Rose and Crown Pub": {
+          "pub": [
+            "shelf",
+            "refrigerator",
+            "bar customer seating",
+            "behind the bar counter",
+            "kitchen sink",
+            "cooking area",
+            "microphone"
+          ]
+        },
+        "Hobbs Cafe": {
+          "cafe": [
+            "refrigerator",
+            "cafe customer seating",
+            "cooking area",
+            "kitchen sink",
+            "behind the cafe counter",
+            "piano"
+          ]
+        },
+        "Harvey Oak Supply Store": {
+          "supply store": [
+            "supply store product shelf",
+            "behind the supply store counter",
+            "supply store counter"
+          ]
+        },
+        "The Willows Market and Pharmacy": {
+          "store": [
+            "behind the pharmacy counter",
+            "pharmacy store shelf",
+            "pharmacy store counter",
+            "grocery store shelf",
+            "behind the grocery counter",
+            "grocery store counter"
+          ]
+        },
+        "Dorm for Oak Hill College": {
+          "garden": [
+            "dorm garden"
+          ]
+        },
+        "Johnson Park": {
+          "park": [
+            "park garden"
+          ]
+        }
+      }
+    }
   }
 }

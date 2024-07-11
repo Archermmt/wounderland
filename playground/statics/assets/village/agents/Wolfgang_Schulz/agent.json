@@ -1,3 +1,10 @@
 {
-  "name": "Wolfgang_Schulz"
+  "name": "Wolfgang Schulz",
+  "portrait": "assets/village/agents/Wolfgang_Schulz/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

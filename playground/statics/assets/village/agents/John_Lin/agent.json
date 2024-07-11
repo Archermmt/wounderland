@@ -1,3 +1,10 @@
 {
-  "name": "John_Lin"
+  "name": "John Lin",
+  "portrait": "assets/village/agents/John_Lin/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }

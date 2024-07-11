@@ -1,3 +1,10 @@
 {
-  "name": "Ryan_Park"
+  "name": "Ryan Park",
+  "portrait": "assets/village/agents/Ryan_Park/portrait.png",
+  "coord": [
+    57,
+    74
+  ],
+  "scratch": {},
+  "spatial": {}
 }
