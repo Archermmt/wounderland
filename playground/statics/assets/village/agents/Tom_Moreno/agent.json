@@ -14,13 +14,13 @@
     "daily_plan": "Tom Moreno opens The Willow Market and Pharmacy at 8am, stands behind the grocery counter, and goes home afterwards to eat dinner with his wife."
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Moreno family's house",
         "Tom and Jane Moreno's bedroom"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Moreno family's house": {

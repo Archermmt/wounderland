@@ -848,6 +848,8 @@ Summarize the conversation above in one short sentence without comma:
                 "^\d{1}\. (.*)\. \(because of (.*)\)",
                 "^Insight \d{1}: (.*)\. \(Because of (.*)\)",
                 "^Insight \d{1}: (.*)\. \(because of (.*)\)",
+                "^Insight: (.*)\. \(Because of (.*)\)",
+                "^Insight: (.*)\. \(because of (.*)\)",
                 "^\d{1}\. (.*)\.",
                 "^Insight \d{1}: (.*)\.",
             ]

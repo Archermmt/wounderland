@@ -14,13 +14,13 @@
     "daily_plan": "Ayesha Khan goes to the library at Oak Hill College to take classes from 10am to 2pm, and then spends her days studying at the library."
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Dorm for Oak Hill College",
         "Ayesha Khan's room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Oak Hill College": {

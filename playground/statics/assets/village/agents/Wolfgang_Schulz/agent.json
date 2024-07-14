@@ -14,13 +14,13 @@
     "daily_plan": "Wolfgang Schulz goes for a run at the part in the morning, studies during the day, and exercises at his room at night "
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Dorm for Oak Hill College",
         "Wolfgang Schulz's room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Oak Hill College": {

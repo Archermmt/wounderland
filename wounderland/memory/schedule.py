@@ -75,7 +75,7 @@ class Schedule:
 
     def decompose(self, plan):
         d_plan = plan.get("decompose", {})
-        if len(d_plan) > self.diversity:
+        if len(d_plan) > 0:
             return False
         describe = plan["describe"]
         if "sleep" not in describe and "bed" not in describe:

@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "artist's co-living space",
         "Hailey Johnson's room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "artist's co-living space": {

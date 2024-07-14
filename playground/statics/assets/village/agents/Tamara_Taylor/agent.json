@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Tamara Taylor and Carmen Ortiz's house",
         "Tamara Taylor's room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Tamara Taylor and Carmen Ortiz's house": {

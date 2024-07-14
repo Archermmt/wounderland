@@ -577,6 +577,7 @@ class Agent:
             poignancy = self.completion("poignancy_chat", event)
         else:
             poignancy = self.completion("poignancy_event", event)
+        self.logger.debug("{} add associate {}".format(self.name, event))
         return self.associate.add_node(
             e_type,
             event,

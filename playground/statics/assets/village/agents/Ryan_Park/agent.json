@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Ryan Park's apartment",
         "main room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Ryan Park's apartment": {
