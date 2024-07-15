@@ -14,13 +14,13 @@
     "daily_plan": "Carmen opens Harvey Oak Supply Store at 8am, stands behind its counter, and closes it at 6pm, at which point, she likes to go to The Rose and Crown Pub to relax"
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Tamara Taylor and Carmen Ortiz's house",
         "Carmen Ortiz's room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Tamara Taylor and Carmen Ortiz's house": {
@@ -91,12 +91,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

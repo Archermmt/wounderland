@@ -75,9 +75,13 @@ class LlamaIndex:
             raise NotImplementedError(
                 "embedding type {} is not supported".format(embedding["type"])
             )
+        print(
+            "[TMINFO] create serice context @ {}".format(utils.get_timer().get_date())
+        )
         service_context = index_core.ServiceContext.from_defaults(
             llm=QueryLLM(llm=llm), embed_model=embed_model, chunk_size=1024
         )
+        print("[TMINFO] load index {}".format(utils.get_timer().get_date()))
         if path and os.path.exists(path):
             self._index = index_core.load_index_from_storage(
                 index_core.StorageContext.from_defaults(persist_dir=path),

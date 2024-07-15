@@ -77,7 +77,10 @@
         "att_bandwidth": 8
     },
     "think": {
-        "mode": "random",
+        "mode": "llm",
+        "llm": {
+            "model": "Yi-34B-Chat"
+        },
         "interval": 1000,
         "poignancy_max": 150
     },

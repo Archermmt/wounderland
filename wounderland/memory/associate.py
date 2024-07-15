@@ -1,14 +1,11 @@
 """wounderland.memory.associate"""
 
 import datetime
-from typing import List
-from llama_index.core import QueryBundle
-from llama_index.core.schema import NodeWithScore
 from llama_index.core.retrievers import BaseRetriever
 from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
 from llama_index.core.indices.vector_store.retrievers import VectorIndexRetriever
+from wounderland.storage.index import LlamaIndex
 
-from wounderland.storage import LlamaIndex
 from wounderland import utils
 from .event import Event
 
@@ -82,7 +79,7 @@ class AssociateRetriever(BaseRetriever):
         self._vector_retriever = VectorIndexRetriever(*args, **kwargs)
         super().__init__()
 
-    def _retrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
+    def _retrieve(self, query_bundle):
         """Retrieve nodes given query."""
 
         nodes = self._vector_retriever.retrieve(query_bundle)
@@ -138,9 +135,12 @@ class Associate:
         memory=None,
     ):
         self._index_config = {"embedding": embedding, "path": path}
+        print("[TMINFO] creating index @ {}".format(utils.get_timer().get_date()))
         self._index = LlamaIndex(**self._index_config)
         self.memory = memory or {"event": [], "thought": [], "chat": []}
+        print("[TMINFO] cleanup @ {}".format(utils.get_timer().get_date()))
         self.cleanup_index()
+        print("[TMINFO] init done @ {}".format(utils.get_timer().get_date()))
         self.retention = retention
         self.max_memory = max_memory
         self.max_importance = max_importance
@@ -225,8 +225,9 @@ class Associate:
     def retrieve_thoughts(self, text=None):
         return self._retrieve_nodes("thought", text)
 
-    def retrieve_chats(self, name):
-        return self._retrieve_nodes("chat", "chat with " + name)
+    def retrieve_chats(self, name=None):
+        text = ("chat with " + name) if name else None
+        return self._retrieve_nodes("chat", text)
 
     def retrieve_focus(self, focus, retrieve_max=30, reduce_all=True):
         def _create_retriever(*args, **kwargs):

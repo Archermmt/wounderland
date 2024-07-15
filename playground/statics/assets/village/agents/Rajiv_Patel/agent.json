@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "artist's co-living space",
         "Rajiv Patel's room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "artist's co-living space": {
@@ -100,12 +100,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

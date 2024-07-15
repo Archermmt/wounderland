@@ -43,6 +43,8 @@ class Agent:
         # action and events
         if "action" in config:
             self.action = memory.Action.from_dict(config["action"])
+            tiles = self.maze.get_address_tiles(self.get_event().address)
+            config["coord"] = random.choice(list(tiles))
         else:
             tile = self.maze.tile_at(config["coord"])
             address = tile.get_address("game_object", as_list=True)
@@ -291,8 +293,11 @@ class Agent:
         # get concepts
         self.concepts, valid_num = [], 0
         for idx, event in enumerate(events[: self.percept_config["att_bandwidth"]]):
-            recent_events = set(n.describe for n in self.associate.retrieve_events())
-            if event.get_describe() not in recent_events:
+            recent_nodes = (
+                self.associate.retrieve_events() + self.associate.retrieve_chats()
+            )
+            recent_nodes = set(n.describe for n in recent_nodes)
+            if event.get_describe() not in recent_nodes:
                 if event.object == "idle":
                     node = Concept.from_event(
                         "idle_" + str(idx), "event", event, poignancy=1
@@ -365,19 +370,17 @@ class Agent:
         self.chats = []
 
     def find_path(self, agents):
+        address = self.get_event().address
         if not self.is_awake():
             return []
         if self.path:
             return self.path
-        address = self.get_event().address
         if address == self.get_tile().get_address():
             return []
         if address[0] == "<waiting>":
             return []
         if address[0] == "<persona>":
             target_tiles = self.maze.get_around(agents[address[1]].coord)
-        elif address[-1] == "<random>":
-            target_tiles = self.maze.get_address_tiles(address[:-1])
         else:
             target_tiles = self.maze.get_address_tiles(address)
 
@@ -614,11 +617,5 @@ class Agent:
             "currently": self.scratch.currently,
         }
         if with_action:
-            info.update(
-                {
-                    "coord": self.coord,
-                    "path": self.plan.get("path", []),
-                    "action": self.action.to_dict(),
-                }
-            )
+            info.update({"action": self.action.to_dict()})
         return info

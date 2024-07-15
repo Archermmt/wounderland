@@ -14,13 +14,13 @@
     "daily_plan": "Eddy Lin goes to Oak Hill College to take classes starting 10am. In the afternoon, he likes to go to Hobbs Cafe to eat and study."
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Lin family's house",
         "Eddy Lin's bedroom"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Lin family's house": {
@@ -104,12 +104,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

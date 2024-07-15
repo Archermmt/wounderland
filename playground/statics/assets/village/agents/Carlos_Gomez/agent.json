@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Carlos Gomez's apartment",
         "main room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Carlos Gomez's apartment": {
@@ -90,12 +90,6 @@
           "hallway": []
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

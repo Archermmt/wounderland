@@ -14,13 +14,13 @@
     "daily_plan": "Arthur Burton opens The Rose and Crown Pub at 5pm everyday, and stands at the counter until 10pm, at which point he closes the bar."
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Arthur Burton's apartment",
         "main room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Arthur Burton's apartment": {
@@ -82,12 +82,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

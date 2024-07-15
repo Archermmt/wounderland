@@ -14,13 +14,13 @@
     "daily_plan": "Mei Lin goes to Oak Hill college to teach starting 10 am, teaches until 2pm, and returns home to work."
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Lin family's house",
         "Mei and John Lin's bedroom"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Lin family's house": {
@@ -104,12 +104,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Moreno family's house",
         "Tom and Jane Moreno's bedroom"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Moreno family's house": {
@@ -88,12 +88,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

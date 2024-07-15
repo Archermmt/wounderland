@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Ryan Park's apartment",
         "main room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Ryan Park's apartment": {
@@ -87,12 +87,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

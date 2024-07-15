@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Yuriko Yamamoto's house",
         "main room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Johnson Park": {
@@ -83,12 +83,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }

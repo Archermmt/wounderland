@@ -516,7 +516,8 @@ Action description: {describe}
 Emoji: """
 
         def _callback(response):
-            return parse_llm_output(response, "Emoji: (.*)")[:3] or "🦁"
+            output = parse_llm_output(response, "Emoji: (.*)")[:3] or "🦁"
+            return output.replace(" ", "")
 
         return {"prompt": prompt, "callback": _callback, "failsafe": "🦁", "retry": 1}
 

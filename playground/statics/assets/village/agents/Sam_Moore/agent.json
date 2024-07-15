@@ -14,13 +14,13 @@
     "daily_plan": "Sam Moore likes to talk a walk around Johnson Park, and sit at Hobbs cafe reading."
   },
   "spatial": {
-    "address": {
-      "living_area": [
+    "living_area": [
+      [
         "the Ville",
         "Moore family's house",
         "main room"
       ]
-    },
+    ],
     "tree": {
       "the Ville": {
         "Moore family's house": {
@@ -72,12 +72,6 @@
           ]
         }
       }
-    }
-  },
-  "think": {
-    "mode": "llm",
-    "llm": {
-      "model": "Yi-34B-Chat"
     }
   }
 }
