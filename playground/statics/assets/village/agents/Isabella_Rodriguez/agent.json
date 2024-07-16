@@ -14,13 +14,13 @@
     "daily_plan": "Isabella Rodriguez opens Hobbs Cafe at 8am everyday, and stands at the counter until 8pm, at which point she closes the cafe."
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Isabella Rodriguez's apartment",
         "main room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Hobbs Cafe": {

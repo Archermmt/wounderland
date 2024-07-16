@@ -37,6 +37,7 @@ class Game:
             )
             if agent.get("update"):
                 agent_config = utils.update_dict(agent_config, agent["update"])
+
             agent_config["storage_root"] = os.path.join(storage_root, name)
             self.agents[name] = Agent(agent_config, self.maze, self.logger)
         self.user = None

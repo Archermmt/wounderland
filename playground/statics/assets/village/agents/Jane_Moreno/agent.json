@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Moreno family's house",
         "Tom and Jane Moreno's bedroom"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Moreno family's house": {

@@ -14,13 +14,13 @@
     "daily_plan": ""
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Adam Smith's house",
         "main room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Adam Smith's house": {

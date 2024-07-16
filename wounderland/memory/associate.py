@@ -135,12 +135,9 @@ class Associate:
         memory=None,
     ):
         self._index_config = {"embedding": embedding, "path": path}
-        print("[TMINFO] creating index @ {}".format(utils.get_timer().get_date()))
         self._index = LlamaIndex(**self._index_config)
         self.memory = memory or {"event": [], "thought": [], "chat": []}
-        print("[TMINFO] cleanup @ {}".format(utils.get_timer().get_date()))
         self.cleanup_index()
-        print("[TMINFO] init done @ {}".format(utils.get_timer().get_date()))
         self.retention = retention
         self.max_memory = max_memory
         self.max_importance = max_importance

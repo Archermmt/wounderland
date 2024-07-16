@@ -175,7 +175,7 @@ class Agent:
                         self.coord, memory.Event(addr[-1], address=addr)
                     )
                 events.update({e: self.coord for e in tile.get_events()})
-            if not path:
+            if not self.path:
                 events.update(_update_tile(coord))
             self.coord = coord
             self.path = path or []
@@ -265,10 +265,8 @@ class Agent:
             plan["decompose"] = decompose
         return self.schedule.current_plan()
 
-    def revise_schedule(self, event, start, duration, act_type="event"):
-        self.action = memory.Action(
-            event, act_type=act_type, start=start, duration=duration
-        )
+    def revise_schedule(self, event, start, duration):
+        self.action = memory.Action(event, start=start, duration=duration)
         plan, _ = self.schedule.current_plan()
         plan["decompose"] = self.completion(
             "schedule_revise", self.action, self.schedule
@@ -493,7 +491,9 @@ class Agent:
             return False
         if other.path:
             return False
-        if self.action.act_type == "chat" or other.action.act_type == "chat":
+        if self.get_event().fit(predicate="chat with") or other.get_event().fit(
+            predicate="chat with"
+        ):
             return False
         chats = self.associate.retrieve_chats(other.name)
         if chats and utils.get_timer().get_delta(chats[0].expire) < 60:
@@ -525,13 +525,12 @@ class Agent:
                 "\n  ".join(["{}: {}".format(n, c) for n, c in chats]),
             )
         )
-        self.chats.extend(chats)
         chat_summary = self.completion("summarize_chats", chats)
         duration = int(sum([len(c[1]) for c in chats]) / 240)
         self.schedule_chat(
-            chat_summary, start, duration, other, ["<persona>", other.name]
+            chats, chat_summary, start, duration, other, ["<persona>", other.name]
         )
-        other.schedule_chat(chat_summary, start, duration, self)
+        other.schedule_chat(chats, chat_summary, start, duration, self)
         return True
 
     def _wait_other(self, other, focus):
@@ -555,7 +554,8 @@ class Agent:
         )
         self.revise_schedule(event, start, duration)
 
-    def schedule_chat(self, chats_summary, start, duration, other, address=None):
+    def schedule_chat(self, chats, chats_summary, start, duration, other, address=None):
+        self.chats.extend(chats)
         event = memory.Event(
             self.name,
             "chat with",
@@ -564,7 +564,7 @@ class Agent:
             address=address or self.get_tile().get_address(),
             emoji="💬",
         )
-        self.revise_schedule(event, start, duration, act_type="chat")
+        self.revise_schedule(event, start, duration)
 
     def _add_concept(
         self,

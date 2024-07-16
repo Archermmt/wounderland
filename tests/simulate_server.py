@@ -51,7 +51,6 @@ class SimulateServer:
 
     def simulate(self, step, stride=0):
         timer = utils.get_timer()
-        move_num = step * 30
         for i in range(self.start_step, self.start_step + step):
             title = "Simulate Step[{}/{}]".format(i, self.start_step + step)
             self.logger.info("\n" + utils.split_line(title, "="))
@@ -61,10 +60,7 @@ class SimulateServer:
                 if name not in self.ckpt["agents"]:
                     self.ckpt["agents"][name] = {}
                 self.ckpt["agents"][name].update(agent.to_dict())
-                if len(plan["path"]) > move_num:
-                    status["coord"] = plan["path"][move_num]
-                    status["path"] = plan["path"][move_num + 1 :]
-                elif plan["path"]:
+                if plan.get("path"):
                     status["coord"], status["path"] = plan["path"][-1], []
                 self.ckpt["agents"][name].update(
                     {"coord": status["coord"], "path": status["path"]}

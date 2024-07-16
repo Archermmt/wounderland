@@ -10,13 +10,11 @@ class Action:
         self,
         event,
         obj_event=None,
-        act_type="action",
         start=None,
         duration=0,
     ):
         self.event = event
         self.obj_event = obj_event
-        self.act_type = act_type
         self.start = start or utils.get_timer().get_date()
         self.duration = duration
         self.end = self.start + datetime.timedelta(minutes=self.duration)
@@ -27,7 +25,7 @@ class Action:
             self.start.strftime("%Y%m%d-%H:%M"),
             self.end.strftime("%Y%m%d-%H:%M"),
         )
-        info = {"status": status, "event({})".format(self.act_type): str(self.event)}
+        info = {"status": status, "event": str(self.event)}
         if self.obj_event:
             info["object"] = str(self.obj_event)
         return info
@@ -46,7 +44,6 @@ class Action:
         return {
             "event": self.event.to_dict(),
             "obj_event": self.obj_event.to_dict() if self.obj_event else None,
-            "act_type": self.act_type,
             "start": self.start.strftime("%Y%m%d-%H:%M:%S"),
             "duration": self.duration,
         }

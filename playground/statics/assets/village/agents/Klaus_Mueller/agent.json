@@ -14,13 +14,13 @@
     "daily_plan": "Klaus Mueller goes to the library at Oak Hill College early in the morning, spends his days writing, and eats at Hobbs Cafe."
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Dorm for Oak Hill College",
         "Klaus Mueller's room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Oak Hill College": {

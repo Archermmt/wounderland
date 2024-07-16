@@ -14,13 +14,13 @@
     "daily_plan": "Maria Lopez spends at least 6 hours a day Twitch streaming or gaming."
   },
   "spatial": {
-    "living_area": [
-      [
+    "address": {
+      "living_area": [
         "the Ville",
         "Dorm for Oak Hill College",
         "Maria Lopez's room"
       ]
-    ],
+    },
     "tree": {
       "the Ville": {
         "Oak Hill College": {
