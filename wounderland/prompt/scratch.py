@@ -545,8 +545,6 @@ Output: (<Merrie Morris>, <run>, <treadmill>)
 Input: {describe}.
 Output: (<"""
 
-        # TMINFO debug only
-        # Given the examples above, please turn the input into format (<subject>, <predicate>, <object>):
         e_describe = describe
         if e_describe.startswith(subject + " is "):
             e_describe = e_describe.replace(subject + " is ", "")
@@ -859,7 +857,7 @@ Summarize the conversation above in one short sentence without comma:
             )
             if outputs:
                 for output in outputs:
-                    if len(output) == 1:
+                    if isinstance(output, str):
                         insight, node_ids = output, []
                     elif len(output) == 2:
                         insight, reason = output
