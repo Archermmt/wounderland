@@ -4,3 +4,4 @@ qianfan==0.3.3
 zhipuai==2.0.1
 spark-ai-python==0.3.15
 llama-index==0.10.46
+llama-index-embeddings-huggingface==0.2.2
