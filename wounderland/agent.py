@@ -175,7 +175,7 @@ class Agent:
                         self.coord, memory.Event(addr[-1], address=addr)
                     )
                 events.update({e: self.coord for e in tile.get_events()})
-            if not self.path:
+            if not path:
                 events.update(_update_tile(coord))
             self.coord = coord
             self.path = path or []
