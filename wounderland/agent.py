@@ -381,6 +381,8 @@ class Agent:
             target_tiles = self.maze.get_around(agents[address[1]].coord)
         else:
             target_tiles = self.maze.get_address_tiles(address)
+        if tuple(self.coord) in target_tiles:
+            return []
 
         # filter tile with self event
         def _ignore_target(t_coord):
@@ -496,8 +498,15 @@ class Agent:
         ):
             return False
         chats = self.associate.retrieve_chats(other.name)
-        if chats and utils.get_timer().get_delta(chats[0].expire) < 60:
-            return False
+        if chats:
+            delta = utils.get_timer().get_delta(chats[0].create)
+            self.logger.info(
+                "retrieved chat between {} and {}({} min):\n{}".format(
+                    self.name, other.name, delta, chats[0]
+                )
+            )
+            if delta < 60:
+                return False
         if not self.completion("decide_chat", self, other, focus, chats):
             return False
         self.logger.info("{} decides chat with {}".format(self.name, other.name))

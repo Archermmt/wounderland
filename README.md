@@ -8,9 +8,9 @@ To test the agents in village, 2 ways are provided:
 
 1. simulate with frontend
 1.1 setup django (only the first time you start the project):
-    cd playground && python manage.py makemigrations && python mange.py migrate
+    cd playground && python manage.py makemigrations && python manage.py migrate
 1.2 start server
-    cd playground && python manager.py runserver
+    cd playground && python manage.py runserver
 1.3 setup llm keys
     Visit the server in browser (e.g. http://127.0.0.1:8000/village). Now the agent think and move randomly in the village.
     To enable the agent with llm "brain", please follow the following steps:

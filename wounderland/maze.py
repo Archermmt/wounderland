@@ -166,11 +166,8 @@ class Maze:
         tile = self.tile_at(coord)
         if not tile.has_address("game_object"):
             return
-        assert obj_event.address == tile.get_address(
-            "game_object"
-        ), "address {} and {} mismatch".format(
-            obj_event.address, tile.get_address("game_object")
-        )
+        if obj_event.address != tile.get_address("game_object"):
+            return
         addr = ":".join(obj_event.address)
         if addr not in self.address_tiles:
             return

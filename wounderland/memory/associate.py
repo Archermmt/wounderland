@@ -151,7 +151,7 @@ class Associate:
     def abstract(self):
         des = {"nodes": self._index.nodes_num}
         for t in ["event", "chat", "thought"]:
-            des[t] = len(self.memory[t])
+            des[t] = [self.find_concept(c).describe for c in self.memory[t]]
         return des
 
     def __str__(self):
