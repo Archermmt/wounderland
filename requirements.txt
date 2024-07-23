@@ -1,5 +1,6 @@
+tenacity==8.3.0
 django==2.2
-openai==1.13.3
+openai==1.14.0
 qianfan==0.3.3
 zhipuai==2.0.1
 spark-ai-python==0.3.15
