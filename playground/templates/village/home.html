@@ -168,7 +168,7 @@
         el: '#msg',
         data: {
             parent: "phaser-canvas",
-            assets_root: "{% static '' %}",
+            assets_root: "{% static '' %}".replace(/\/$/, ""), // avoid the "//" in address like http://127.0.0.1:8000/static//assets/village/tilemap/tilemap.json
             urls: {
                 start_game: "{% url 'start_game' %}",
                 agent_think: "{% url 'agent_think' %}",
